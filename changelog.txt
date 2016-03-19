@@ -1,0 +1,69 @@
+[B]1.0-beta5[/B]
+- New: Added support for running in the background. 
+- Fix: Crashes on Linux and OSX during shutdown.
+- Fix: Conflicts with script.cu.lrclyrics.
+- Fix: Music was muted randomly if crossfade enabled.
+- Fix: Slightly faster playlist list loading.
+- Fix: The menu was focused instead of the list randomly.
+- Fix: Focus was lost when playback ended while on now playing view.
+- Fix: Random crashes on arm hard float due to wrong lib shipped.
+- Fix: Useless debug information got printed to the log file.
+- Fix: Random clicks were heard when changing tracks.
+- Fix: Added default cover image for albums with no cover.
+- Fix: Installation issues on XBMC Gotham.
+
+[B]1.0-beta4[/B]
+- Fix: Album covers were not displayed on remote apps (again).
+- Fix: Crash when startup view was set to playlists.
+- Fix: Freeze/skip effect when attempting to play unavailable tracks.
+- Fix: Incomplete gui state when returning from music vis.
+- Fix: Wrong reporting of current track on some situations.
+- Fix: Freezes when starting playback from another device.
+- Fix: Playback issues on XBMC 12.1.
+- Fix: Tracks got silenced/skipped sporadically on the first seconds.
+- New: Added hard float armv6 lib.
+- New: Use hi-res album cover art.
+
+[B]1.0-beta3[/B]
+- Fix: Initialization errors on Linux x86.
+- Fix: crashes when starting playback.
+- Fix: Expired premium accounts were not correctly handled.
+- Fix: Album covers were not displayed on remote apps.
+- Fix: Locked gui if connection failed on startup.
+
+[B]1.0-beta2[/B]
+- New: Updated libspotify to v12.
+- New: Handle play and context menu buttons from remotes.
+- New: [B]EXPERIMENTAL[/B] support for the Raspberry PI.
+- New: Focusable scrollbars for faster list scrolling.
+- New: Added "play" and "set current" context menu actions.
+- Fix: Long track startup delay on slow hardware.
+- Fix: Shuffle needed to be enabled after every playback start.
+- Fix: Playlist refresh resetted cursor position.
+- Fix: Small fonts with 1080p skins.
+- Fix: Usability issues with touchscreen and mouse.
+
+[B]1.0-beta1[/B]
+- Fix: Login worked only for the first time on OSX and Linux.
+- Fix: Freeze on exit if playing audio.
+- Fix: Slightly faster switching of tracks.
+- Fix: Conflicts with system packages on startup.
+- Fix: Buffer underruns with crossfade enabled.
+- Fix: Issues with default layout of certain skins.
+- Fix: Tracks got skipped with certain remotes and skins.
+- New: Added a config option to choose startup screen.
+
+[B]0.1-alpha5[/B]
+- Fix: Crashes with reFocus and Cirrus skins during initialization.
+- Fix: UI issues with Transparency! on certain platforms.
+- Fix: Infinite need-to-restart loops on startup.
+- Fix: Premature end of random tracks.
+- Fix: Crash and unresponsive UI when browsing playlists.
+- Fix: Non-square album covers were scaled badly.
+
+[B]0.1-alpha4[/B]
+- Fix: Now playing view disappeared when playback was paused.
+- Fix: Wrong version identifier in addon.xml.
+
+[B]0.1-alpha3[/B]
+- Initial public release.

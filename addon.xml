@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="plugin.audio.spotify" version="1.0.0" name="Spotify Unofficial" provider-name="marcelveldt">
+    <requires>
+        <import addon="xbmc.python" version="2.1.0"/>
+        <import addon="script.module.requests" version="2.3.0"/>
+        <import addon="script.module.simplejson" version="3.3.0"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="plugin.py">
+		<provides>audio</provides>
+	</extension>
+    <!-- <extension library="service.py" point="xbmc.service" start="login" /> -->
+    <extension point="xbmc.addon.metadata">
+        <platform>all</platform>
+        <summary>Unofficial Spotify music plugin for Kodi</summary>
+        <description>Requires a Spotify premium account.</description>
+        <disclaimer>This product uses SPOTIFY(R) CORE but is not endorsed, certified or otherwise approved in any way by Spotify. Spotify is the registered trade mark of the Spotify Group.</disclaimer>
+    </extension>
+</addon>
