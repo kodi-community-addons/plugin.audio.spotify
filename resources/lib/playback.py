@@ -1,48 +1,14 @@
-'''
-Copyright 2011 Mikel Azkolain
-
-This file is part of Spotify.
-
-Spotify is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Spotify is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with Spotify.  If not, see <http://www.gnu.org/licenses/>.
-'''
-
-
-import xbmc
-import xbmcgui
+# -*- coding: utf8 -*-
+from __future__ import print_function, unicode_literals
+from utils import *
 from spotify import link, track, image
 import time
-from __main__ import ADDON_VERSION
 import math
 import random
-import utils
 from taskutils.decorators import run_in_thread
 from taskutils.threads import current_task
 from spotify.utils.loaders import load_track
 import re
-
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
-
-    
-    
-    
 
 class PlaylistManager:
     __server_port = None
@@ -150,7 +116,7 @@ class PlaylistManager:
 
             #Get track attributes
             album = track_obj.album().name()
-            artist = ', '.join([artist.name() for artist
+            artist = ' / '.join([artist.name().decode("utf-8") for artist
                                 in track_obj.artists()])
             normal_image, large_image = self._get_track_images(
                 track_obj, session)
@@ -225,20 +191,9 @@ class PlaylistManager:
         #Get it directly from a boolean tag (if possible)
         if self.is_playing() and len(self.__playlist) > 0:
             return xbmc.getCondVisibility('Playlist.IsRandom')
-
-        #Otherwise read it from guisettings.xml
         else:
-            try:
-                reader = settings.GuiSettingsReader()
-                value = reader.get_setting('settings.mymusic.playlist.shuffle')
-                return value == 'true'
+            return False
 
-            except:
-                xbmc.log(
-                    'Failed reading shuffle setting.',
-                    xbmc.LOGERROR
-                )
-                return False
 
     @run_in_thread(max_concurrency=1)
     def _set_tracks(self, track_list, session, omit_offset):

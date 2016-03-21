@@ -1,29 +1,32 @@
-'''
-Copyright 2011 Mikel Azkolain
-
-This file is part of Spotify.
-
-Spotify is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Spotify is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with Spotify.  If not, see <http://www.gnu.org/licenses/>.
-'''
-
-
-import xbmc,xbmcaddon,xbmcgui
-from __main__ import ADDON_VERSION, ADDON_PATH,SETTING,ADDON_NAME,ADDON_ID
-import sys,os.path,platform
+# -*- coding: utf8 -*-
+from __future__ import print_function, unicode_literals
+import xbmc,xbmcaddon,xbmcgui,xbmcplugin
+import sys,os.path,platform,logging
 import xml.etree.ElementTree as ET
 from traceback import print_exc
+ADDON = xbmcaddon.Addon('plugin.audio.spotify')
+ADDON_ID = ADDON.getAddonInfo('id').decode("utf-8")
+ADDON_NAME = ADDON.getAddonInfo('name').decode("utf-8")
+ADDON_PATH = ADDON.getAddonInfo('path').decode("utf-8")
+ADDON_VERSION = ADDON.getAddonInfo('version').decode("utf-8")
+ADDON_DATA_PATH = xbmc.translatePath("special://profile/addon_data/%s" % ADDON_ID).decode("utf-8")
+KODI_VERSION  = int(xbmc.getInfoLabel( "System.BuildVersion" ).split(".")[0])
+WINDOW = xbmcgui.Window(10000)
+SETTING = ADDON.getSetting
+SAVESETTING = ADDON.setSetting
 
+try: from urlparse import urlparse
+except: from urllib.parse import urlparse
+try: from urllib import urlencode
+except: from urllib.parse import urlencode
+    
+try: 
+    from multiprocessing.pool import ThreadPool as Pool
+    supportsPool = True
+except: supportsPool = False
+
+try: import simplejson as json
+except: import json
 
 def logMsg(msg, level = 1):
     if isinstance(msg, unicode):
@@ -33,128 +36,19 @@ def logMsg(msg, level = 1):
         print_exc()
     else: 
         xbmc.log("%s --> %s" %(ADDON_NAME,msg), level=xbmc.LOGNOTICE)
+     
+def getJSON(method,params):
+    json_response = xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method" : "%s", "params": %s, "id":1 }' %(method, params.encode("utf-8")))
+    jsonobject = json.loads(json_response.decode('utf-8','replace'))
+    if(jsonobject.has_key('result')):
+        return jsonobject['result']
+    else:
+        logMsg("getJson - empty result for Method %s - params: %s - response: %s" %(method,params, str(jsonobject))) 
+        return {}
 
-class CacheManagement:
-    Automatic = 0
-    Manual = 1
-
-
-class StreamQuality:
-    Low = 0
-    Medium = 1
-    High = 2
-
-
-class StartupScreen:
-    NewStuff = 0
-    Playlists = 1
-
-
-class SettingsManager:
-    __addon = None
-
-    def __init__(self):
-        self.__addon = xbmcaddon.Addon(id=ADDON_ID)
-
-    def _get_setting(self, name):
-        return self.__addon.getSetting(name)
-
-    def _set_setting(self, name, value):
-        return self.__addon.setSetting(name, value)
-
-    def get_addon_obj(self):
-        return self.__addon
-
-    def get_legal_warning_shown(self):
-        return self._get_setting('_legal_warning_shown') == 'true'
-
-    def set_legal_warning_shown(self, status):
-        if status:
-            str_status = 'true'
-        else:
-            str_status = 'false'
-
-        return self._set_setting('_legal_warning_shown', str_status)
-
-    def get_last_run_version(self):
-        return self._get_setting('_last_run_version')
-
-    def set_last_run_version(self, version):
-        return self._set_setting('_last_run_version', version)
-
-    def get_cache_status(self):
-        return self._get_setting('general_cache_enable') == 'true'
-
-    def get_cache_management(self):
-        return int(self._get_setting('general_cache_management'))
-
-    def get_cache_size(self):
-        return int(float(self._get_setting('general_cache_size')))
-
-    def get_audio_hide_unplayable(self):
-        return self._get_setting('audio_hide_unplayable') == 'true'
-
-    def get_audio_normalize(self):
-        return self._get_setting('audio_normalize') == 'true'
-
-    def get_audio_quality(self):
-        return int(self._get_setting('audio_quality'))
-
-    def get_misc_startup_screen(self):
-        return int(self._get_setting('misc_startup_screen'))
-
-    def show_dialog(self):
-        #Show the dialog
-        self.__addon.openSettings()
-
-
-class GuiSettingsReader:
-    __guisettings_doc = None
-
-    def __init__(self):
-        settings_path = xbmc.translatePath('special://profile/guisettings.xml')
-        self.__guisettings_doc = ET.parse(settings_path)
-
-    def get_setting(self, query):
-        #Check if the argument is valid
-        if query == '':
-            raise KeyError()
-
-        #Get the steps to the node
-        step_list = query.split('.')
-        root_tag = step_list[0]
-
-        if len(step_list) > 1:
-            path_remainder = '/'.join(step_list[1:])
-        else:
-            path_remainder = ''
-
-        #Fail if the first tag does not match with the root
-        if self.__guisettings_doc.getroot().tag != root_tag:
-            raise KeyError()
-
-        #Fail also if the element is not found
-        el = self.__guisettings_doc.find(path_remainder)
-        if el is None:
-            raise KeyError()
-
-        return el.text
-
-def set_library_paths():
-    #Set local library paths
-    libs_dir = os.path.join(__addon_path__, "resources/lib")
-    sys.path.insert(0, libs_dir)
-    sys.path.insert(0, os.path.join(libs_dir, "xbmc-skinutils/src"))
-    sys.path.insert(0, os.path.join(libs_dir, "cherrypy"))
-    sys.path.insert(0, os.path.join(libs_dir, "taskutils/src"))
-    sys.path.insert(0, os.path.join(libs_dir, "pyspotify-ctypes/src"))
-    sys.path.insert(0, os.path.join(libs_dir, "pyspotify-ctypes-proxy/src"))
-
-
-def has_background_support():
-    return True
-
-
+def getChunks(data, chunksize):
+    return[data[x:x+chunksize] for x in xrange(0, len(data), chunksize)]     
+ 
 def get_architecture():
     try:
         machine = platform.machine()
@@ -169,7 +63,17 @@ def get_architecture():
     except:
         return None
 
-
+def check_dirs():
+    if not os.path.exists(ADDON_DATA_PATH):
+        os.makedirs(ADDON_DATA_PATH)
+    sp_cache_dir = os.path.join(ADDON_DATA_PATH, 'libspotify/cache')
+    sp_settings_dir = os.path.join(ADDON_DATA_PATH, 'libspotify/settings')
+    if not os.path.exists(sp_cache_dir):
+        os.makedirs(sp_cache_dir)
+    if not os.path.exists(sp_settings_dir):
+        os.makedirs(sp_settings_dir)
+    return (ADDON_DATA_PATH, sp_cache_dir, sp_settings_dir)
+        
 def add_dll_path(path):
     #Build the full path and publish it
     full_path = os.path.join(ADDON_PATH, path)
@@ -205,6 +109,28 @@ def set_dll_paths(base_dir):
     else:
         raise OSError('Sorry, this platform is not supported.')
 
+_trans_table = {
+    logging.DEBUG: xbmc.LOGDEBUG,
+    logging.INFO: xbmc.LOGINFO,
+    logging.WARNING: xbmc.LOGWARNING,
+    logging.ERROR: xbmc.LOGERROR,
+    logging.CRITICAL: xbmc.LOGSEVERE,
+}
+
+
+class XbmcHandler(logging.Handler):
+    def emit(self, record):
+        xbmc_level = _trans_table[record.levelno]
+        xbmc.log(record.msg, xbmc_level)
+
+def setup_logging():
+    handler = XbmcHandler()
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+
+def get_logger():
+    return logging.getLogger('Spotify')
+        
 appkey = [
     0x01, 0xBD, 0x09, 0xB2, 0x73, 0xD4, 0x86, 0x11, 0x01, 0x5A, 0xAA, 0x6C, 0xA4, 0xFA, 0x93, 0x48,
     0x3D, 0x9B, 0x67, 0xEB, 0xA8, 0x44, 0x1C, 0x1F, 0x28, 0xD5, 0x0B, 0x22, 0x29, 0xD7, 0x5A, 0xE2,

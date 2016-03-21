@@ -1,29 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-	<!-- Some hidden settings -->
-	<setting id="_legal_warning_shown" type="bool" label="Legal Warning Shown" option="hidden" default="false" />
-	<setting id="_last_run_version" type="text" label="Last Run Version" option="hidden" default="" />
-    
-    <category label="Login">
-		<setting id="username" type="text" label="Username" default="" />
-		<setting id="password" type="text" label="Password" default="" />
+    <category label="11000">
+        <setting label="11200" type="lsep"/>
+        <setting id="username" type="text" label="11001" default=""/>
+        <setting id="password" type="text" option="hidden" label="11002" default=""/>
+        <setting label="11100" type="lsep"/>
 	</category>
     
-	<category label="Cache">
-		<setting id="general_cache_enable" type="bool" label="Enable cache" default="true" />
-		<setting label="Cache enable/disable will take effect after restart." type="lsep" />
-		<setting id="general_cache_management" type="enum" label="Cache management" values="Automatic|Manual" enable="eq(-2,true)" default="0" />
-		<setting id="general_cache_size" type="slider" label="Maximum cache size (GB)" range="1,100" enable="eq(-1,1) + eq(-3,true)" visible="eq(-1,1)" option="int" default="1" />
-		<setting label="A maximum of 10% of the available space will be used." type="lsep" visible="eq(-2,0)" enable="eq(-4,true)" />
-	</category>
-
-	<category label="Audio">
-		<setting id="audio_hide_unplayable" type="bool" label="Hide unplayable items" default="true" />
-		<setting id="audio_normalize" type="bool" label="Normalize volume of tracks" default="true" />
-		<setting id="audio_quality" type="enum" label="Stream quality" values="Low (96k)|Medium (160k)|High (320k)" default="1" />
-	</category>
-
-	<category label="Miscellaneous">
-		<setting id="misc_startup_screen" type="enum" label="Startup screen" values="New Stuff|Playlists" default="0" />
-	</category>
 </settings>

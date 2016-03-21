@@ -1,6 +1,5 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
+# -*- coding: utf8 -*-
+from __future__ import print_function, unicode_literals
 import os
 import os.path
 import xbmc
@@ -20,21 +19,7 @@ from spotifyproxy.audio import BufferManager
 from taskutils.decorators import run_in_thread
 from taskutils.threads import TaskManager
 from threading import Event
-from utils import SettingsManager, CacheManagement, StreamQuality, \
-    GuiSettingsReader, logMsg, set_dll_paths, appkey
-from __main__ import ADDON_VERSION, ADDON_PATH,SETTING,WINDOW,SAVESETTING
-from logs import get_logger, setup_logging
-
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
-
-#Cross python version import of urlencode
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
+from utils import *
 
 class Application:
     __vars = None
@@ -111,15 +96,9 @@ class Callbacks(SessionCallbacks):
 
     @run_in_thread
     def play_token_lost(self, session):
-
-        #Cancel the current buffer
         self.__audio_buffer.stop()
-
         if self.__app.has_var('playlist_manager'):
             self.__app.get_var('playlist_manager').stop(False)
-
-        dlg = xbmcgui.Dialog()
-        dlg.ok('Playback stopped', 'This account is in use on another device.')
 
     def end_of_track(self, session):
         self.__audio_buffer.set_track_ended()
@@ -133,12 +112,10 @@ class Callbacks(SessionCallbacks):
             data, num_samples, sample_type, sample_rate, num_channels)
 
     def connectionstate_changed(self, session):
-
-        #Set the apropiate event flag, if available
         self.__app.get_var('connstate_event').set()
         
     def search_complete(self, result):
-        print("search complete")
+        pass
 
 
 class MainLoopRunner(threading.Thread):
@@ -162,62 +139,16 @@ class MainLoopRunner(threading.Thread):
 def get_audio_buffer_size():
     #Base buffer setting will be 10s
     buffer_size = 10
-
     try:
-        reader = GuiSettingsReader()
-        value = reader.get_setting('settings.musicplayer.crossfade')
-        buffer_size += int(value)
-
+        crossfadevalue = getJSON('Settings.GetSettingValue', '{"setting":"musicplayer.crossfade"}')
+        buffer_size += crossfadevalue.get("value")
     except:
-        xbmc.log(
-            'Failed reading crossfade setting. Using default value.',
-            xbmc.LOGERROR
-        )
-
+        logMsg('Failed reading crossfade setting. Using default value.')
     return buffer_size
 
-
-def check_dirs():
-    addon_data_dir = os.path.join(
-        xbmc.translatePath('special://profile/addon_data'),
-        'plugin.audio.spotify'
-    )
-
-    #Auto-create profile dir if it does not exist
-    if not os.path.exists(addon_data_dir):
-        os.makedirs(addon_data_dir)
-
-    #Libspotify cache & settings
-    sp_cache_dir = os.path.join(addon_data_dir, 'libspotify/cache')
-    sp_settings_dir = os.path.join(addon_data_dir, 'libspotify/settings')
-
-    if not os.path.exists(sp_cache_dir):
-        os.makedirs(sp_cache_dir)
-
-    if not os.path.exists(sp_settings_dir):
-        os.makedirs(sp_settings_dir)
-
-    return (addon_data_dir, sp_cache_dir, sp_settings_dir)
-
-
-def set_settings(settings_obj, session):
-    #If cache is enabled set the following one
-    if settings_obj.get_cache_status():
-        if settings_obj.get_cache_management() == CacheManagement.Manual:
-            cache_size_mb = settings_obj.get_cache_size() * 1024
-            session.set_cache_size(cache_size_mb)
-
-    #Bitrate config
-    br_map = {
-        StreamQuality.Low: Bitrate.Rate96k,
-        StreamQuality.Medium: Bitrate.Rate160k,
-        StreamQuality.High: Bitrate.Rate320k,
-    }
-    session.preferred_bitrate(br_map[settings_obj.get_audio_quality()])
-
-    #And volume normalization
-    session.set_volume_normalization(settings_obj.get_audio_normalize())
-
+def set_settings(session):
+    session.preferred_bitrate(Bitrate.Rate320k)
+    session.set_volume_normalization(True)
 
 def do_login(session, app):
     #Get the last error if we have one
@@ -236,27 +167,7 @@ def do_login(session, app):
         status = True
         logMsg( "Cached session found" )
     else:
-        
-        if not username or not password:
-            kb = xbmc.Keyboard('', "Enter username")
-            kb.setHiddenInput(False)
-            kb.doModal()
-            if kb.isConfirmed():
-                value = kb.getText()
-                username = value
-                
-                #also set password
-                kb = xbmc.Keyboard('', "Enter password")
-                kb.setHiddenInput(True)
-                kb.doModal()
-                if kb.isConfirmed():
-                    value = kb.getText()
-                    password = value
-                    
-                    SAVESETTING("username",username)
-                    SAVESETTING("password",password)
-                
-        #do login
+        #do login with stored credentials
         session.login(username, password, True)
 
     return session
@@ -334,13 +245,6 @@ def main():
         #Check needed directories first
         data_dir, cache_dir, settings_dir = check_dirs()
 
-        #Instantiate the settings obj
-        settings_obj = SettingsManager()
-
-        #Don't set cache folder if it's disabled
-        if not settings_obj.get_cache_status():
-            cache_dir = ''
-
         #Initialize spotify stuff
         ml = MainLoop()
         buf = BufferManager(get_audio_buffer_size())
@@ -355,7 +259,7 @@ def main():
         )
         
         #Now that we have a session, set settings
-        set_settings(settings_obj, sess)
+        set_settings(sess)
 
         #Initialize libspotify's main loop handler on a separate thread
         ml_runner = MainLoopRunner(ml, sess)
@@ -380,7 +284,7 @@ def main():
             WINDOW.setProperty("Spotify.ServiceReady","ready")
 
             #wait untill abortrequested
-            while not xbmc.Monitor().abortRequested() and not app.get_var('exit_requested'):
+            while not (xbmc.Monitor().abortRequested() or app.get_var('exit_requested')):
                 trackids = WINDOW.getProperty("Spotify.PlayTrack").decode("utf-8")
                 albumid = WINDOW.getProperty("Spotify.PlayAlbum").decode("utf-8")
                 offsetstr = WINDOW.getProperty("Spotify.PlayOffset").decode("utf-8")
@@ -423,7 +327,7 @@ def main():
             #Logout
             if sess.user() is not None:
                 sess.logout()
-                logout_event.wait(10)
+                logout_event.wait(2)
 
         #Stop main loop
         error = login_get_last_error(app)
