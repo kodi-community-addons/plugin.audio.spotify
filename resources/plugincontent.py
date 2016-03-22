@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
 from utils import *
+add_external_libraries()
 import math
 import urlparse
 import threading, thread
@@ -46,6 +47,7 @@ class Main():
     def play_playlist(self):
         alltracks = []
         count = 0
+        xbmc.executebuiltin( "ActivateWindow(busydialog)" )
         totalitems = self.sp.user_playlist(self.ownerid, self.playlistid,market=self.usercountry,fields="tracks(total)")["tracks"]["total"]
         if self.trackid:
             #add selected song first in the list
@@ -59,6 +61,7 @@ class Main():
                     alltracks.append(item['track']['id'])
         WINDOW.setProperty("Spotify.PlayOffset","%s" %self.offset)
         WINDOW.setProperty("Spotify.PlayTrack",",".join(alltracks))
+        xbmc.executebuiltin( "Dialog.Close(busydialog)" )
         xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
       
     def get_track_rating(self,popularity):
@@ -654,10 +657,11 @@ class Main():
             if self.token:
                 #check background service...
                 if not WINDOW.getProperty("Spotify.ServiceReady"):
-                    xbmc.executebuiltin('RunScript("%s")' % os.path.join(ADDON_PATH, 'service.py'))
+                    #xbmc.executebuiltin('RunScript("%s")' % os.path.join(ADDON_PATH, 'playbackservice.py'))
+                    xbmc.executebuiltin('RunScript(plugin.audio.spotify)')
                     count = 0
                     while not WINDOW.getProperty("Spotify.ServiceReady"):
-                        logMsg("waiting for service...")
+                        logMsg("waiting for service...",True)
                         if count == 30: 
                             break
                         else:
@@ -667,8 +671,6 @@ class Main():
             if WINDOW.getProperty("Spotify.ServiceReady") != "ready" or not self.token:
                 dlg = xbmcgui.Dialog()
                 dlg.ok('Login error', 'Login failed, please correct your username and password and try again. \n' + WINDOW.getProperty("Spotify.Lasterror"))
-                SAVESETTING('username','')
-                SAVESETTING('password','')
                 return False
             else:
                 return True

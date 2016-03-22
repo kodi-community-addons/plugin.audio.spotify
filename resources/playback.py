@@ -5,8 +5,7 @@ from spotify import link, track, image
 import time
 import math
 import random
-from taskutils.decorators import run_in_thread
-from taskutils.threads import current_task
+import thread
 from spotify.utils.loaders import load_track
 import re
 
@@ -19,7 +18,8 @@ class PlaylistManager:
     __a6df109_fix = None
     __server_ip = None
     __player = None
-    __loop_task = None
+    __loop_task_cancel = False
+    __loop_task_running = False
 
     def __init__(self, server):
         self.__server_port = server.get_port()
@@ -35,7 +35,6 @@ class PlaylistManager:
             xbmc_build = xbmc.getInfoLabel("System.BuildVersion")
             self.__user_agent = 'Spotify/{0} (XBMC/{1})'.format(
                 ADDON_VERSION, xbmc_build)
-
         return self.__user_agent
 
     # Unused
@@ -62,7 +61,6 @@ class PlaylistManager:
                 'X-Spotify-Token': str_token
                 }
             self.__url_headers = urlencode(header_dict)
-
         return self.__url_headers
 
     def get_track_url(self, track, list_index=None):
@@ -142,18 +140,10 @@ class PlaylistManager:
             if list_index is not None:
                 item.setProperty('ListIndex', str(list_index))
 
-            if track_obj.is_starred(session):
-                item.setProperty('IsStarred', 'true')
-            else:
-                item.setProperty('IsStarred', 'false')
-
             if self._item_is_playable(session, track_obj):
                 item.setProperty('IsAvailable', 'true')
             else:
                 item.setProperty('IsAvailable', 'false')
-
-            #Rating points, again as a property for the custom stars
-            item.setProperty('RatingPoints', rating_points)
 
             #Tell that analyzing the stream data is discouraged
             item.setProperty('do_not_analyze', 'true')
@@ -163,15 +153,13 @@ class PlaylistManager:
         #Track has errors
         else:
             return '', xbmcgui.ListItem()
-
+    
     def stop(self, block=True):
-        #Stop the stream and wait until it really got stopped
-        #self.__player.stop()
-
-        xbmc.executebuiltin('PlayerControl(stop)')
-
-        while block and self.__player.isPlaying():
-            time.sleep(.1)
+        #Only stop if we're actually playing spotify content
+        if xbmc.getInfoLabel('Player.Filenameandpath').startswith('http://%s:%s' %(self.__server_ip,self.__server_port)):
+            xbmc.executebuiltin('PlayerControl(stop)')
+            while block and self.__player.isPlaying():
+                time.sleep(.1)
 
     def _add_item(self, index, track, session):
         path, info = self.create_track_info(track, session, index)
@@ -194,22 +182,18 @@ class PlaylistManager:
         else:
             return False
 
-
-    @run_in_thread(max_concurrency=1)
     def _set_tracks(self, track_list, session, omit_offset):
-
-        #Set the reference to the loop task
-        self.__loop_task = current_task()
+        self.__loop_task_running = True
 
         #Clear playlist if no offset is given to omit
         if omit_offset is None:
             self.clear()
 
-        #Iterate over the rest of the playlist
         for list_index, track in enumerate(track_list):
 
             #Check if we should continue
-            self.__loop_task.check_status()
+            if self.__loop_task_cancel:
+                break
 
             #Don't add unplayable items to the playlist
             if self._item_is_playable(session, track):
@@ -222,50 +206,37 @@ class PlaylistManager:
             if omit_offset is not None and list_index < omit_offset:
                 self.__playlist.remove('dummy-{0:d}'.format(list_index))
 
-        #Set paylist's shuffle status
         if self.get_shuffle_status():
             self.__playlist.shuffle()
 
-        #Clear the reference to the task
-        self.__loop_task = None
+        self.__loop_task_running = False
+        self.__loop_task_cancel = False
 
     def _cancel_loop(self):
-        if self.__loop_task is not None:
-            try:
-                self.__loop_task.cancel()
-            except:
-                pass
-
+        if self.__loop_task_running:
+            self.__loop_task_running = False
+            
     def set_tracks(self, track_list, session, omit_offset=None):
         self._cancel_loop()
-        self._set_tracks(track_list, session, omit_offset)
-
+        thread.start_new_thread(self._set_tracks, (track_list, session, omit_offset))
+        
     def play(self, track_list, session, offset=None):
         if len(track_list) > 0:
 
-            #Cancel any possible set_tracks() loop
             self._cancel_loop()
-
-            #Get shuffle status
             is_shuffle = self.get_shuffle_status()
-
-            #Clear the old contents
             self.clear()
 
             #If we don't have an offset, get one
             if offset is None:
                 if is_shuffle:
-                    #TODO: Should loop for a playable item
                     offset = random.randint(0, len(track_list) - 1)
                 else:
                     offset = 0
 
             #Check if the selected item is playable
             if not self._item_is_playable(session, track_list[offset]):
-                d = xbmcgui.Dialog()
-                d.ok('Spotify', 'The selected track is not playable')
-
-            #Continue normally
+                logMsg('The selected track is not playable')
             else:
 
                 #Add some padding dummy items (to preserve playlist position)
@@ -322,5 +293,4 @@ class PlaylistManager:
             return self.get_item(sess_obj, next_index)
 
     def __del__(self):
-        #Cancel the set_tracks() loop at exit
         self.__cancel_set_tracks = True
