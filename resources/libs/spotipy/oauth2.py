@@ -3,7 +3,8 @@ from __future__ import print_function
 import base64
 import requests
 import os
-import json
+try: import simplejson as json
+except: import json
 import time
 import sys
 

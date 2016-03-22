@@ -87,3 +87,7 @@ msgstr "Nieuwe releases"
 msgctxt "#11017"
 msgid "Remove from playlist"
 msgstr "Verwijder uit afspeellijst"
+
+msgctxt "#11018"
+msgid "All albums for artist"
+msgstr "Alle albums van artiest"

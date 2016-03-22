@@ -3,7 +3,8 @@ from __future__ import print_function, unicode_literals
 import sys
 import base64
 import requests
-import json
+try: import simplejson as json
+except: import json
 import time
 
 ''' A simple and thin Python library for the Spotify Web API

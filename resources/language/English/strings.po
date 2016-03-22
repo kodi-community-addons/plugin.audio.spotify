@@ -87,3 +87,7 @@ msgstr ""
 msgctxt "#11017"
 msgid "Remove from playlist"
 msgstr ""
+
+msgctxt "#11018"
+msgid "All albums for artist"
+msgstr ""

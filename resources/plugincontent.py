@@ -184,6 +184,7 @@ class Main():
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11012))
         result = self.sp.artist_related_artists(self.artistid)
         self.add_artist_listitems(result['artists'])
+        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
         
     def browse_playlist(self):
@@ -193,6 +194,7 @@ class Main():
         playlistitems = self.sp.user_playlist_tracks(self.ownerid, self.playlistid,market=self.usercountry,fields="",limit=self.limit,offset=self.offset)
         self.add_track_listitems(playlistitems["items"],playlistid=self.playlistid)
         self.addNextButton(playlist["tracks"]["total"])
+        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
 
     def browse_category(self):
@@ -211,6 +213,7 @@ class Main():
         xbmc.executebuiltin("Container.Refresh")
         
     def add_track_to_playlist(self):
+        xbmc.executebuiltin( "ActivateWindow(busydialog)" )
         playlists = self.sp.user_playlists(self.userid,limit=50,offset=0)
         ownplaylists = []
         ownplaylistnames = []
@@ -219,8 +222,9 @@ class Main():
                 ownplaylists.append(playlist)
                 ownplaylistnames.append(playlist["name"])
         ownplaylistnames.append(xbmc.getLocalizedString(525))
+        xbmc.executebuiltin( "Dialog.Close(busydialog)" )
         select = xbmcgui.Dialog().select(xbmc.getLocalizedString(524),ownplaylistnames)
-        if ownplaylistnames[select] == xbmc.getLocalizedString(525):
+        if select != -1 and ownplaylistnames[select] == xbmc.getLocalizedString(525):
             #create new playlist...
             kb = xbmc.Keyboard('', xbmc.getLocalizedString(21381))
             kb.setHiddenInput(False)
@@ -294,7 +298,7 @@ class Main():
             playlists = self.sp.user_playlists(self.ownerid,limit=self.limit,offset=self.offset)
             self.add_playlist_listitems(playlists['items'])
             self.addNextButton(playlists['total'])
-        
+        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
         
     def browse_newreleases(self):
@@ -303,11 +307,11 @@ class Main():
         result = self.sp.new_releases(country=self.usercountry,limit=self.limit,offset=self.offset)
         self.add_album_listitems(result['albums']['items'])
         self.addNextButton(result['albums']['total'])
+        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
     
     def add_track_listitems(self,tracks=None,playlistid="",useAlbumOffset=False, fulldetails=True, albumdetails=None):
         listitems = []
-        
         alltrackids = []
         savedtracks = []
         for item in tracks:
@@ -371,6 +375,7 @@ class Main():
                 contextitems.append( (ADDON.getLocalizedString(11017),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track_from_playlist&trackid=%s&playlistid=%s)"%(track['uri'],playlistid)) )
             contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s,return)"%item['artists'][0]['id']) )
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s,return)"%item['artists'][0]['id']) )
+            contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s,return)"%item['artists'][0]['id']) )
             li.addContextMenuItems(contextitems,True)
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder=False)
 
@@ -428,11 +433,12 @@ class Main():
                 contextitems.append( (ADDON.getLocalizedString(11007),"RunPlugin(plugin://plugin.audio.spotify/?action=save_album&albumid=%s)"%(item['id'])) )
             contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s,return)"%item['artists'][0]['id']) )
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s,return)"%item['artists'][0]['id']) )
+            contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s,return)"%item['artists'][0]['id']) )
             li.addContextMenuItems(contextitems,True)
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder=True)
         
-    def add_artist_listitems(self,albums):
-        for item in albums:
+    def add_artist_listitems(self,artists):
+        for item in artists:
             if item.get("artist"): 
                 item = item["artist"]
             if item.get("images"):
