@@ -658,17 +658,11 @@ class Main():
                     SAVESETTING("password",password.encode("utf-8"))
         
         if username and password:
-            #check token for webapi
-            try:
-                self.token = util.prompt_for_user_token(username)
-            except:
-                #just retry one more time, on android it needs 2 attempts somehow ?
-                xbmc.sleep(2000)
-                self.token = util.prompt_for_user_token(username)
+            #check token for webapi first
+            self.token = util.prompt_for_user_token(username)
             if self.token:
-                #check background service...
+                #wait for background service...
                 if not WINDOW.getProperty("Spotify.ServiceReady"):
-                    #xbmc.executebuiltin('RunScript("%s")' % os.path.join(ADDON_PATH, 'playbackservice.py'))
                     xbmc.executebuiltin('RunScript(plugin.audio.spotify)')
                     count = 0
                     while not WINDOW.getProperty("Spotify.ServiceReady"):
@@ -676,7 +670,7 @@ class Main():
                         if count == 30: 
                             break
                         else:
-                            xbmc.sleep(250)
+                            xbmc.sleep(1000)
                             count += 1
                         
             if WINDOW.getProperty("Spotify.ServiceReady") != "ready" or not self.token:
