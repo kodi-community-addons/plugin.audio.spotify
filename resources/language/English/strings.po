@@ -91,3 +91,7 @@ msgstr ""
 msgctxt "#11018"
 msgid "All albums for artist"
 msgstr ""
+
+msgctxt "#11019"
+msgid "Login error"
+msgstr ""

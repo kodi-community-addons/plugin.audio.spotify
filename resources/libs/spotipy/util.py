@@ -39,11 +39,17 @@ def prompt_for_user_token(username, scope=None, client_id = None,
         auth_url = sp_oauth.get_authorize_url()
         
         if xbmc.getCondVisibility("System.Platform.Android"):
-            xbmc.executebuiltin("StartAndroidActivity(com.android.chrome,android.intent.action.VIEW,,"+auth_url+")")
+            xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,"+auth_url+")")
             browser = "android"
         elif xbmc.getCondVisibility("System.HasAddon(browser.chromium)"):
             #openelec chromium browser
             chromium_path  = os.path.join(xbmcaddon.Addon('browser.chromium').getAddonInfo('path'), 'bin') + '/chromium'
+            p = subprocess.Popen( [chromium_path,auth_url],shell=False )
+            browser = 'chromium_path'
+            logMsg("Launching browser " + browser)
+        elif xbmc.getCondVisibility("System.HasAddon(browser.chromium-browser)"):
+            #openelec chromium browser 2
+            chromium_path  = os.path.join(xbmcaddon.Addon('browser.chromium-browser').getAddonInfo('path'), 'bin') + '/chromium'
             p = subprocess.Popen( [chromium_path,auth_url],shell=False )
             browser = 'chromium_path'
             logMsg("Launching browser " + browser)
@@ -79,11 +85,12 @@ def prompt_for_user_token(username, scope=None, client_id = None,
                 count += 1
                 
             #close browser
-            try: 
-                p.terminate()
-                p.kill()
-            except: 
-                pass
+            if browser != "android":
+                try: 
+                    p.terminate()
+                    p.kill()
+                except: 
+                    pass
                 
             response = WINDOW.getProperty("spotify-token_info")
             webService.stop()
@@ -163,7 +170,6 @@ class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
     def do_GET(self):
-        logMsg("WebServer GET --> " + self.path)
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()

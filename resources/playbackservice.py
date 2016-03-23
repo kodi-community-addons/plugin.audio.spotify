@@ -126,8 +126,8 @@ def do_login(session, app):
         prev_error = 0
         
     #Get login details from settings
-    username = SETTING("username")
-    password = SETTING("password")
+    username = SETTING("username").decode("utf-8")
+    password = SETTING("password").decode("utf-8")
 
     #If no previous errors and we have a remembered user
     if prev_error == 0 and session.remembered_user() == username:

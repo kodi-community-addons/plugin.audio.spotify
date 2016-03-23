@@ -60,22 +60,22 @@ def check_dirs():
     return (ADDON_DATA_PATH, sp_cache_dir, sp_settings_dir)
         
 class Platform:
+    ANDROID = 'System.Platform.Android'
+    LINUX = 'System.Platform.Linux'
+    WINDOWS = 'System.Platform.Windows'
+    OSX = 'System.Platform.OSX'
+    IOS = 'System.Platform.IOS'
 	
-	LINUX = 'System.Platform.Linux'
-	WINDOWS = 'System.Platform.Windows'
-	OSX = 'System.Platform.OSX'
-	
-	@staticmethod
-	def all_platforms():
-		return [getattr(Platform, attr) for attr in vars(Platform) 
-			if not callable(getattr(Platform, attr)) and not attr.startswith("__")]
+    @staticmethod
+    def all_platforms():
+        return [getattr(Platform, attr) for attr in vars(Platform) 
+            if not callable(getattr(Platform, attr)) and not attr.startswith("__")]
 	
 class Architecture:
-	
-	X86 = "x86"
-	X86_64 = "x86_64"
-	ARMV6 = "armv6"
-	ARMV7L = "armv7l"
+    X86 = "x86"
+    X86_64 = "x86_64"
+    ARMV6 = "armv6"
+    ARMV7L = "armv7l"
 
 def load_all_libraries():
     add_native_libraries()
@@ -89,11 +89,17 @@ def add_native_libraries():
         (Platform.LINUX, Architecture.X86) : ["resources/dlls/linux/x86"],
         (Platform.LINUX, Architecture.X86_64) : ["resources/dlls/linux/x86_64"],
         (Platform.LINUX, Architecture.ARMV6) : ["resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6"],
-        (Platform.LINUX, Architecture.ARMV7L) : ["resources/dlls/linux/armv6hf"],
+        (Platform.LINUX, Architecture.ARMV7L) : ["resources/dlls/linux/armv7"],
         (Platform.WINDOWS, Architecture.X86) : ["resources/dlls/windows/x86"],
         (Platform.WINDOWS, Architecture.X86_64) : ["resources/dlls/windows/x86"],
         (Platform.OSX, Architecture.X86) : ["resources/dlls/osx"],		
-        (Platform.OSX, Architecture.X86_64) : ["resources/dlls/osx"]		
+        (Platform.OSX, Architecture.X86_64) : ["resources/dlls/osx"],
+        (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/linux/android_arm"],
+        (Platform.ANDROID, Architecture.ARMV7L) : ["resources/dlls/linux/android_arm"],
+        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/linux/x86"],
+        (Platform.IOS, Architecture.ARMV6) : ["resources/dlls/ios"],
+        (Platform.IOS, Architecture.ARMV7L) : ["resources/dlls/ios"],
+        (Platform.IOS, Architecture.X86) : ["resources/dlls/ios"]        
         }
     
     logMsg('Your platform (%s %s)' % (architecture, platform))
@@ -118,7 +124,9 @@ def get_detected_architecture():
         logMsg('Could not detect architecture! Setting X86')
         logMsg(traceback.format_exc())			
         return Architecture.X86
-    if architecture.startswith('armv6'):
+    if architecture.startswith('armv7'):
+        return Architecture.ARMV7L
+    elif architecture.startswith('arm'):
         return Architecture.ARMV6
     elif architecture.startswith('i686') or architecture.startswith('i386'):
         return Architecture.X86

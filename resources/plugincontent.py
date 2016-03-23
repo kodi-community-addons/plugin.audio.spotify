@@ -637,29 +637,34 @@ class Main():
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
             
     def checkLoginDetails(self):
-        username = SETTING("username")
-        password = SETTING("password")
+        username = SETTING("username").decode("utf-8")
+        password = SETTING("password").decode("utf-8")
         loginSuccess = False
         if not username or not password:
             kb = xbmc.Keyboard('', xbmc.getLocalizedString(1019))
             kb.setHiddenInput(False)
             kb.doModal()
             if kb.isConfirmed():
-                value = kb.getText()
+                value = kb.getText().decode("utf-8")
                 username = value
                 #also set password
                 kb = xbmc.Keyboard('', xbmc.getLocalizedString(12326))
                 kb.setHiddenInput(True)
                 kb.doModal()
                 if kb.isConfirmed():
-                    value = kb.getText()
+                    value = kb.getText().decode("utf-8")
                     password = value
-                    SAVESETTING("username",username)
-                    SAVESETTING("password",password)
+                    SAVESETTING("username",username.encode("utf-8"))
+                    SAVESETTING("password",password.encode("utf-8"))
         
         if username and password:
             #check token for webapi
-            self.token = util.prompt_for_user_token(SETTING('username'))
+            try:
+                self.token = util.prompt_for_user_token(username)
+            except:
+                #just retry one more time, on android it needs 2 attempts somehow ?
+                xbmc.sleep(2000)
+                self.token = util.prompt_for_user_token(username)
             if self.token:
                 #check background service...
                 if not WINDOW.getProperty("Spotify.ServiceReady"):
@@ -676,7 +681,7 @@ class Main():
                         
             if WINDOW.getProperty("Spotify.ServiceReady") != "ready" or not self.token:
                 dlg = xbmcgui.Dialog()
-                dlg.ok('Login error', 'Login failed, please correct your username and password and try again. \n' + WINDOW.getProperty("Spotify.Lasterror"))
+                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + '\n' + WINDOW.getProperty("Spotify.Lasterror"))
                 return False
             else:
                 return True
