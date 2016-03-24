@@ -149,7 +149,9 @@ def add_library_paths(paths):
 def add_library_path(path):
     full_path = os.path.join(ADDON_PATH, path)
     sys.path.append(full_path)
-	
+
+def getTrackUrl(trackId):
+    pass
 	  
 appkey = [
     0x01, 0xEF, 0x9B, 0xF4, 0xB3, 0x12, 0xBC, 0x0E, 0x84, 0x83, 0x30, 0xBB, 0x8F, 0x6A, 0xA8, 0x3A,
@@ -174,3 +176,42 @@ appkey = [
 	0x85, 0x4C, 0x66, 0xDA, 0x8D, 0x46, 0xCA, 0xF3, 0xC4, 0x64, 0xD6, 0xBB, 0x39, 0xAF, 0x47, 0xAD,
 	0xC5,
 ]
+
+SpotifyError = {
+    0:"Ok",
+    1:"Bad Api version",
+    2:"Api Initialization Failed",
+    3:"Track not playable",
+    5:"Bad application key",
+    6:"Bad username or password",
+    7:"User banned",
+    8:"Unable to contact server",
+    9:"ClientTooOld",
+    9:"OtherPermanent",
+    10:"BadUserAgent",
+    12:"MissingCallback",
+    13:"InvalidIndata",
+    14:"IndexOutOfRange",
+    15:"UserNeedsPremium",
+    16:"OtherTransient",
+    17:"IsLoading",
+    18:"NoStreamAvailable",
+    19:"PermissionDenied",
+    20:"InboxIsFull",
+    21:"NoCache",
+    22:"NoSuchUser",
+    23:"NoCredentials",
+    24:"NetworkDisabled",
+    25:"InvalidDeviceId",
+    26:"CantOpenTraceFile",
+    27:"ApplicationBanned",
+    31:"OfflineTooManyTracks",
+    32:"OfflineDiskCache",
+    33:"OfflineExpired",
+    34:"OfflineNotAllowed",
+    35:"OfflineLicenseLost",
+    36:"OfflineLicenseError",
+    39:"LastfmAuthError",
+    40:"InvalidArgument",
+    41:"SystemFailure"
+    }

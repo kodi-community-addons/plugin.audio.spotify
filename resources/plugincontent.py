@@ -33,37 +33,7 @@ class Main():
         dlg = xbmcgui.Dialog()
         dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11004))
         xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
-    
-    def play_track(self):
-        WINDOW.setProperty("Spotify.PlayOffset","%s" %self.offset)
-        WINDOW.setProperty("Spotify.PlayTrack",self.trackid)
-        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
-        
-    def play_album(self):
-        WINDOW.setProperty("Spotify.PlayOffset","%s" %self.offset)
-        WINDOW.setProperty("Spotify.PlayAlbum",self.albumid)
-        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
-        
-    def play_playlist(self):
-        alltracks = []
-        count = 0
-        xbmc.executebuiltin( "ActivateWindow(busydialog)" )
-        totalitems = self.sp.user_playlist(self.ownerid, self.playlistid,market=self.usercountry,fields="tracks(total)")["tracks"]["total"]
-        if self.trackid:
-            #add selected song first in the list
-            alltracks.append(self.trackid)
-        while totalitems > count:
-            playlisttracks = self.sp.user_playlist_tracks(self.ownerid, self.playlistid, market=self.usercountry, fields="items(track(id))",limit=50,offset=count)
-            count += 50
-            for item in playlisttracks['items']:
-                if item['track'].get('id') and item['track']['id'] != self.trackid:
-                    #add all other tracks to the list
-                    alltracks.append(item['track']['id'])
-        WINDOW.setProperty("Spotify.PlayOffset","%s" %self.offset)
-        WINDOW.setProperty("Spotify.PlayTrack",",".join(alltracks))
-        xbmc.executebuiltin( "Dialog.Close(busydialog)" )
-        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
-      
+
     def get_track_rating(self,popularity):
         if popularity == 0:
             return 0
@@ -154,6 +124,16 @@ class Main():
             alltracks += self.sp.album_tracks(album["id"],market=self.usercountry,limit=50,offset=count)["items"]
             count += 50
         return alltracks
+        
+    def getAllPlaylistTracks(self,playlist):
+        count = 0
+        alltracks = []
+        while playlist["tracks"]["total"] > count:
+            playlists = self.sp.user_playlist_tracks(playlist["owner"]["id"], playlist["id"],market=self.usercountry,fields="",limit=50,offset=count)
+            alltracks += playlists["items"]
+            total = playlists["total"]
+            count += 50
+        return alltracks
     
     def browse_album(self):
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
@@ -189,11 +169,9 @@ class Main():
         
     def browse_playlist(self):
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
-        playlist = self.sp.user_playlist(self.ownerid, self.playlistid,market=self.usercountry, fields="tracks(total),name")
+        playlist = self.sp.user_playlist(self.ownerid, self.playlistid,market=self.usercountry, fields="tracks(total),name,owner(id),id")
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', playlist["name"])
-        playlistitems = self.sp.user_playlist_tracks(self.ownerid, self.playlistid,market=self.usercountry,fields="",limit=self.limit,offset=self.offset)
-        self.add_track_listitems(playlistitems["items"],playlistid=self.playlistid)
-        self.addNextButton(playlist["tracks"]["total"])
+        self.add_track_listitems(self.getAllPlaylistTracks(playlist),playlistid=self.playlistid)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
 
@@ -334,13 +312,9 @@ class Main():
     
             if track.get('is_playable',False) != True or not track.get('id'):
                 url="plugin://plugin.audio.spotify/?action=unavailablemessage"
-            elif playlistid: 
-                url="plugin://plugin.audio.spotify/?action=play_playlist&trackid=%s&playlistid=%s&ownerid=%s"%(track['id'],playlistid,self.ownerid)
-            elif useAlbumOffset: 
-                url="plugin://plugin.audio.spotify/?action=play_album&albumid=%s&offset=%s"%(track['album']['id'],i)
             else:
-                url="plugin://plugin.audio.spotify/?action=play_track&trackid=%s"%track['id']
-            
+                url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
+
             li = xbmcgui.ListItem(
                     track['name'],
                     path=url,
@@ -364,8 +338,8 @@ class Main():
                     "duration": track["duration_ms"]/1000
                 }
             li.setInfo( type="Music", infoLabels=infolabels)
+            li.setProperty("spotifytrackid",track['id'])
             contextitems = []
-            contextitems.append( (xbmc.getLocalizedString(208),"RunPlugin(%s)"%url) )
             if savedtracks[i] == True:
                 contextitems.append( (ADDON.getLocalizedString(11008),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track&trackid=%s)"%(track['id'])) )
             else:
@@ -425,7 +399,6 @@ class Main():
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
             contextitems = []
-            contextitems.append( (xbmc.getLocalizedString(208),"RunPlugin(plugin://plugin.audio.spotify/?action=play_album&albumid=%s)"%(item['id'])) )
             contextitems.append( (xbmc.getLocalizedString(1024),"RunPlugin(%s)"%url) )
             if savedalbums[i] == True:
                 contextitems.append( (ADDON.getLocalizedString(11008),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_album&albumid=%s)"%(item['id'])) )
@@ -434,7 +407,7 @@ class Main():
             contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s,return)"%item['artists'][0]['id']) )
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s,return)"%item['artists'][0]['id']) )
             contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(MusicLibrary,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s,return)"%item['artists'][0]['id']) )
-            li.addContextMenuItems(contextitems,True)
+            li.addContextMenuItems(contextitems,False)
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder=True)
         
     def add_artist_listitems(self,artists):
@@ -490,7 +463,6 @@ class Main():
                 li.setProperty('do_not_analyze', 'true')
                 li.setProperty('IsPlayable', 'false')
                 contextitems = []
-                contextitems.append( (xbmc.getLocalizedString(208),"RunPlugin(plugin://plugin.audio.spotify/?action=play_playlist&playlistid=%s&ownerid=%s)"%(playlist['id'],playlist['owner']['id'])) )
                 if self.filter=="followed" or not self.filter and item['owner']['id'] != self.userid:
                     contextitems.append( (ADDON.getLocalizedString(11010),"RunPlugin(plugin://plugin.audio.spotify/?action=unfollow_playlist&playlistid=%s&ownerid=%s)"%(playlist['id'],playlist['owner']['id'])) )
                 elif item['owner']['id'] != self.userid:
@@ -675,7 +647,11 @@ class Main():
                         
             if WINDOW.getProperty("Spotify.ServiceReady") != "ready" or not self.token:
                 dlg = xbmcgui.Dialog()
-                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + '\n' + WINDOW.getProperty("Spotify.Lasterror"))
+                error = WINDOW.getProperty("Spotify.Lasterror")
+                try:
+                    error = SpotifyError[int(error)]
+                except: print_exc()
+                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
                 return False
             else:
                 return True

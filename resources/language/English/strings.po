@@ -95,3 +95,7 @@ msgstr ""
 msgctxt "#11019"
 msgid "Login error"
 msgstr ""
+
+msgctxt "#11021"
+msgid "You need a premium Spotify account to use this app"
+msgstr ""

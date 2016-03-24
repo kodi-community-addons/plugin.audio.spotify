@@ -7,7 +7,6 @@ import weakref
 import re
 from utils import *
 load_all_libraries()
-import playback
 from spotify import MainLoop, ConnectionState, ErrorType, Bitrate, link
 from spotify import track as _track
 from spotify.utils.loaders import load_track, load_albumbrowse
@@ -46,13 +45,13 @@ class Callbacks(SessionCallbacks):
         self.__app = app
 
     def logged_in(self, session, error_num):
-        logMsg('logged in: {0:d}'.format(error_num),True)
+        logMsg('logged in: {0:d}'.format(error_num))
         self.__app.set_var('login_last_error', error_num)
         if error_num != ErrorType.Ok:
             self.__app.get_var('connstate_event').set()
 
     def logged_out(self, session):
-        logMsg('logged out',True)
+        logMsg('logged out')
         self.__app.get_var('logout_event').set()
 
     def connection_error(self, session, error):
@@ -62,7 +61,7 @@ class Callbacks(SessionCallbacks):
         logMsg('message to user: {0}'.format(data))
 
     def log_message(self, session, data):
-        #logMsg("Spotify Callbacks: " + data, True)
+        logMsg("Spotify Callbacks: " + data)
         pass
 
     def streaming_error(self, session, error):
@@ -70,8 +69,9 @@ class Callbacks(SessionCallbacks):
 
     def play_token_lost(self, session):
         self.__audio_buffer.stop()
-        if self.__app.has_var('playlist_manager'):
-            self.__app.get_var('playlist_manager').stop(False)
+        #Only stop if we're actually playing spotify content
+        if "Spotify" in xbmc.getInfoLabel('Player.Filenameandpath'):
+            xbmc.executebuiltin('PlayerControl(stop)')
 
     def end_of_track(self, session):
         self.__audio_buffer.set_track_ended()
@@ -164,16 +164,29 @@ def wait_for_connstate(session, app, state):
 
     return session.connectionstate() == state
 
-def get_preloader_callback(session, playlist_manager, buffer):
-    session = weakref.proxy(session)
+def get_next_track(sess_obj):
+    next_trackid = xbmc.getInfoLabel("MusicPlayer.(1).Property(spotifytrackid)")
+    if url:
+        #Try loading it as a spotify track
+        link_obj = link.create_from_string("spotify:track:%s" %next_trackid)
+        if link_obj:
+            return load_track(sess_obj, link_obj.as_track())
 
+        #Try to parse as a local track
+        link_obj = link.create_from_string("spotify:local:%s" %next_trackid)
+        if link_obj:
+            local_track = link_obj.as_track()
+            return load_track(sess_obj, local_track.get_playable(sess_obj))
+    else: return None
+    
+def get_preloader_callback(session, buffer):
+    session = weakref.proxy(session)
     def preloader():
-        next_track = playlist_manager.get_next_item(session)
-        if next_track is not None:
+        next_track = get_next_track(session)
+        if next_track:
             ta = next_track.get_availability(session)
             if ta == _track.TrackAvailability.Available:
                 buffer.open(session, next_track)
-
     return preloader
 
 def main():
@@ -216,56 +229,37 @@ def main():
             proxy_runner = ProxyRunner(sess, buf, host='127.0.0.1', allow_ranges=True)
             proxy_runner.start()
             logMsg('starting proxy at port {0}'.format(proxy_runner.get_port()) )
-
-            #Instantiate the playlist manager
-            playlist_manager = playback.PlaylistManager(proxy_runner)
-            app.set_var('playlist_manager', playlist_manager)
-            preloader_cb = get_preloader_callback(sess, playlist_manager, buf)
+            preloader_cb = get_preloader_callback(sess, buf)
             proxy_runner.set_stream_end_callback(preloader_cb)
             
+            user_agent = 'Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion"))
+            playtoken = proxy_runner.get_user_token(user_agent)
+            header_dict = {
+                'User-Agent': user_agent,
+                'X-Spotify-Token': playtoken
+                }
+            url_headers = urlencode(header_dict)
+            WINDOW.setProperty("Spotify.PlayToken",url_headers)
+            WINDOW.setProperty("Spotify.PlayServer","%s:%s" %(proxy_runner.get_host(),proxy_runner.get_port()))
             WINDOW.setProperty("Spotify.ServiceReady","ready")
 
             #wait untill abortrequested
             while not app.get_var('exit_requested'):
-                trackids = WINDOW.getProperty("Spotify.PlayTrack").decode("utf-8")
-                albumid = WINDOW.getProperty("Spotify.PlayAlbum").decode("utf-8")
-                offsetstr = WINDOW.getProperty("Spotify.PlayOffset").decode("utf-8")
-                if offsetstr: offset = int(offsetstr)
-                else: offset = 0
-                if monitor.abortRequested() or xbmc.abortRequested:
-                    logMsg("Shutdown requested!")
-                    app.set_var('exit_requested', True)
-                elif trackids:
-                    WINDOW.clearProperty("Spotify.PlayTrack")
-                    tracks = []
-                    for trackid in trackids.split(","):
-                        link_obj = link.create_from_string("spotify:track:%s"%trackid)
-                        trackobj = load_track(sess, link_obj.as_track() )
-                        tracks.append(trackobj)
-                    playlist_manager.play(tracks, sess, offset)
-                elif albumid:
-                    WINDOW.clearProperty("Spotify.PlayAlbum")
-                    link_obj = link.create_from_string("spotify:album:%s"%albumid)
-                    albumobj = load_albumbrowse( sess, link_obj.as_album() )
-                    playlist_manager.play(albumobj.tracks(), sess, offset)
-                else:
-                    monitor.waitForAbort(0.5)
+                monitor.waitForAbort(0.5)
             logMsg("Shutting down background processing...")
 
             #Playback and proxy deinit sequence
+            xbmc.executebuiltin('PlayerControl(stop)')
             proxy_runner.clear_stream_end_callback()
-            playlist_manager.stop()
             proxy_runner.stop()
             buf.cleanup()
 
             #Clear some vars and collect garbage
             proxy_runner = None
             preloader_cb = None
-            playlist_manager = None
-            app.remove_var('playlist_manager')
 
             #Logout
-            if sess.user() is not None:
+            if sess.user():
                 sess.logout()
                 logout_event.wait(2)
 
