@@ -650,6 +650,9 @@ class Main():
                 error = WINDOW.getProperty("Spotify.Lasterror")
                 try:
                     error = SpotifyError[int(error)]
+                    if error == 6:
+                        SAVESETTING("username","")
+                        SAVESETTING("password","")
                 except: print_exc()
                 dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
                 return False
