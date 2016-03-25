@@ -61,7 +61,7 @@ class Callbacks(SessionCallbacks):
         logMsg('message to user: {0}'.format(data))
 
     def log_message(self, session, data):
-        logMsg("Spotify Callbacks: " + data)
+        logMsg("Spotify Callbacks: " + data,True)
         pass
 
     def streaming_error(self, session, error):
@@ -166,7 +166,7 @@ def wait_for_connstate(session, app, state):
 
 def get_next_track(sess_obj):
     next_trackid = xbmc.getInfoLabel("MusicPlayer.(1).Property(spotifytrackid)")
-    if url:
+    if next_trackid:
         #Try loading it as a spotify track
         link_obj = link.create_from_string("spotify:track:%s" %next_trackid)
         if link_obj:
@@ -245,6 +245,9 @@ def main():
 
             #wait untill abortrequested
             while not app.get_var('exit_requested'):
+                if monitor.abortRequested() or xbmc.abortRequested:
+                    logMsg("Shutdown requested!")
+                    app.set_var('exit_requested', True)
                 monitor.waitForAbort(0.5)
             logMsg("Shutting down background processing...")
 

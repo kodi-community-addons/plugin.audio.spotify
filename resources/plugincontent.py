@@ -361,7 +361,7 @@ class Main():
                 item = item["album"]
             allalbumids.append(item["id"])
         
-        #get full info in chunks of 10
+        #get full info in chunks of 20
         albums = []
         savedalbums = []
         chunks = getChunks(allalbumids,20)
@@ -617,35 +617,36 @@ class Main():
             kb.setHiddenInput(False)
             kb.doModal()
             if kb.isConfirmed():
-                value = kb.getText().decode("utf-8")
-                username = value
+                username = kb.getText().decode("utf-8")
                 #also set password
                 kb = xbmc.Keyboard('', xbmc.getLocalizedString(12326))
                 kb.setHiddenInput(True)
                 kb.doModal()
                 if kb.isConfirmed():
-                    value = kb.getText().decode("utf-8")
-                    password = value
+                    password = kb.getText().decode("utf-8")
                     SAVESETTING("username",username.encode("utf-8"))
                     SAVESETTING("password",password.encode("utf-8"))
         
         if username and password:
-            #check token for webapi first
+            #wait for background service...
+            if not WINDOW.getProperty("Spotify.ServiceReady"):
+                #start libspotify background service
+                xbmc.executebuiltin('RunScript(plugin.audio.spotify)')
+                count = 0
+                while not WINDOW.getProperty("Spotify.ServiceReady"):
+                    logMsg("waiting for service...",True)
+                    if count == 30: 
+                        break
+                    else:
+                        xbmc.sleep(1000)
+                        count += 1
+            
+            #check token for webapi
             self.token = util.prompt_for_user_token(username)
-            if self.token:
-                #wait for background service...
-                if not WINDOW.getProperty("Spotify.ServiceReady"):
-                    xbmc.executebuiltin('RunScript(plugin.audio.spotify)')
-                    count = 0
-                    while not WINDOW.getProperty("Spotify.ServiceReady"):
-                        logMsg("waiting for service...",True)
-                        if count == 30: 
-                            break
-                        else:
-                            xbmc.sleep(1000)
-                            count += 1
-                        
-            if WINDOW.getProperty("Spotify.ServiceReady") != "ready" or not self.token:
+            
+            if WINDOW.getProperty("Spotify.ServiceReady") == "ready" and self.token:
+                return True
+            else:
                 dlg = xbmcgui.Dialog()
                 error = WINDOW.getProperty("Spotify.Lasterror")
                 try:
@@ -656,8 +657,7 @@ class Main():
                 except: print_exc()
                 dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
                 return False
-            else:
-                return True
+        return False
 
     def addNextButton(self,listtotal):
         #adds a next button if needed
