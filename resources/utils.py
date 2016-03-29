@@ -97,6 +97,7 @@ def add_native_libraries():
         (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/linux/android_arm"],
         (Platform.ANDROID, Architecture.ARMV7L) : ["resources/dlls/linux/android_arm"],
         (Platform.ANDROID, Architecture.X86) : ["resources/dlls/linux/x86"],
+        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/linux/x86_64"],
         (Platform.IOS, Architecture.ARMV6) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.ARMV7L) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.X86) : ["resources/dlls/ios"]        
@@ -124,10 +125,10 @@ def get_detected_architecture():
         logMsg('Could not detect architecture! Setting X86')
         logMsg(traceback.format_exc())			
         return Architecture.X86
-    if architecture.startswith('armv7'):
-        return Architecture.ARMV7L
-    elif architecture.startswith('arm'):
+    if architecture.startswith('armv6'):
         return Architecture.ARMV6
+    elif architecture.startswith('arm'):
+        return Architecture.ARMV7L
     elif architecture.startswith('i686') or architecture.startswith('i386'):
         return Architecture.X86
     elif architecture.startswith('AMD64'):
@@ -150,8 +151,6 @@ def add_library_path(path):
     full_path = os.path.join(ADDON_PATH, path)
     sys.path.append(full_path)
 
-def getTrackUrl(trackId):
-    pass
 	  
 appkey = [
     0x01, 0xEF, 0x9B, 0xF4, 0xB3, 0x12, 0xBC, 0x0E, 0x84, 0x83, 0x30, 0xBB, 0x8F, 0x6A, 0xA8, 0x3A,
@@ -213,5 +212,6 @@ SpotifyError = {
     36:"OfflineLicenseError",
     39:"LastfmAuthError",
     40:"InvalidArgument",
-    41:"SystemFailure"
+    41:"SystemFailure",
+    999:"Platform not supported for playback, continuing without playback support."
     }

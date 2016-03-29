@@ -23,6 +23,7 @@ class Main():
     ownerid = ""
     filter = ""
     token = ""
+    playbackServiceRunning = False
     if xbmc.getCondVisibility("Window.IsActive(MusicLibrary)"):
         limit = 50
     else:
@@ -33,7 +34,13 @@ class Main():
         dlg = xbmcgui.Dialog()
         dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11004))
         xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
-
+    
+    def play_android(self):
+        if self.ownerid and self.playlistid:
+            xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,spotify:user:%s:playlist:%s:play)" %(self.ownerid,self.playlistid))
+        elif self.albumid:
+            xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,spotify:album:%s:play)" %(self.albumid))
+    
     def get_track_rating(self,popularity):
         if popularity == 0:
             return 0
@@ -312,6 +319,10 @@ class Main():
     
             if track.get('is_playable',False) != True or not track.get('id'):
                 url="plugin://plugin.audio.spotify/?action=unavailablemessage"
+            elif xbmc.getCondVisibility("System.Platform.Android") and not self.playbackServiceRunning:
+                url="plugin://plugin.audio.spotify/?action=play_android&albumid=%s"%(track['album']['id'])
+            elif not self.playbackServiceRunning:
+                url = track['preview_url']
             else:
                 url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
 
@@ -635,7 +646,7 @@ class Main():
                 count = 0
                 while not WINDOW.getProperty("Spotify.ServiceReady"):
                     logMsg("waiting for service...",True)
-                    if count == 30: 
+                    if count == 50: 
                         break
                     else:
                         xbmc.sleep(1000)
@@ -643,20 +654,24 @@ class Main():
             
             #check token for webapi
             self.token = util.prompt_for_user_token(username)
-            
-            if WINDOW.getProperty("Spotify.ServiceReady") == "ready" and self.token:
+            if not self.token:
+                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
+                return False
+            elif WINDOW.getProperty("Spotify.ServiceReady") == "ready" and self.token:
                 return True
             else:
                 dlg = xbmcgui.Dialog()
                 error = WINDOW.getProperty("Spotify.Lasterror")
                 try:
-                    error = SpotifyError[int(error)]
+                    error = int(error)
+                    errorStr = SpotifyError[int(error)]
                     if error == 6:
                         SAVESETTING("username","")
                         SAVESETTING("password","")
                 except: print_exc()
-                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
-                return False
+                dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + errorStr)
+                self.playbackServiceRunning = False
+                return True
         return False
 
     def addNextButton(self,listtotal):

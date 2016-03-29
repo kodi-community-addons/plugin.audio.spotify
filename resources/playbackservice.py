@@ -117,6 +117,7 @@ def get_audio_buffer_size():
 def set_settings(session):
     session.preferred_bitrate(Bitrate.Rate320k)
     session.set_volume_normalization(True)
+    session.set_volume_normalization(True)
 
 def do_login(session, app):
     #Get the last error if we have one
@@ -274,6 +275,10 @@ def main():
     except (Exception) as ex:
         if str(ex) != '':
             logMsg("ERROR in backgroundservice! " + str(ex))
+            if "Unable to find" in str(ex):
+                error = "999"
+            else: error = str(ex)
+            WINDOW.setProperty("Spotify.LastError",error)
 
     finally:
         WINDOW.clearProperty("Spotify.ServiceReady")

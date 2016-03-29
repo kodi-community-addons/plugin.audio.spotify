@@ -39,20 +39,9 @@ def prompt_for_user_token(username, scope=None, client_id = None,
         auth_url = sp_oauth.get_authorize_url()
         
         if xbmc.getCondVisibility("System.Platform.Android"):
+            #for android we just launch the default android browser
             xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,"+auth_url+")")
             browser = "android"
-        elif xbmc.getCondVisibility("System.HasAddon(browser.chromium)"):
-            #openelec chromium browser
-            chromium_path  = os.path.join(xbmcaddon.Addon('browser.chromium').getAddonInfo('path'), 'bin') + '/chromium'
-            p = subprocess.Popen( [chromium_path,auth_url],shell=False )
-            browser = 'chromium_path'
-            logMsg("Launching browser " + browser)
-        elif xbmc.getCondVisibility("System.HasAddon(browser.chromium-browser)"):
-            #openelec chromium browser 2
-            chromium_path  = os.path.join(xbmcaddon.Addon('browser.chromium-browser').getAddonInfo('path'), 'bin') + '/chromium'
-            p = subprocess.Popen( [chromium_path,auth_url],shell=False )
-            browser = 'chromium_path'
-            logMsg("Launching browser " + browser)
         else:
             #try to find a browser...
             browsers = []
@@ -62,8 +51,17 @@ def prompt_for_user_token(username, scope=None, client_id = None,
             browsers.append("c:\program files (x86)\Internet Explorer\iexplore.exe")
             browsers.append("c:\program files\Internet Explorer\iexplore.exe")
             browsers.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+            browsers.append("/Applications/Safari/Contents/MacOS/Safari")
             browsers.append("/usr/bin/google-chrome")
             browsers.append("/usr/bin/chromium-browser")
+            browsers.append("/usr/bin/chromium")
+            browsers.append("/usr/bin/firefox")
+            #openelec browsers
+            if xbmc.getCondVisibility("System.HasAddon(browser.chromium)"):
+                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium').getAddonInfo('path'), 'bin') + '/chromium')
+            if xbmc.getCondVisibility("System.HasAddon(browser.chromium-browser)"):
+                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium-browser').getAddonInfo('path'), 'bin') + '/chromium')
+
             for item in browsers:
                 if xbmcvfs.exists(item):
                     browser = item
