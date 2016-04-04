@@ -276,9 +276,8 @@ def main():
         if str(ex) != '':
             logMsg("ERROR in backgroundservice! " + str(ex))
             if "Unable to find" in str(ex):
-                error = "999"
-            else: error = str(ex)
-            WINDOW.setProperty("Spotify.LastError",error)
-
-    finally:
-        WINDOW.clearProperty("Spotify.ServiceReady")
+                WINDOW.setProperty("Spotify.LastError","999")
+            else: 
+                error = str(ex)
+                WINDOW.clearProperty("Spotify.ServiceReady")
+                WINDOW.setProperty("Spotify.LastError",error)

@@ -4,6 +4,7 @@ from utils import *
 add_external_libraries()
 import math
 import urlparse
+import urllib
 import threading, thread
 import spotipy
 import spotipy.util as util
@@ -23,7 +24,6 @@ class Main():
     ownerid = ""
     filter = ""
     token = ""
-    playbackServiceRunning = False
     if xbmc.getCondVisibility("Window.IsActive(MusicLibrary)"):
         limit = 50
     else:
@@ -319,9 +319,12 @@ class Main():
     
             if track.get('is_playable',False) != True or not track.get('id'):
                 url="plugin://plugin.audio.spotify/?action=unavailablemessage"
-            elif xbmc.getCondVisibility("System.Platform.Android") and not self.playbackServiceRunning:
-                url="plugin://plugin.audio.spotify/?action=play_android&albumid=%s"%(track['album']['id'])
-            elif not self.playbackServiceRunning:
+            elif xbmc.getCondVisibility("System.Platform.Android") and WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
+                if playlistid:
+                    url="plugin://plugin.audio.spotify/?action=play_android&ownerid=%s&playlistid=%s"%(self.ownerid,self.playlistid)
+                else:
+                    url="plugin://plugin.audio.spotify/?action=play_android&albumid=%s"%(track['album']['id'])
+            elif WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
                 url = track['preview_url']
             else:
                 url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
@@ -659,19 +662,25 @@ class Main():
                 return False
             elif WINDOW.getProperty("Spotify.ServiceReady") == "ready" and self.token:
                 return True
+            elif WINDOW.getProperty("Spotify.ServiceReady") == "noplayback" and self.token:
+                return True
             else:
                 dlg = xbmcgui.Dialog()
                 error = WINDOW.getProperty("Spotify.Lasterror")
+                errorStr = error
                 try:
                     error = int(error)
                     errorStr = SpotifyError[int(error)]
                     if error == 6:
                         SAVESETTING("username","")
                         SAVESETTING("password","")
-                except: print_exc()
+                    elif error == 999:
+                        dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + errorStr)
+                        WINDOW.setProperty("Spotify.ServiceReady","noplayback")
+                        return True
+                except: pass
                 dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + errorStr)
-                self.playbackServiceRunning = False
-                return True
+                return False
         return False
 
     def addNextButton(self,listtotal):
@@ -699,25 +708,25 @@ class Main():
             
     def main(self):
         #parse params
-        self.params = urlparse.parse_qs(sys.argv[2][1:].decode("utf-8"))
+        self.params = urlparse.parse_qs(sys.argv[2][1:])
         action=self.params.get("action",None)
-        if action: action = "self." + action[0].lower()
+        if action: action = "self." + action[0].lower().decode("utf-8")
         playlistid=self.params.get("playlistid",None)
-        if playlistid: self.playlistid = playlistid[0]
+        if playlistid: self.playlistid = playlistid[0].decode("utf-8")
         ownerid=self.params.get("ownerid",None)
-        if ownerid: self.ownerid = ownerid[0]
+        if ownerid: self.ownerid = ownerid[0].decode("utf-8")
         trackid=self.params.get("trackid",None)
-        if trackid: self.trackid = trackid[0]
+        if trackid: self.trackid = trackid[0].decode("utf-8")
         albumid=self.params.get("albumid",None)
-        if albumid: self.albumid = albumid[0]
+        if albumid: self.albumid = albumid[0].decode("utf-8")
         artistid=self.params.get("artistid",None)
-        if artistid: self.artistid = artistid[0]
+        if artistid: self.artistid = artistid[0].decode("utf-8")
         artistname=self.params.get("artistname",None)
-        if artistname: self.artistname = artistname[0]
+        if artistname: self.artistname = artistname[0].decode("utf-8")
         offset=self.params.get("offset",None)
         if offset: self.offset = int(offset[0])
         filter=self.params.get("applyfilter",None)
-        if filter: self.filter = filter[0]
+        if filter: self.filter = filter[0].decode("utf-8")
         
         #always check login details
         if self.checkLoginDetails():
