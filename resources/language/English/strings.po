@@ -99,3 +99,15 @@ msgstr ""
 msgctxt "#11021"
 msgid "You need a premium Spotify account to use this app"
 msgstr ""
+
+msgctxt "#11022"
+msgid "Recommendations"
+msgstr ""
+
+msgctxt "#11023"
+msgid "Most played artists"
+msgstr ""
+
+msgctxt "#11024"
+msgid "Most played tracks"
+msgstr ""

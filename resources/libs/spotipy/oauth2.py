@@ -7,6 +7,7 @@ try: import simplejson as json
 except: import json
 import time
 import sys
+import xbmcvfs
 
 # Workaround to support both python 2 & 3
 try:
@@ -125,7 +126,7 @@ class SpotifyOAuth(object):
         token_info = None
         if self.cache_path:
             try:
-                f = open(self.cache_path)
+                f = xbmcvfs.File(self.cache_path)
                 token_info_string = f.read()
                 f.close()
                 token_info = json.loads(token_info_string)
@@ -137,17 +138,18 @@ class SpotifyOAuth(object):
                 if self._is_token_expired(token_info):
                     token_info = self._refresh_access_token(token_info['refresh_token'])
 
-            except IOError:
+            except:
+                self._warn("couldn't read token cache from " + self.cache_path)
                 pass
         return token_info
 
     def _save_token_info(self, token_info):
         if self.cache_path:
             try:
-                f = open(self.cache_path, 'w')
+                f = xbmcvfs.File(self.cache_path,'w')
                 f.write(json.dumps(token_info))
                 f.close()
-            except IOError:
+            except:
                 self._warn("couldn't write token cache to " + self.cache_path)
                 pass
 

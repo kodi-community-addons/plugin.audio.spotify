@@ -14,13 +14,13 @@ port = 52308
 def prompt_for_user_token(username, scope=None, client_id = None,
         client_secret = None, redirect_uri = None):
 
-    scope = "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-follow-modify user-follow-read user-library-read user-library-modify user-read-private user-read-email user-read-birthdate"
+    scope = "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-follow-modify user-follow-read user-library-read user-library-modify user-read-private user-read-email user-read-birthdate user-top-read"
     client_id = '4940f5cc79b149af9f71d5ef9319eff0'
     client_secret = '779f4d60bd3b42e29984adf423f19688'
     redirect_uri = 'http://localhost:%s/callback' %port
     
     #request the token
-    cachepath=xbmc.translatePath("special://profile/addon_data/%s/%s.cache" % (ADDON_ID,username)).decode("utf-8")
+    cachepath=xbmc.translatePath(u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID,username)).decode("utf-8")
     sp_oauth = oauth2.SpotifyOAuth(client_id, client_secret, redirect_uri, 
         scope=scope, cache_path=cachepath )
 

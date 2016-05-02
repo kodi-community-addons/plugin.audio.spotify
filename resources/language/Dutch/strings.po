@@ -91,3 +91,11 @@ msgstr "Verwijder uit afspeellijst"
 msgctxt "#11018"
 msgid "All albums for artist"
 msgstr "Alle albums van artiest"
+
+msgctxt "#11023"
+msgid "Most played artists"
+msgstr "Meest afgespeelde artiesten"
+
+msgctxt "#11024"
+msgid "Most played tracks"
+msgstr "Meest afgespeelde liedjes"
