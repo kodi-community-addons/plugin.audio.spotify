@@ -20,7 +20,7 @@ def prompt_for_user_token(username, scope=None, client_id = None,
     redirect_uri = 'http://localhost:%s/callback' %port
     
     #request the token
-    cachepath=xbmc.translatePath(u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID,username)).decode("utf-8")
+    cachepath=xbmc.translatePath(u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID,normalize_string(username))).decode("utf-8")
     sp_oauth = oauth2.SpotifyOAuth(client_id, client_secret, redirect_uri, 
         scope=scope, cache_path=cachepath )
 

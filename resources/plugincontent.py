@@ -24,10 +24,7 @@ class Main():
     ownerid = ""
     filter = ""
     token = ""
-    if xbmc.getCondVisibility("Window.IsActive(MusicLibrary)"):
-        limit = 50
-    else:
-        limit = 25
+    limit = 50
     params = {}
     
     def getListFromCache(self,cacheStr):
@@ -44,8 +41,7 @@ class Main():
         if propstoflush:
             for prop in propstoflush:
                 WINDOW.clearProperty("SpotifyCache.%s"%prop)
-        else:
-            WINDOW.setProperty("Spotify.IgnoreCache","ignore1")
+        WINDOW.setProperty("Spotify.IgnoreCache","ignore1")
         xbmc.executebuiltin("Container.Refresh")
     
     def unavailablemessage(self):
@@ -256,7 +252,7 @@ class Main():
                 playlistdetails["tracks"]["items"] += self.sp.user_playlist_tracks(playlist["owner"]["id"], playlist["id"],market=self.usercountry,fields="",limit=50,offset=count)["items"]
                 count += 50
             trackids = []
-            playlistdetails["tracks"]["items"] = self.prepare_track_listitems(tracks=playlistdetails["tracks"]["items"],playlistid=playlist["id"])
+            playlistdetails["tracks"]["items"] = self.prepare_track_listitems(tracks=playlistdetails["tracks"]["items"],playlistdetails=playlist)
             self.setListInCache(cacheStr,playlistdetails)
         return playlistdetails
     
@@ -452,7 +448,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
     
-    def prepare_track_listitems(self, trackids=[], tracks=[], playlistid="", albumdetails=None):
+    def prepare_track_listitems(self, trackids=[], tracks=[], playlistdetails=None, albumdetails=None):
         newtracks = []
         #for tracks we always get the full details unless full tracks already supplied
         if trackids and not tracks:
@@ -461,6 +457,10 @@ class Main():
                 tracks += self.sp.tracks(chunk, market=self.usercountry)['tracks']
         
         savedtracks = self.get_saved_tracks_ids()
+        
+        followedartists = []
+        for artist in self.get_followedartists():
+            followedartists.append(artist["id"])
             
         for i, track in enumerate(tracks):
             
@@ -470,15 +470,11 @@ class Main():
             elif track['album'].get("images"): thumb = track['album']["images"][0]['url']
             else: thumb = ""
             track['thumb'] = thumb
+            
+            #skip local tracks in playlists
+            if not track['id']: continue
     
-            if track.get('is_playable',False) != True or not track.get('id'):
-                url="plugin://plugin.audio.spotify/?action=unavailablemessage"
-            elif xbmc.getCondVisibility("System.Platform.Android") and WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
-                if playlistid:
-                    url="plugin://plugin.audio.spotify/?action=play_android&ownerid=%s&playlistid=%s"%(self.ownerid,self.playlistid)
-                else:
-                    url="plugin://plugin.audio.spotify/?action=play_android&albumid=%s"%(track['album']['id'])
-            elif WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
+            if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
                 url = track['preview_url']
             else:
                 url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
@@ -491,20 +487,40 @@ class Main():
             track["genre"] = " / ".join(track["album"].get("genres",[]))
             track["year"] = int(track["album"].get("release_date","0").split("-")[0])
             track["rating"] = str(self.get_track_rating(track["popularity"]))
-            track["playlistid"] = playlistid
+            if playlistdetails:
+                track["playlistid"] = playlistdetails["id"]
             track["artistid"] = track['artists'][0]['id']
+            
+            #use original trackid for actions when the track was relinked
+            if track.get("linked_from"):
+                real_trackid = track["linked_from"]["id"]
+                real_trackuri = track["linked_from"]["uri"]
+            else:
+                real_trackid = track["id"]
+                real_trackuri = track["uri"]
             
             contextitems = []
             if track["id"] in savedtracks:
-                contextitems.append( (ADDON.getLocalizedString(11008),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track&trackid=%s)"%(track['id'])) )
+                contextitems.append( (ADDON.getLocalizedString(11008),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track&trackid=%s)"%(real_trackid)) )
             else:
-                contextitems.append( (ADDON.getLocalizedString(11007),"RunPlugin(plugin://plugin.audio.spotify/?action=save_track&trackid=%s)"%(track['id'])) )
-            contextitems.append( (xbmc.getLocalizedString(526),"RunPlugin(plugin://plugin.audio.spotify/?action=add_track_to_playlist&trackid=%s)"%(track['uri'])) )
-            if track["playlistid"]:
-                contextitems.append( (ADDON.getLocalizedString(11017),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track_from_playlist&trackid=%s&playlistid=%s)"%(track['uri'],track["playlistid"])) )
+                contextitems.append( (ADDON.getLocalizedString(11007),"RunPlugin(plugin://plugin.audio.spotify/?action=save_track&trackid=%s)"%(real_trackid)) )
+            
+            if playlistdetails and playlistdetails["owner"]["id"] == self.userid:
+                contextitems.append( (ADDON.getLocalizedString(11017),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track_from_playlist&trackid=%s&playlistid=%s)"%(real_trackuri,playlistdetails["id"])) )
+            elif not playlistdetails:
+                contextitems.append( (xbmc.getLocalizedString(526),"RunPlugin(plugin://plugin.audio.spotify/?action=add_track_to_playlist&trackid=%s)"%real_trackuri) )
+            
             contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%track["artistid"]) )
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%track["artistid"]) )
             contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%track["artistid"]) )
+            
+            if track["artistid"] in followedartists:
+                #unfollow artist
+                contextitems.append( (ADDON.getLocalizedString(11026),"RunPlugin(plugin://plugin.audio.spotify/?action=unfollow_artist&artistid=%s)"%track["artistid"]) )
+            else:
+                #follow artist
+                contextitems.append( (ADDON.getLocalizedString(11025),"RunPlugin(plugin://plugin.audio.spotify/?action=follow_artist&artistid=%s)"%track["artistid"]) )
+            
             track["contextitems"] = contextitems
             newtracks.append(track)
             
@@ -626,10 +642,10 @@ class Main():
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%(item['id'])) )
             if isFollowed or item["id"] in followedartists:
                 #unfollow artist
-                contextitems.append( (ADDON.getLocalizedString(11009),"RunPlugin(plugin://plugin.audio.spotify/?action=unfollow_artist&artistid=%s)"%item['id']) )
+                contextitems.append( (ADDON.getLocalizedString(11026),"RunPlugin(plugin://plugin.audio.spotify/?action=unfollow_artist&artistid=%s)"%item['id']) )
             else:
                 #follow artist
-                contextitems.append( (ADDON.getLocalizedString(11010),"RunPlugin(plugin://plugin.audio.spotify/?action=follow_artist&artistid=%s)"%item['id']) )
+                contextitems.append( (ADDON.getLocalizedString(11025),"RunPlugin(plugin://plugin.audio.spotify/?action=follow_artist&artistid=%s)"%item['id']) )
             item["contextitems"] = contextitems
         return artists
             
@@ -700,11 +716,11 @@ class Main():
         albums = self.getListFromCache(cachestr)
         if not albums:
             artist = self.sp.artist(self.artistid)
-            artistalbums = self.sp.artist_albums(self.artistid,limit=50,offset=0,market=self.usercountry)
+            artistalbums = self.sp.artist_albums(self.artistid,limit=50,offset=0,market=self.usercountry,album_type='album,single,compilation')
             count = len(artistalbums['items'])
             albumids = []
             while artistalbums['total'] > count:
-                artistalbums['items'] += self.sp.artist_albums(self.artistid,limit=50,offset=count,market=self.usercountry)['items']
+                artistalbums['items'] += self.sp.artist_albums(self.artistid,limit=50,offset=count,market=self.usercountry,album_type='album,single,compilation' )['items']
                 count += 50
             for album in artistalbums['items']:
                 albumids.append(album["id"])
@@ -822,7 +838,7 @@ class Main():
             count = len(artists['artists']['items'])
             after = artists['artists']['cursors']['after']
             while artists['artists']['total'] > count:
-                result = self.sp.current_user_followed_artists(limit=50, after=after)['artists']['items']
+                result = self.sp.current_user_followed_artists(limit=50, after=after)
                 artists['artists']['items'] += result['artists']['items']
                 after = result['artists']['cursors']['after']
                 count += 50

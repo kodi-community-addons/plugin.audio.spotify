@@ -139,7 +139,7 @@ class SpotifyOAuth(object):
                     token_info = self._refresh_access_token(token_info['refresh_token'])
 
             except:
-                self._warn("couldn't read token cache from " + self.cache_path)
+                self._warn("couldn't read token from cache")
                 pass
         return token_info
 
@@ -150,7 +150,7 @@ class SpotifyOAuth(object):
                 f.write(json.dumps(token_info))
                 f.close()
             except:
-                self._warn("couldn't write token cache to " + self.cache_path)
+                self._warn("couldn't write token to cache")
                 pass
 
 

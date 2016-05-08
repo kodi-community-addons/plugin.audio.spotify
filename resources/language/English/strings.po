@@ -111,3 +111,11 @@ msgstr ""
 msgctxt "#11024"
 msgid "Most played tracks"
 msgstr ""
+
+msgctxt "#11025"
+msgid "Follow artist"
+msgstr ""
+
+msgctxt "#11026"
+msgid "Unfollow artist"
+msgstr ""

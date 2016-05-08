@@ -4,6 +4,7 @@ import xbmc,xbmcaddon,xbmcgui,xbmcplugin
 import sys,os.path,platform,logging
 import xml.etree.ElementTree as ET
 from traceback import print_exc
+import unicodedata
 ADDON = xbmcaddon.Addon('plugin.audio.spotify')
 ADDON_ID = ADDON.getAddonInfo('id').decode("utf-8")
 ADDON_NAME = ADDON.getAddonInfo('name').decode("utf-8")
@@ -151,6 +152,34 @@ def add_library_path(path):
     full_path = os.path.join(ADDON_PATH, path)
     sys.path.append(full_path)
 
+def try_encode(text, encoding="utf-8"):
+    try:
+        return text.encode(encoding,"ignore")
+    except:
+        return text       
+
+def try_decode(text, encoding="utf-8"):
+    try:
+        return text.decode(encoding,"ignore")
+    except:
+        return text  
+    
+def normalize_string(text):
+    text = text.replace(":", "")
+    text = text.replace("/", "-")
+    text = text.replace("\\", "-")
+    text = text.replace("<", "")
+    text = text.replace(">", "")
+    text = text.replace("*", "")
+    text = text.replace("?", "")
+    text = text.replace('|', "")
+    text = text.replace('(', "")
+    text = text.replace(')', "")
+    text = text.replace("\"","")
+    text = text.strip()
+    text = text.rstrip('.')
+    text = unicodedata.normalize('NFKD', try_decode(text))
+    return text
 	  
 appkey = [
     0x01, 0xEF, 0x9B, 0xF4, 0xB3, 0x12, 0xBC, 0x0E, 0x84, 0x83, 0x30, 0xBB, 0x8F, 0x6A, 0xA8, 0x3A,

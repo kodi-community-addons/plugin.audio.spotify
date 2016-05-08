@@ -99,3 +99,11 @@ msgstr "Meest afgespeelde artiesten"
 msgctxt "#11024"
 msgid "Most played tracks"
 msgstr "Meest afgespeelde liedjes"
+
+msgctxt "#11025"
+msgid "Follow artist"
+msgstr "Volg artiest"
+
+msgctxt "#11026"
+msgid "Unfollow artist"
+msgstr "Artiest niet volgen"
