@@ -76,7 +76,8 @@ class Architecture:
     X86 = "x86"
     X86_64 = "x86_64"
     ARMV6 = "armv6"
-    ARMV7L = "armv7l"
+    ARMV7 = "armv7"
+    AARCH64 = "aarch64"
 
 def load_all_libraries():
     add_native_libraries()
@@ -90,17 +91,18 @@ def add_native_libraries():
         (Platform.LINUX, Architecture.X86) : ["resources/dlls/linux/x86"],
         (Platform.LINUX, Architecture.X86_64) : ["resources/dlls/linux/x86_64"],
         (Platform.LINUX, Architecture.ARMV6) : ["resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6"],
-        (Platform.LINUX, Architecture.ARMV7L) : ["resources/dlls/linux/armv7"],
+        (Platform.LINUX, Architecture.ARMV7) : ["resources/dlls/linux/armv7"],
         (Platform.WINDOWS, Architecture.X86) : ["resources/dlls/windows/x86"],
         (Platform.WINDOWS, Architecture.X86_64) : ["resources/dlls/windows/x86"],
         (Platform.OSX, Architecture.X86) : ["resources/dlls/osx"],		
         (Platform.OSX, Architecture.X86_64) : ["resources/dlls/osx"],
-        (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/linux/android_arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
-        (Platform.ANDROID, Architecture.ARMV7L) : ["resources/dlls/linux/android_arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
-        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/linux/android_arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
-        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/linux/android_arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/android/arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.ARMV7) : ["resources/dlls/android/arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf","resources/dlls/linux/x86","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/android/arm","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/android/arm","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.AARCH64) : ["resources/dlls/android/aarch64","resources/dlls/linux/x86_64"],
         (Platform.IOS, Architecture.ARMV6) : ["resources/dlls/ios"],
-        (Platform.IOS, Architecture.ARMV7L) : ["resources/dlls/ios"],
+        (Platform.IOS, Architecture.ARMV7) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.X86) : ["resources/dlls/ios"]        
         }
     
@@ -129,10 +131,12 @@ def get_detected_architecture():
     if architecture.startswith('armv6'):
         return Architecture.ARMV6
     elif architecture.startswith('arm'):
-        return Architecture.ARMV7L
+        return Architecture.ARMV7
+    elif architecture.startswith('aarch64'):
+        return Architecture.AARCH64
     elif architecture.startswith('i686') or architecture.startswith('i386'):
         return Architecture.X86
-    elif architecture.startswith('AMD64'):
+    elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
         return Architecture.X86_64
 
     return architecture
