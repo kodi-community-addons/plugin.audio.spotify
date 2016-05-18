@@ -36,6 +36,8 @@ def logMsg(msg, debug=False):
             msg = msg.encode('utf-8')
         except: pass
         xbmc.log("%s --> %s" %(ADDON_NAME,msg), level=xbmc.LOGNOTICE)
+    if "exception" in msg.lower() or "error" in msg.lower():
+        print_exc()
      
 def getJSON(method,params):
     json_response = xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method" : "%s", "params": %s, "id":1 }' %(method, params.encode("utf-8")))
@@ -99,9 +101,9 @@ def add_native_libraries():
         (Platform.OSX, Architecture.X86_64) : ["resources/dlls/osx"],
         (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/android/arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6","resources/dlls/linux/armv6hf"],
         (Platform.ANDROID, Architecture.ARMV7) : ["resources/dlls/android/arm","resources/dlls/linux/armv7"],
-        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/android/arm","resources/dlls/linux/x86_64"],
-        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/android/arm","resources/dlls/linux/x86_64"],
-        (Platform.ANDROID, Architecture.AARCH64) : ["resources/dlls/android/aarch64","resources/dlls/linux/x86_64"],
+        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/linux/x86","resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/linux/x86_64","resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.AARCH64) : ["resources/dlls/linux/aarch64","resources/dlls/android/arm"],
         (Platform.IOS, Architecture.ARMV6) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.ARMV7) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.X86) : ["resources/dlls/ios"]        

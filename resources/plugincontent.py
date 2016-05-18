@@ -134,7 +134,7 @@ class Main():
                 count += 50
             items = self.prepare_track_listitems(tracks=items["items"])
             self.setListInCache("toptracks",items)
-        self.add_track_listitems(items)
+        self.add_track_listitems(items,True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
     
@@ -200,7 +200,9 @@ class Main():
         album = self.sp.album(self.albumid,market=self.usercountry)
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', album["name"])
         tracks = self.getAllAlbumTracks(album)
-        self.add_track_listitems(tracks)
+        if album.get("album_type") == "compilation":
+            self.add_track_listitems(tracks,True)
+        else: self.add_track_listitems(tracks)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TRACKNUM)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
@@ -261,7 +263,7 @@ class Main():
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
         playlistdetails = self.get_playlist(self.ownerid,self.playlistid)
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', playlistdetails["name"])
-        self.add_track_listitems(playlistdetails["tracks"]["items"])
+        self.add_track_listitems(playlistdetails["tracks"]["items"],True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
     
@@ -295,6 +297,10 @@ class Main():
         
     def add_track_to_playlist(self):
         xbmc.executebuiltin( "ActivateWindow(busydialog)" )
+        
+        if not self.trackid and xbmc.getInfoLabel("MusicPlayer.(1).Property(spotifytrackid)"):
+            self.trackid = xbmc.getInfoLabel("MusicPlayer.(1).Property(spotifytrackid)")
+        
         playlists = self.sp.user_playlists(self.userid,limit=50,offset=0)
         ownplaylists = []
         ownplaylistnames = []
@@ -527,19 +533,24 @@ class Main():
             
         return newtracks
             
-    def add_track_listitems(self,tracks):
+    def add_track_listitems(self,tracks,appendArtistToTitle=False):
         
         for track in tracks:
             li = xbmcgui.ListItem(
-                    track['name'],
+                    "%s - %s" %(track["artist"],track['name']),
                     path=track['url'],
                     iconImage="DefaultMusicSongs.png",
                     thumbnailImage=track['thumb']
                 )
             li.setProperty('do_not_analyze', 'true')
             
+            if appendArtistToTitle:
+                title = "%s - %s" %(track["artist"],track['name'])
+            else:
+                title = track['name']
+            
             infolabels = { 
-                    "title": track["name"],
+                    "title": title,
                     "genre": track["genre"],
                     "year": track["year"],
                     "tracknumber": track["track_number"],
@@ -550,7 +561,7 @@ class Main():
                 }
             li.setInfo( type="Music", infoLabels=infolabels)
             li.setProperty("spotifytrackid",track['id'])
-            li.addContextMenuItems(track["contextitems"],True)
+            li.addContextMenuItems(track["contextitems"])
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=track["url"], listitem=li, isFolder=False)
     
     def prepare_album_listitems(self, albumids=[], albums=[]):
@@ -795,7 +806,7 @@ class Main():
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(134))
         tracks = self.get_saved_tracks()
-        self.add_track_listitems(tracks)
+        self.add_track_listitems(tracks,True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TRACKNUM)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
@@ -869,7 +880,7 @@ class Main():
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(134))
         result = self.sp.search(q="track:%s" %self.trackid, type='track',limit=self.limit,offset=self.offset,market=self.usercountry)
         tracks = self.prepare_track_listitems(tracks=result["tracks"]["items"])
-        self.add_track_listitems(tracks)
+        self.add_track_listitems(tracks,True)
         self.addNextButton(result['tracks']['total'])
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))

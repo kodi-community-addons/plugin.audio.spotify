@@ -61,7 +61,7 @@ class Callbacks(SessionCallbacks):
         logMsg('message to user: {0}'.format(data))
 
     def log_message(self, session, data):
-        logMsg("Spotify Callbacks: " + data,True)
+        logMsg("Spotify Callbacks: %s" %data, True)
         pass
 
     def streaming_error(self, session, error):
@@ -131,7 +131,7 @@ def do_login(session, app):
     password = SETTING("password").decode("utf-8")
 
     #If no previous errors and we have a remembered user
-    if prev_error == 0 and session.remembered_user() == username:
+    if prev_error == 0 and try_decode(session.remembered_user()) == username:
         session.relogin()
         status = True
         logMsg( "Cached session found" )
@@ -233,7 +233,7 @@ def main():
             preloader_cb = get_preloader_callback(sess, buf)
             proxy_runner.set_stream_end_callback(preloader_cb)
             
-            user_agent = 'Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion"))
+            user_agent = try_decode('Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion")))
             playtoken = proxy_runner.get_user_token(user_agent)
             header_dict = {
                 'User-Agent': user_agent,
