@@ -119,3 +119,7 @@ msgstr ""
 msgctxt "#11026"
 msgid "Unfollow artist"
 msgstr ""
+
+msgctxt "#11027"
+msgid "Refresh listing"
+msgstr ""

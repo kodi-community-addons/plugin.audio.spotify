@@ -30,14 +30,14 @@ class Main():
     def getListFromCache(self,cacheStr):
         items = []
         if not WINDOW.getProperty("Spotify.IgnoreCache"):
-            cache = WINDOW.getProperty("SpotifyCache.%s"%cacheStr)
+            cache = WINDOW.getProperty("SpotifyCache.%s"%try_encode(cacheStr)).decode("utf-8")
             if cache: items = eval(cache)
         return items
         
     def setListInCache(self,cacheStr,items):
-        WINDOW.setProperty("SpotifyCache.%s"%cacheStr, repr(items))
+        WINDOW.setProperty("SpotifyCache.%s" %try_encode(cacheStr), repr(items))
     
-    def refreshListing(self,propstoflush=[]):
+    def refresh_listing(self,propstoflush=[]):
         if propstoflush:
             for prop in propstoflush:
                 WINDOW.clearProperty("SpotifyCache.%s"%prop)
@@ -293,7 +293,7 @@ class Main():
     def follow_playlist(self):
         result = self.sp.follow_playlist(self.ownerid, self.playlistid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing()
+        self.refresh_listing()
         
     def add_track_to_playlist(self):
         xbmc.executebuiltin( "ActivateWindow(busydialog)" )
@@ -326,52 +326,52 @@ class Main():
             
     def remove_track_from_playlist(self):
         self.sp.user_playlist_remove_all_occurrences_of_tracks(self.userid,self.playlistid,[self.trackid])
-        self.refreshListing()
+        self.refresh_listing()
         
     def unfollow_playlist(self):
         self.sp.unfollow_playlist(self.ownerid, self.playlistid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing()
+        self.refresh_listing()
         
     def follow_artist(self):
         result = self.sp.follow("artist", self.artistid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["followed_artists","savedartists"])
+        self.refresh_listing(["followed_artists","savedartists"])
     
     def unfollow_artist(self):
         self.sp.unfollow("artist", self.artistid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["followed_artists","savedartists"])
+        self.refresh_listing(["followed_artists","savedartists"])
         
     def save_album(self):
         result = self.sp.current_user_saved_albums_add([self.albumid])
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["savedalbums","savedartists","savedalbumsids"])
+        self.refresh_listing(["savedalbums","savedartists","savedalbumsids"])
         
     def remove_album(self):
         result = self.sp.current_user_saved_albums_delete([self.albumid])
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["savedalbums","savedartists","savedalbumsids"])
+        self.refresh_listing(["savedalbums","savedartists","savedalbumsids"])
         
     def save_track(self):
         result = self.sp.current_user_saved_tracks_add([self.trackid])
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["usersavedtracks","usersavedtracksids"])
+        self.refresh_listing(["usersavedtracks","usersavedtracksids"])
         
     def remove_track(self):
         result = self.sp.current_user_saved_tracks_delete([self.trackid])
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing(["usersavedtracks","usersavedtracksids"])
+        self.refresh_listing(["usersavedtracks","usersavedtracksids"])
         
     def follow_user(self):
         result = self.sp.follow("user", self.userid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing()
+        self.refresh_listing()
         
     def unfollow_user(self):
         self.sp.unfollow("user", self.userid)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        self.refreshListing()
+        self.refresh_listing()
         
     def get_featured_playlists(self):
         playlists = self.getListFromCache("featuredplaylists")
@@ -528,29 +528,31 @@ class Main():
                 #follow artist
                 contextitems.append( (ADDON.getLocalizedString(11025),"RunPlugin(plugin://plugin.audio.spotify/?action=follow_artist&artistid=%s)"%track["artistid"]) )
             
+            contextitems.append( (ADDON.getLocalizedString(11027),"RunPlugin(plugin://plugin.audio.spotify/?action=refresh_listing)") )
             track["contextitems"] = contextitems
             newtracks.append(track)
             
         return newtracks
             
-    def add_track_listitems(self,tracks,appendArtistToTitle=False):
+    def add_track_listitems(self,tracks,appendArtistToLabel=False):
         
         for track in tracks:
+        
+            if appendArtistToLabel:
+                label = "%s - %s" %(track["artist"],track['name'])
+            else:
+                label = track['name']
+                
             li = xbmcgui.ListItem(
-                    "%s - %s" %(track["artist"],track['name']),
+                    label,
                     path=track['url'],
                     iconImage="DefaultMusicSongs.png",
                     thumbnailImage=track['thumb']
                 )
             li.setProperty('do_not_analyze', 'true')
-            
-            if appendArtistToTitle:
-                title = "%s - %s" %(track["artist"],track['name'])
-            else:
-                title = track['name']
-            
+
             infolabels = { 
-                    "title": title,
+                    "title": label,
                     "genre": track["genre"],
                     "year": track["year"],
                     "tracknumber": track["track_number"],
@@ -600,23 +602,29 @@ class Main():
             contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%item["artistid"]) )
             contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%item["artistid"]) )
             contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%item["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11027),"RunPlugin(plugin://plugin.audio.spotify/?action=refresh_listing)") )
             item["contextitems"] = contextitems
         return albums
         
-    def add_album_listitems(self,albums):
+    def add_album_listitems(self,albums,appendArtistToLabel=False):
   
         #process listing
         for item in albums:
-        
+            
+            if appendArtistToLabel:
+                label = "%s - %s" %(item["artist"],item['name'])
+            else:
+                label = item['name']
+                
             li = xbmcgui.ListItem(
-                    item['name'],
+                    label,
                     path=item['url'],
                     iconImage="DefaultMusicAlbums.png",
                     thumbnailImage=item['thumb']
                 )
-            
+
             infolabels = { 
-                    "title": item["name"],
+                    "title": item['name'],
                     "genre": item["genre"],
                     "year": item["year"],
                     "album": item["name"],
@@ -626,7 +634,6 @@ class Main():
             li.setInfo( type="Music", infoLabels=infolabels)
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
-
             li.addContextMenuItems(item["contextitems"],False)
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item["url"], listitem=li, isFolder=True)
         
@@ -700,6 +707,7 @@ class Main():
             elif item['owner']['id'] != self.userid:
                 #follow playlist
                 contextitems.append( (ADDON.getLocalizedString(11009),"RunPlugin(plugin://plugin.audio.spotify/?action=follow_playlist&playlistid=%s&ownerid=%s)"%(item['id'],item['owner']['id'])) )
+            contextitems.append( (ADDON.getLocalizedString(11027),"RunPlugin(plugin://plugin.audio.spotify/?action=refresh_listing)") )
             item["contextitems"] = contextitems
             playlists2.append(item)
         return playlists2
@@ -770,7 +778,7 @@ class Main():
         xbmcplugin.setContent(int(sys.argv[1]), "albums")
         xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(132))
         albums = self.get_savedalbums()
-        self.add_album_listitems(albums)
+        self.add_album_listitems(albums,True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
@@ -893,7 +901,7 @@ class Main():
         for album in result['albums']['items']:
             albumids.append(album["id"])
         albums = self.prepare_album_listitems(albumids)
-        self.add_album_listitems(albums)
+        self.add_album_listitems(albums,True)
         self.addNextButton(result['albums']['total'])
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))

@@ -107,3 +107,7 @@ msgstr "Volg artiest"
 msgctxt "#11026"
 msgid "Unfollow artist"
 msgstr "Artiest niet volgen"
+
+msgctxt "#11027"
+msgid "Refresh listing"
+msgstr "Lijst vernieuwen"
