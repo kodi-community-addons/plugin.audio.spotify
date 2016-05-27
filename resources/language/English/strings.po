@@ -123,3 +123,15 @@ msgstr ""
 msgctxt "#11027"
 msgid "Refresh listing"
 msgstr ""
+
+msgctxt "#11028"
+msgid "Login details"
+msgstr ""
+
+msgctxt "#11029"
+msgid "Other settings"
+msgstr ""
+
+msgctxt "#11030"
+msgid "Append artist name to song title"
+msgstr ""

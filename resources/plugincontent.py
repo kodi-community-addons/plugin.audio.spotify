@@ -27,6 +27,8 @@ class Main():
     limit = 50
     params = {}
     
+    appendArtistToTitle = SETTING("appendArtistToTitle") == "true"
+    
     def getListFromCache(self,cacheStr):
         items = []
         if not WINDOW.getProperty("Spotify.IgnoreCache"):
@@ -550,9 +552,14 @@ class Main():
                     thumbnailImage=track['thumb']
                 )
             li.setProperty('do_not_analyze', 'true')
+            
+            if self.appendArtistToTitle:
+                title = label
+            else:
+                title = track['name']
 
             infolabels = { 
-                    "title": label,
+                    "title":title,
                     "genre": track["genre"],
                     "year": track["year"],
                     "tracknumber": track["track_number"],

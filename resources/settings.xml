@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-    <category label="11000">
-        <setting label="11200" type="lsep"/>
+    <category label="11028">
         <setting id="username" type="text" label="11001" default=""/>
         <setting id="password" type="text" option="hidden" label="11002" default=""/>
-        <setting label="11100" type="lsep"/>
+	</category>
+    
+    <category label="11029">
+        <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>
 	</category>
     
 </settings>
