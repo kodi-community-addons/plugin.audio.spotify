@@ -32,12 +32,14 @@ class Main():
     def getListFromCache(self,cacheStr):
         items = []
         if not WINDOW.getProperty("Spotify.IgnoreCache"):
-            cache = WINDOW.getProperty("SpotifyCache.%s"%try_encode(cacheStr)).decode("utf-8")
+            cacheStr = try_encode(u"SpotifyCache.%s" %cacheStr)
+            cache = WINDOW.getProperty(cacheStr).decode("utf-8")
             if cache: items = eval(cache)
         return items
         
     def setListInCache(self,cacheStr,items):
-        WINDOW.setProperty("SpotifyCache.%s" %try_encode(cacheStr), repr(items))
+        cacheStr = try_encode(u"SpotifyCache.%s" %cacheStr)
+        WINDOW.setProperty(cacheStr, repr(items))
     
     def refresh_listing(self,propstoflush=[]):
         if propstoflush:
