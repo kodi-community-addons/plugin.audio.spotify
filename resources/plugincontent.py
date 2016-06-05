@@ -573,6 +573,11 @@ class Main():
             li.setInfo( type="Music", infoLabels=infolabels)
             li.setProperty("spotifytrackid",track['id'])
             li.addContextMenuItems(track["contextitems"])
+            
+            #hack to force videoplayer as default player in Kodi Krypton
+            if KODI_VERSION > 16:
+                li.setMimeType("audio/x-wav")
+                li.addStreamInfo("audio", {"codec":"pcm_s16le","channels":"2" })
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=track["url"], listitem=li, isFolder=False)
     
     def prepare_album_listitems(self, albumids=[], albums=[]):
@@ -654,6 +659,8 @@ class Main():
                 followedartists.append(artist["id"])
                 
         for item in artists:
+            if not item: 
+                return []
             if item.get("artist"): 
                 item = item["artist"]
             if item.get("images"):

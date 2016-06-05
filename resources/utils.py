@@ -15,7 +15,7 @@ KODI_VERSION  = int(xbmc.getInfoLabel( "System.BuildVersion" ).split(".")[0])
 WINDOW = xbmcgui.Window(10000)
 SETTING = ADDON.getSetting
 SAVESETTING = ADDON.setSetting
-enableDebugLog = False
+enableDebugLog = True
 
 try: from urlparse import urlparse
 except: from urllib.parse import urlparse

@@ -508,7 +508,7 @@ class ProxyRunner(threading.Thread):
         raise HTTPProxyError("Cannot find a free port. Tried: %s" % list_str)
     
     
-    def __init__(self, session, audio_buffer, host='localhost', try_ports=range(8080,8090), allowed_ips=['127.0.0.1'], allow_ranges=True):
+    def __init__(self, session, audio_buffer, host='localhost', try_ports=range(8090,8100), allowed_ips=['127.0.0.1'], allow_ranges=True):
         port = self._find_free_port(host, try_ports)
         self.__audio_buffer = audio_buffer
         sess_ref = weakref.proxy(session)
