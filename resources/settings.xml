@@ -7,6 +7,7 @@
     
     <category label="11029">
         <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>
+        <setting id="defaultView" type="text" label="11031" default="506"/>
 	</category>
     
 </settings>

@@ -135,3 +135,7 @@ msgstr ""
 msgctxt "#11030"
 msgid "Append artist name to song title"
 msgstr ""
+
+msgctxt "#11031"
+msgid "Default view"
+msgstr ""
