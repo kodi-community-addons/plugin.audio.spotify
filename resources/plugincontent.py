@@ -126,7 +126,7 @@ class Main():
         self.add_artist_listitems(items)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
         
     def browse_toptracks(self):
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
@@ -142,7 +142,7 @@ class Main():
         self.add_track_listitems(items,True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
 
     def get_explore_categories(self):
         items = self.getListFromCache("explore_categories")
@@ -216,7 +216,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_ARTIST)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
      
     def artist_toptracks(self):
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
@@ -234,7 +234,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
     
     def related_artists(self):
         xbmcplugin.setContent(int(sys.argv[1]), "artists")
@@ -248,7 +248,7 @@ class Main():
         self.add_artist_listitems(artists)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
     
     def get_playlist(self, ownerid, playlistid):
         playlist = self.sp.user_playlist(ownerid, playlistid,market=self.usercountry, fields="tracks(total),name,owner(id),id")
@@ -275,7 +275,7 @@ class Main():
         self.add_track_listitems(playlistdetails["tracks"]["items"],True)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
     
     def get_category(self,categoryid):
         cachestr = "browse_category.%s" %categoryid
@@ -441,7 +441,7 @@ class Main():
         self.add_playlist_listitems(playlists)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("playlistDefaultView") + ')')
     
     def get_newreleases(self):
         albums = self.getListFromCache("newreleases")
@@ -465,7 +465,7 @@ class Main():
         self.add_album_listitems(albums)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
     
     def prepare_track_listitems(self, trackids=[], tracks=[], playlistdetails=None, albumdetails=None):
         newtracks = []
@@ -776,7 +776,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
     
     def get_savedalbumsids(self):
         albumids = self.getListFromCache("savedalbumsids")
@@ -809,7 +809,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
     
     def get_saved_tracks_ids(self):
         trackids = self.getListFromCache("usersavedtracksids")
@@ -847,7 +847,7 @@ class Main():
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
     
     def get_savedartists(self):
         artists = self.getListFromCache("savedartists")
@@ -877,7 +877,7 @@ class Main():
         self.add_artist_listitems(artists)
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
     
     def get_followedartists(self):
         artists = self.getListFromCache("followed_artists")
@@ -900,7 +900,7 @@ class Main():
         artists = self.get_followedartists()
         self.add_artist_listitems(artists)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
     
     def search_artists(self):
         xbmcplugin.setContent(int(sys.argv[1]), "artists")
@@ -911,7 +911,7 @@ class Main():
         self.addNextButton(result['artists']['total'])
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
         
     def search_tracks(self):
         xbmcplugin.setContent(int(sys.argv[1]), "songs")
@@ -922,7 +922,7 @@ class Main():
         self.addNextButton(result['tracks']['total'])
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
         
     def search_albums(self):
         xbmcplugin.setContent(int(sys.argv[1]), "albums")
@@ -936,7 +936,7 @@ class Main():
         self.addNextButton(result['albums']['total'])
         xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
         
     def search_playlists(self):
         xbmcplugin.setContent(int(sys.argv[1]), "files")
@@ -946,7 +946,7 @@ class Main():
         self.add_playlist_listitems(playlists)
         self.addNextButton(result['playlists']['total'])
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("defaultView") + ')')
+        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("playlistDefaultView") + ')')
         
     def search(self):
         xbmcplugin.setContent(int(sys.argv[1]), "files")
