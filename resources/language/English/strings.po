@@ -135,3 +135,19 @@ msgstr ""
 msgctxt "#11030"
 msgid "Append artist name to song title"
 msgstr ""
+
+msgctxt "#11031"
+msgid "Default view for playlists"
+msgstr ""
+
+msgctxt "#11032"
+msgid "Default view for artist list"
+msgstr ""
+
+msgctxt "#11032"
+msgid "Default view for album list"
+msgstr ""
+
+msgctxt "#11032"
+msgid "Default view for song list"
+msgstr ""
