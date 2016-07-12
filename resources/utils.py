@@ -131,10 +131,10 @@ def get_detected_architecture():
         logMsg('Could not detect architecture! Setting X86')
         logMsg(traceback.format_exc())			
         return Architecture.X86
-    if architecture.startswith('armv6'):
-        return Architecture.ARMV6
-    elif architecture.startswith('arm'):
+    if architecture.startswith('armv7'):
         return Architecture.ARMV7
+    elif architecture.startswith('arm'):
+        return Architecture.ARMV6
     elif architecture.startswith('aarch64'):
         return Architecture.AARCH64
     elif architecture.startswith('i686') or architecture.startswith('i386'):

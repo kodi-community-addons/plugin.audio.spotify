@@ -64,6 +64,54 @@ class Main():
             return 0
         else:
             return int(math.ceil(popularity * 6 / 100.0)) - 1
+            
+    def play_track(self):
+        track = self.sp.track(self.trackid, market=self.usercountry)
+        if track.get("images"): 
+            thumb = track["images"][0]['url']
+        elif track['album'].get("images"): 
+            thumb = track['album']["images"][0]['url']
+        else: 
+            thumb = ""
+
+        if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
+            url = track['preview_url']
+        else:
+            url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
+        
+        artists = []
+        for artist in track['artists']:
+            artists.append(artist["name"])
+        track["artist"] = " / ".join(artists)
+        track["genre"] = " / ".join(track["album"].get("genres",[]))
+        track["year"] = int(track["album"].get("release_date","0").split("-")[0])
+        track["rating"] = str(self.get_track_rating(track["popularity"]))
+        
+        li = xbmcgui.ListItem(
+                track['name'],
+                path = url,
+                iconImage="DefaultMusicSongs.png",
+                thumbnailImage=thumb
+            )
+
+        infolabels = { 
+                    "title":track['name'],
+                    "genre": track["genre"],
+                    "year": track["year"],
+                    "tracknumber": track["track_number"],
+                    "album": track['album']["name"],
+                    "artist": track["artist"],
+                    "rating": track["rating"],
+                    "duration": track["duration_ms"]/1000
+                }
+        li.setInfo( type="Music", infoLabels=infolabels)
+        li.setProperty("spotifytrackid",track['id'])
+        if KODI_VERSION > 15:
+            li.setContentLookup(False)
+        li.setProperty('do_not_analyze', 'true')
+        
+        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=True, listitem=li)
+        
         
     def browse_main(self):
         #main listing
@@ -489,7 +537,7 @@ class Main():
                 url = track['preview_url']
             else:
                 url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
-            track['url'] = url
+            track['url'] = "plugin://plugin.audio.spotify/?action=play_track&trackid=%s" %track['id']
             
             artists = []
             for artist in track['artists']:
@@ -554,6 +602,7 @@ class Main():
                     thumbnailImage=track['thumb']
                 )
             li.setProperty('do_not_analyze', 'true')
+            li.setProperty('IsPlayable', 'true')
             
             if self.appendArtistToTitle:
                 title = label
@@ -572,12 +621,9 @@ class Main():
                 }
             li.setInfo( type="Music", infoLabels=infolabels)
             li.setProperty("spotifytrackid",track['id'])
+            if KODI_VERSION > 15:
+                li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"])
-            
-            #hack to force videoplayer as default player in Kodi Krypton
-            if KODI_VERSION > 16:
-                li.setMimeType("audio/x-wav")
-                li.addStreamInfo("audio", {"codec":"pcm_s16le","channels":"2" })
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=track["url"], listitem=li, isFolder=False)
     
     def prepare_album_listitems(self, albumids=[], albums=[]):
