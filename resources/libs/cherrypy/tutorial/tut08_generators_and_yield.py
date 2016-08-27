@@ -11,26 +11,26 @@ import cherrypy
 
 
 class GeneratorDemo:
-    
+
     def header(self):
         return "<html><body><h2>Generators rule!</h2>"
-    
+
     def footer(self):
         return "</body></html>"
-    
+
+    @cherrypy.expose
     def index(self):
         # Let's make up a list of users for presentation purposes
         users = ['Remi', 'Carlos', 'Hendrik', 'Lorenzo Lamas']
-        
+
         # Every yield line adds one part to the total result body.
         yield self.header()
         yield "<h3>List of users:</h3>"
-        
+
         for user in users:
             yield "%s<br/>" % user
-            
+
         yield self.footer()
-    index.exposed = True
 
 
 import os.path
@@ -41,7 +41,3 @@ if __name__ == '__main__':
     # to objects, so we need to mount a request handler root. A request
     # to '/' will be mapped to HelloWorld().index().
     cherrypy.quickstart(GeneratorDemo(), config=tutconf)
-else:
-    # This branch is for the test suite; you can ignore it.
-    cherrypy.tree.mount(GeneratorDemo(), config=tutconf)
-

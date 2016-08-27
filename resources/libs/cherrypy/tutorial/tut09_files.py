@@ -49,7 +49,8 @@ from cherrypy.lib import static
 
 
 class FileDemo(object):
-    
+
+    @cherrypy.expose
     def index(self):
         return """
         <html><body>
@@ -62,8 +63,8 @@ class FileDemo(object):
             <a href='download'>This one</a>
         </body></html>
         """
-    index.exposed = True
-    
+
+    @cherrypy.expose
     def upload(self, myFile):
         out = """<html>
         <body>
@@ -72,7 +73,7 @@ class FileDemo(object):
             myFile mime-type: %s
         </body>
         </html>"""
-        
+
         # Although this just counts the file length, it demonstrates
         # how to read large files in chunks instead of all at once.
         # CherryPy reads the uploaded file into a temporary file;
@@ -83,15 +84,14 @@ class FileDemo(object):
             if not data:
                 break
             size += len(data)
-        
+
         return out % (size, myFile.filename, myFile.content_type)
-    upload.exposed = True
-    
+
+    @cherrypy.expose
     def download(self):
         path = os.path.join(absDir, "pdf_file.pdf")
         return static.serve_file(path, "application/x-download",
                                  "attachment", os.path.basename(path))
-    download.exposed = True
 
 
 import os.path
@@ -102,6 +102,3 @@ if __name__ == '__main__':
     # to objects, so we need to mount a request handler root. A request
     # to '/' will be mapped to HelloWorld().index().
     cherrypy.quickstart(FileDemo(), config=tutconf)
-else:
-    # This branch is for the test suite; you can ignore it.
-    cherrypy.tree.mount(FileDemo(), config=tutconf)

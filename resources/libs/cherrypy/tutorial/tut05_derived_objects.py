@@ -13,7 +13,7 @@ import cherrypy
 class Page:
     # Store the page title in a class attribute
     title = 'Untitled Page'
-    
+
     def header(self):
         return '''
             <html>
@@ -23,13 +23,13 @@ class Page:
             <body>
             <h2>%s</h2>
         ''' % (self.title, self.title)
-    
+
     def footer(self):
         return '''
             </body>
             </html>
         '''
-    
+
     # Note that header and footer don't get their exposed attributes
     # set to True. This isn't necessary since the user isn't supposed
     # to call header or footer directly; instead, we'll call them from
@@ -40,11 +40,12 @@ class Page:
 class HomePage(Page):
     # Different title for this page
     title = 'Tutorial 5'
-    
+
     def __init__(self):
         # create a subpage
         self.another = AnotherPage()
-    
+
+    @cherrypy.expose
     def index(self):
         # Note that we call the header and footer methods inherited
         # from the Page class!
@@ -54,19 +55,18 @@ class HomePage(Page):
             <a href="./another/">another page</a>, too!
             </p>
         ''' + self.footer()
-    index.exposed = True
 
 
 class AnotherPage(Page):
     title = 'Another Page'
-    
+
+    @cherrypy.expose
     def index(self):
         return self.header() + '''
             <p>
             And this is the amazing second page!
             </p>
         ''' + self.footer()
-    index.exposed = True
 
 
 import os.path
@@ -77,7 +77,3 @@ if __name__ == '__main__':
     # to objects, so we need to mount a request handler root. A request
     # to '/' will be mapped to HelloWorld().index().
     cherrypy.quickstart(HomePage(), config=tutconf)
-else:
-    # This branch is for the test suite; you can ignore it.
-    cherrypy.tree.mount(HomePage(), config=tutconf)
-

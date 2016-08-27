@@ -1,19 +1,25 @@
 """Tests for the CherryPy configuration system."""
 
-import os, sys
-localDir = os.path.join(os.getcwd(), os.path.dirname(__file__))
-
-from cherrypy._cpcompat import ntob, StringIO
+import io
+import os
+import sys
 import unittest
 
+import six
+
 import cherrypy
+import cherrypy._cpcompat as compat
+
+localDir = os.path.join(os.getcwd(), os.path.dirname(__file__))
+
+
+StringIOFromNative = lambda x: io.StringIO(six.text_type(x))
+
 
 def setup_server():
 
+    @cherrypy.config(foo='this', bar='that')
     class Root:
-
-        _cp_config = {'foo': 'this',
-                      'bar': 'that'}
 
         def __init__(self):
             cherrypy.config.namespaces['db'] = self.db_namespace
@@ -22,60 +28,55 @@ def setup_server():
             if k == "scheme":
                 self.db = v
 
-        # @cherrypy.expose(alias=('global_', 'xyz'))
+        @cherrypy.expose(alias=('global_', 'xyz'))
         def index(self, key):
             return cherrypy.request.config.get(key, "None")
-        index = cherrypy.expose(index, alias=('global_', 'xyz'))
 
+        @cherrypy.expose
         def repr(self, key):
             return repr(cherrypy.request.config.get(key, None))
-        repr.exposed = True
 
+        @cherrypy.expose
         def dbscheme(self):
             return self.db
-        dbscheme.exposed = True
 
+        @cherrypy.expose
+        @cherrypy.config(**{'request.body.attempt_charsets': ['utf-16']})
         def plain(self, x):
             return x
-        plain.exposed = True
-        plain._cp_config = {'request.body.attempt_charsets': ['utf-16']}
 
         favicon_ico = cherrypy.tools.staticfile.handler(
-                        filename=os.path.join(localDir, '../favicon.ico'))
+            filename=os.path.join(localDir, '../favicon.ico'))
 
+    @cherrypy.config(foo='this2', baz='that2')
     class Foo:
 
-        _cp_config = {'foo': 'this2',
-                      'baz': 'that2'}
-
+        @cherrypy.expose
         def index(self, key):
             return cherrypy.request.config.get(key, "None")
-        index.exposed = True
         nex = index
 
+        @cherrypy.expose
+        @cherrypy.config(**{'response.headers.X-silly': 'sillyval'})
         def silly(self):
             return 'Hello world'
-        silly.exposed = True
-        silly._cp_config = {'response.headers.X-silly': 'sillyval'}
-        
+
         # Test the expose and config decorators
-        #@cherrypy.expose
-        #@cherrypy.config(foo='this3', **{'bax': 'this4'})
+        @cherrypy.config(foo='this3', **{'bax': 'this4'})
+        @cherrypy.expose
         def bar(self, key):
             return repr(cherrypy.request.config.get(key, None))
-        bar.exposed = True
-        bar._cp_config = {'foo': 'this3', 'bax': 'this4'}
 
     class Another:
 
+        @cherrypy.expose
         def index(self, key):
             return str(cherrypy.request.config.get(key, "None"))
-        index.exposed = True
-
 
     def raw_namespace(key, value):
         if key == 'input.map':
             handler = cherrypy.request.handler
+
             def wrapper():
                 params = cherrypy.request.params
                 for name, coercer in list(value.items()):
@@ -87,26 +88,32 @@ def setup_server():
             cherrypy.request.handler = wrapper
         elif key == 'output':
             handler = cherrypy.request.handler
+
             def wrapper():
                 # 'value' is a type (like int or str).
                 return value(handler())
             cherrypy.request.handler = wrapper
 
+    @cherrypy.config(**{'raw.output': repr})
     class Raw:
 
-        _cp_config = {'raw.output': repr}
-
+        @cherrypy.expose
+        @cherrypy.config(**{'raw.input.map': {'num': int}})
         def incr(self, num):
             return num + 1
-        incr.exposed = True
-        incr._cp_config = {'raw.input.map': {'num': int}}
 
-    ioconf = StringIO("""
+    if not six.PY3:
+        thing3 = "thing3: unicode('test', errors='ignore')"
+    else:
+        thing3 = ''
+
+    ioconf = StringIOFromNative("""
 [/]
 neg: -1234
 filename: os.path.join(sys.prefix, "hello.py")
 thing1: cherrypy.lib.httputil.response_codes[404]
 thing2: __import__('cherrypy.tutorial', globals(), locals(), ['']).thing2
+%s
 complex: 3+2j
 mul: 6*3
 ones: "11"
@@ -115,7 +122,7 @@ stradd: %%(ones)s + %%(twos)s + "33"
 
 [/favicon.ico]
 tools.staticfile.filename = %r
-""" % os.path.join(localDir, 'static/dirback.jpg'))
+""" % (thing3, os.path.join(localDir, 'static/dirback.jpg')))
 
     root = Root()
     root.foo = Foo()
@@ -133,6 +140,7 @@ tools.staticfile.filename = %r
 
 from cherrypy.test import helper
 
+
 class ConfigTests(helper.CPWebCase):
     setup_server = staticmethod(setup_server)
 
@@ -147,8 +155,9 @@ class ConfigTests(helper.CPWebCase):
             ('/foo/',    'bax', 'None'),
             ('/foo/bar', 'baz', "'that2'"),
             ('/foo/nex', 'baz', 'that2'),
-            # If 'foo' == 'this', then the mount point '/another' leaks into '/'.
-            ('/another/','foo', 'None'),
+            # If 'foo' == 'this', then the mount point '/another' leaks into
+            # '/'.
+            ('/another/', 'foo', 'None'),
         ]
         for path, key, expected in tests:
             self.getPage(path + "?key=" + key)
@@ -161,7 +170,7 @@ class ConfigTests(helper.CPWebCase):
             'request.show_tracebacks': True,
             'log.screen': False,
             'environment': 'test_suite',
-            'engine.autoreload_on': False,
+            'engine.autoreload.on': False,
             # From global config
             'luxuryyacht': 'throatwobblermangrove',
             # From Root._cp_config
@@ -171,7 +180,7 @@ class ConfigTests(helper.CPWebCase):
             # From Foo.bar._cp_config
             'foo': 'this3',
             'bax': 'this4',
-            }
+        }
         for key, expected in expectedconf.items():
             self.getPage("/foo/bar?key=" + key)
             self.assertBody(repr(expected))
@@ -192,6 +201,10 @@ class ConfigTests(helper.CPWebCase):
             self.getPage("/repr?key=thing2")
             from cherrypy.tutorial import thing2
             self.assertBody(repr(thing2))
+
+        if not six.PY3:
+            self.getPage("/repr?key=thing3")
+            self.assertBody(repr(unicode('test')))
 
         self.getPage("/repr?key=complex")
         self.assertBody("(3+2j)")
@@ -226,7 +239,7 @@ class ConfigTests(helper.CPWebCase):
         self.getPage("/plain", method='POST', headers=[
             ('Content-Type', 'application/x-www-form-urlencoded'),
             ('Content-Length', '13')],
-            body=ntob('\xff\xfex\x00=\xff\xfea\x00b\x00c\x00'))
+            body=compat.ntob('\xff\xfex\x00=\xff\xfea\x00b\x00c\x00'))
         self.assertBody("abc")
 
 
@@ -248,9 +261,43 @@ class VariableSubstitutionTests(unittest.TestCase):
 
         """)
 
-        fp = StringIO(conf)
+        fp = StringIOFromNative(conf)
 
         cherrypy.config.update(fp)
         self.assertEqual(cherrypy.config["my"]["my.dir"], "/some/dir/my/dir")
-        self.assertEqual(cherrypy.config["my"]["my.dir2"], "/some/dir/my/dir/dir2")
+        self.assertEqual(cherrypy.config["my"]
+                         ["my.dir2"], "/some/dir/my/dir/dir2")
 
+
+class CallablesInConfigTest(unittest.TestCase):
+    setup_server = staticmethod(setup_server)
+
+
+    def test_call_with_literal_dict(self):
+        from textwrap import dedent
+        conf = dedent("""
+        [my]
+        value = dict(**{'foo': 'bar'})
+        """)
+        fp = StringIOFromNative(conf)
+        cherrypy.config.update(fp)
+        self.assertEqual(cherrypy.config['my']['value'], {'foo': 'bar'})
+
+    def test_call_with_kwargs(self):
+        from textwrap import dedent
+        conf = dedent("""
+        [my]
+        value = dict(foo="buzz", **cherrypy._test_dict)
+        """)
+        test_dict = {
+            "foo": "bar",
+            "bar": "foo",
+            "fizz": "buzz"
+        }
+        cherrypy._test_dict = test_dict
+        fp = StringIOFromNative(conf)
+        cherrypy.config.update(fp)
+        test_dict['foo'] = 'buzz'
+        self.assertEqual(cherrypy.config['my']['value']['foo'], 'buzz')
+        self.assertEqual(cherrypy.config['my']['value'], test_dict)
+        del cherrypy._test_dict

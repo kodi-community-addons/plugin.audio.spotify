@@ -7,10 +7,10 @@
     
     <category label="11029">
         <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>
-        <setting id="playlistDefaultView" type="text" label="11031" default="506"/>
-        <setting id="artistDefaultView" type="text" label="11032" default="506"/>
-        <setting id="albumDefaultView" type="text" label="11033" default="506"/>
-        <setting id="songDefaultView" type="text" label="11034" default="506"/>
+        <setting id="playlistDefaultView" type="text" label="11031" default=""/>
+        <setting id="artistDefaultView" type="text" label="11032" default=""/>
+        <setting id="albumDefaultView" type="text" label="11033" default=""/>
+        <setting id="songDefaultView" type="text" label="11034" default=""/>
 	</category>
     
 </settings>

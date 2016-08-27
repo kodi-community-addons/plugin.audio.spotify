@@ -232,15 +232,6 @@ def main():
             logMsg('starting proxy at port {0}'.format(proxy_runner.get_port()) )
             preloader_cb = get_preloader_callback(sess, buf)
             proxy_runner.set_stream_end_callback(preloader_cb)
-            
-            user_agent = try_decode('Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion")))
-            playtoken = proxy_runner.get_user_token(user_agent)
-            header_dict = {
-                'User-Agent': user_agent,
-                'X-Spotify-Token': playtoken
-                }
-            url_headers = urlencode(header_dict)
-            WINDOW.setProperty("Spotify.PlayToken",url_headers)
             WINDOW.setProperty("Spotify.PlayServer","%s:%s" %(proxy_runner.get_host(),proxy_runner.get_port()))
             WINDOW.setProperty("Spotify.ServiceReady","ready")
 
@@ -274,7 +265,7 @@ def main():
 
     except (Exception) as ex:
         if str(ex) != '':
-            logMsg("ERROR in backgroundservice! " + str(ex))
+            logMsg("EXCEPTION in backgroundservice! " + str(ex))
             if "Unable to find" in str(ex):
                 WINDOW.setProperty("Spotify.LastError","999")
             else: 

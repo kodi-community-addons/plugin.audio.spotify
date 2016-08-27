@@ -16,7 +16,6 @@ the traceback to stdout, and keep any assertions you have from running
 be of further significance to your tests).
 """
 
-import os
 import pprint
 import re
 import socket
@@ -24,12 +23,15 @@ import sys
 import time
 import traceback
 import types
+import os
+import json
 
-from unittest import *
-from unittest import _TextTestResult
+import unittest
 
-from cherrypy._cpcompat import basestring, ntob, py3k, HTTPConnection, HTTPSConnection, unicodestr
+import six
 
+from cherrypy._cpcompat import text_or_bytes, HTTPConnection
+from cherrypy._cpcompat import HTTPSConnection
 
 
 def interface(host):
@@ -46,7 +48,7 @@ def interface(host):
     return host
 
 
-class TerseTestResult(_TextTestResult):
+class TerseTestResult(unittest._TextTestResult):
 
     def printErrors(self):
         # Overridden to avoid unnecessary empty line
@@ -57,7 +59,8 @@ class TerseTestResult(_TextTestResult):
             self.printErrorList('FAIL', self.failures)
 
 
-class TerseTestRunner(TextTestRunner):
+class TerseTestRunner(unittest.TextTestRunner):
+
     """A test runner class that displays results in textual form."""
 
     def _makeResult(self):
@@ -75,13 +78,14 @@ class TerseTestRunner(TextTestRunner):
             if failed:
                 self.stream.write("failures=%d" % failed)
             if errored:
-                if failed: self.stream.write(", ")
+                if failed:
+                    self.stream.write(", ")
                 self.stream.write("errors=%d" % errored)
             self.stream.writeln(")")
         return result
 
 
-class ReloadingTestLoader(TestLoader):
+class ReloadingTestLoader(unittest.TestLoader):
 
     def loadTestsFromName(self, name, module=None):
         """Return a suite of all tests cases given a string specifier.
@@ -111,7 +115,7 @@ class ReloadingTestLoader(TestLoader):
                             parts = unused_parts
                             break
                         except ImportError:
-                            unused_parts.insert(0,parts_copy[-1])
+                            unused_parts.insert(0, parts_copy[-1])
                             del parts_copy[-1]
                             if not parts_copy:
                                 raise
@@ -120,23 +124,23 @@ class ReloadingTestLoader(TestLoader):
         for part in parts:
             obj = getattr(obj, part)
 
-        if type(obj) == types.ModuleType:
+        if isinstance(obj, types.ModuleType):
             return self.loadTestsFromModule(obj)
-        elif (((py3k and isinstance(obj, type))
+        elif (((six.PY3 and isinstance(obj, type))
                or isinstance(obj, (type, types.ClassType)))
-              and issubclass(obj, TestCase)):
+              and issubclass(obj, unittest.TestCase)):
             return self.loadTestsFromTestCase(obj)
-        elif type(obj) == types.UnboundMethodType:
-            if py3k:
+        elif isinstance(obj, types.UnboundMethodType):
+            if six.PY3:
                 return obj.__self__.__class__(obj.__name__)
             else:
                 return obj.im_class(obj.__name__)
         elif hasattr(obj, '__call__'):
             test = obj()
-            if not isinstance(test, TestCase) and \
-               not isinstance(test, TestSuite):
+            if not isinstance(test, unittest.TestCase) and \
+               not isinstance(test, unittest.TestSuite):
                 raise ValueError("calling %s returned %s, "
-                                 "not a test" % (obj,test))
+                                 "not a test" % (obj, test))
             return test
         else:
             raise ValueError("do not know how to make test from: %s" % obj)
@@ -151,11 +155,14 @@ try:
     else:
         # On Windows, msvcrt.getch reads a single char without output.
         import msvcrt
+
         def getchar():
             return msvcrt.getch()
 except ImportError:
     # Unix getchr
-    import tty, termios
+    import tty
+    import termios
+
     def getchar():
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -167,7 +174,20 @@ except ImportError:
         return ch
 
 
-class WebCase(TestCase):
+# from jaraco.properties
+class NonDataProperty(object):
+    def __init__(self, fget):
+        assert fget is not None, "fget cannot be none"
+        assert callable(fget), "fget must be callable"
+        self.fget = fget
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return self.fget(obj)
+
+
+class WebCase(unittest.TestCase):
     HOST = "127.0.0.1"
     PORT = 8000
     HTTP_CONN = HTTPConnection
@@ -179,9 +199,9 @@ class WebCase(TestCase):
     status = None
     headers = None
     body = None
-    
+
     encoding = 'utf-8'
-    
+
     time = None
 
     def get_conn(self, auto_open=False):
@@ -221,6 +241,7 @@ class WebCase(TestCase):
 
     def _get_persistent(self):
         return hasattr(self.HTTP_CONN, "__class__")
+
     def _set_persistent(self, on):
         self.set_persistent(on)
     persistent = property(_get_persistent, _set_persistent)
@@ -232,20 +253,28 @@ class WebCase(TestCase):
         or '::' (IN6ADDR_ANY), this will return the proper localhost."""
         return interface(self.HOST)
 
-    def getPage(self, url, headers=None, method="GET", body=None, protocol=None):
-        """Open the url with debugging support. Return status, headers, body."""
+    def getPage(self, url, headers=None, method="GET", body=None,
+                protocol=None, raise_subcls=None):
+        """Open the url with debugging support. Return status, headers, body.
+
+        `raise_subcls` must be a tuple with the exceptions classes
+        or a single exception class that are not going to be considered
+        a socket.error regardless that they were are subclass of a
+        socket.error and therefore not considered for a connection retry.
+        """
         ServerError.on = False
-        
-        if isinstance(url, unicodestr):
+
+        if isinstance(url, six.text_type):
             url = url.encode('utf-8')
-        if isinstance(body, unicodestr):
+        if isinstance(body, six.text_type):
             body = body.encode('utf-8')
-        
+
         self.url = url
         self.time = None
         start = time.time()
         result = openURL(url, headers, method, body, self.HOST, self.PORT,
-                         self.HTTP_CONN, protocol or self.PROTOCOL)
+                         self.HTTP_CONN, protocol or self.PROTOCOL,
+                         raise_subcls)
         self.time = time.time() - start
         self.status, self.headers, self.body = result
 
@@ -257,7 +286,16 @@ class WebCase(TestCase):
             raise ServerError()
         return result
 
-    interactive = True
+    @NonDataProperty
+    def interactive(self):
+        """
+        Load interactivity setting from environment, where
+        the value can be numeric or a string like true or
+        False or 1 or 0.
+        """
+        env_str = os.environ.get('WEBTEST_INTERACTIVE', 'True')
+        return bool(json.loads(env_str.lower()))
+
     console_height = 30
 
     def _handlewebError(self, msg):
@@ -267,7 +305,9 @@ class WebCase(TestCase):
         if not self.interactive:
             raise self.failureException(msg)
 
-        p = "    Show: [B]ody [H]eaders [S]tatus [U]RL; [I]gnore, [R]aise, or sys.e[X]it >> "
+        p = ("    Show: "
+             "[B]ody [H]eaders [S]tatus [U]RL; "
+             "[I]gnore, [R]aise, or sys.e[X]it >> ")
         sys.stdout.write(p)
         sys.stdout.flush()
         while True:
@@ -309,7 +349,7 @@ class WebCase(TestCase):
 
     def assertStatus(self, status, msg=None):
         """Fail if self.status != status."""
-        if isinstance(status, basestring):
+        if isinstance(status, text_or_bytes):
             if not self.status == status:
                 if msg is None:
                     msg = 'Status (%r) != %r' % (self.status, status)
@@ -324,7 +364,7 @@ class WebCase(TestCase):
             # status is a tuple or list.
             match = False
             for s in status:
-                if isinstance(s, basestring):
+                if isinstance(s, text_or_bytes):
                     if self.status == s:
                         match = True
                         break
@@ -351,6 +391,19 @@ class WebCase(TestCase):
                 msg = '%r:%r not in headers' % (key, value)
         self._handlewebError(msg)
 
+    def assertHeaderIn(self, key, values, msg=None):
+        """Fail if header indicated by key doesn't have one of the values."""
+        lowkey = key.lower()
+        for k, v in self.headers:
+            if k.lower() == lowkey:
+                matches = [value for value in values if str(value) == v]
+                if matches:
+                    return matches
+
+        if msg is None:
+            msg = '%(key)r not in %(values)r' % vars()
+        self._handlewebError(msg)
+
     def assertHeaderItemValue(self, key, value, msg=None):
         """Fail if the header does not contain the specified value"""
         actual_value = self.assertHeader(key, msg=msg)
@@ -373,16 +426,17 @@ class WebCase(TestCase):
 
     def assertBody(self, value, msg=None):
         """Fail if value != self.body."""
-        if isinstance(value, unicodestr):
+        if isinstance(value, six.text_type):
             value = value.encode(self.encoding)
         if value != self.body:
             if msg is None:
-                msg = 'expected body:\n%r\n\nactual body:\n%r' % (value, self.body)
+                msg = 'expected body:\n%r\n\nactual body:\n%r' % (
+                    value, self.body)
             self._handlewebError(msg)
 
     def assertInBody(self, value, msg=None):
         """Fail if value not in self.body."""
-        if isinstance(value, unicodestr):
+        if isinstance(value, six.text_type):
             value = value.encode(self.encoding)
         if value not in self.body:
             if msg is None:
@@ -391,7 +445,7 @@ class WebCase(TestCase):
 
     def assertNotInBody(self, value, msg=None):
         """Fail if value in self.body."""
-        if isinstance(value, unicodestr):
+        if isinstance(value, six.text_type):
             value = value.encode(self.encoding)
         if value in self.body:
             if msg is None:
@@ -400,7 +454,7 @@ class WebCase(TestCase):
 
     def assertMatchesBody(self, pattern, msg=None, flags=0):
         """Fail if value (a regex pattern) is not in self.body."""
-        if isinstance(pattern, unicodestr):
+        if isinstance(pattern, six.text_type):
             pattern = pattern.encode(self.encoding)
         if re.search(pattern, self.body, flags) is None:
             if msg is None:
@@ -409,6 +463,7 @@ class WebCase(TestCase):
 
 
 methods_with_bodies = ("POST", "PUT")
+
 
 def cleanHeaders(headers, method, body, host, port):
     """Return request headers, with required headers added (if missing)."""
@@ -436,7 +491,8 @@ def cleanHeaders(headers, method, body, host, port):
                 found = True
                 break
         if not found:
-            headers.append(("Content-Type", "application/x-www-form-urlencoded"))
+            headers.append(
+                ("Content-Type", "application/x-www-form-urlencoded"))
             headers.append(("Content-Length", str(len(body or ""))))
 
     return headers
@@ -444,7 +500,7 @@ def cleanHeaders(headers, method, body, host, port):
 
 def shb(response):
     """Return status, headers, body the way we like from a response."""
-    if py3k:
+    if six.PY3:
         h = response.getheaders()
     else:
         h = []
@@ -467,9 +523,15 @@ def shb(response):
 
 def openURL(url, headers=None, method="GET", body=None,
             host="127.0.0.1", port=8000, http_conn=HTTPConnection,
-            protocol="HTTP/1.1"):
-    """Open the given HTTP resource and return status, headers, and body."""
+            protocol="HTTP/1.1", raise_subcls=None):
+    """
+    Open the given HTTP resource and return status, headers, and body.
 
+    `raise_subcls` must be a tuple with the exceptions classes
+    or a single exception class that are not going to be considered
+    a socket.error regardless that they were are subclass of a
+    socket.error and therefore not considered for a connection retry.
+    """
     headers = cleanHeaders(headers, method, body, host, port)
 
     # Trying 10 times is simply in case of socket errors.
@@ -485,43 +547,13 @@ def openURL(url, headers=None, method="GET", body=None,
             conn._http_vsn_str = protocol
             conn._http_vsn = int("".join([x for x in protocol if x.isdigit()]))
 
-            # skip_accept_encoding argument added in python version 2.4
-            if sys.version_info < (2, 4):
-                def putheader(self, header, value):
-                    if header == 'Accept-Encoding' and value == 'identity':
-                        return
-                    self.__class__.putheader(self, header, value)
-                import new
-                conn.putheader = new.instancemethod(putheader, conn, conn.__class__)
-                conn.putrequest(method.upper(), url, skip_host=True)
-            elif not py3k:
-                conn.putrequest(method.upper(), url, skip_host=True,
-                                skip_accept_encoding=True)
-            else:
-                import http.client
-                # Replace the stdlib method, which only accepts ASCII url's
-                def putrequest(self, method, url):
-                    if self._HTTPConnection__response and self._HTTPConnection__response.isclosed():
-                        self._HTTPConnection__response = None
-                    
-                    if self._HTTPConnection__state == http.client._CS_IDLE:
-                        self._HTTPConnection__state = http.client._CS_REQ_STARTED
-                    else:
-                        raise http.client.CannotSendRequest()
-                    
-                    self._method = method
-                    if not url:
-                        url = ntob('/')
-                    request = ntob(' ').join((method.encode("ASCII"), url,
-                                              self._http_vsn_str.encode("ASCII")))
-                    self._output(request)
-                import types
-                conn.putrequest = types.MethodType(putrequest, conn)
-                
-                conn.putrequest(method.upper(), url)
+            if six.PY3 and isinstance(url, bytes):
+                url = url.decode()
+            conn.putrequest(method.upper(), url, skip_host=True,
+                            skip_accept_encoding=True)
 
             for key, value in headers:
-                conn.putheader(key, ntob(value, "Latin-1"))
+                conn.putheader(key, value.encode("Latin-1"))
             conn.endheaders()
 
             if body is not None:
@@ -537,10 +569,15 @@ def openURL(url, headers=None, method="GET", body=None,
                 conn.close()
 
             return s, h, b
-        except socket.error:
-            time.sleep(0.5)
-            if trial == 9:
+        except socket.error as e:
+            if raise_subcls is not None and isinstance(e, raise_subcls):
                 raise
+            else:
+                time.sleep(0.5)
+                if trial == 9:
+                    raise
+
+
 
 
 # Add any exceptions which your web framework handles
@@ -551,6 +588,7 @@ ignored_exceptions = []
 # that each response will immediately follow each request;
 # for example, when handling requests via multiple threads.
 ignore_all = False
+
 
 class ServerError(Exception):
     on = False
@@ -572,4 +610,3 @@ def server_error(exc=None):
         print("")
         print("".join(traceback.format_exception(*exc)))
         return True
-

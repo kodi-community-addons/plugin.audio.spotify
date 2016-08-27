@@ -28,7 +28,20 @@ class Main():
     params = {}
     
     appendArtistToTitle = SETTING("appendArtistToTitle") == "true"
+    songDefaultView = SETTING("self.songDefaultView")
+    artistDefaultView = SETTING("self.artistDefaultView")
+    playlistDefaultView = SETTING("self.playlistDefaultView")
+    albumDefaultView = SETTING("self.albumDefaultView")
     
+    base_url = sys.argv[0]
+    addon_handle = int(sys.argv[1])
+    
+    def build_url(self, query):
+        query_encoded = {}
+        for key, value in query.iteritems():
+            query_encoded[try_encode(key)] = try_encode(value)
+        return self.base_url + '?' + urllib.urlencode(query_encoded)
+
     def getListFromCache(self,cacheStr):
         items = []
         if not WINDOW.getProperty("Spotify.IgnoreCache"):
@@ -51,7 +64,7 @@ class Main():
     def unavailablemessage(self):
         dlg = xbmcgui.Dialog()
         dlg.ok(ADDON_NAME, ADDON.getLocalizedString(11004))
-        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=False, listitem=xbmcgui.ListItem())
+        xbmcplugin.setResolvedUrl(handle=self.addon_handle, succeeded=False, listitem=xbmcgui.ListItem())
     
     def play_android(self):
         if self.ownerid and self.playlistid:
@@ -77,7 +90,7 @@ class Main():
         if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
             url = track['preview_url']
         else:
-            url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
+            url = "http://%s/track/%s.wav" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'])
         
         artists = []
         for artist in track['artists']:
@@ -110,12 +123,11 @@ class Main():
             li.setContentLookup(False)
         li.setProperty('do_not_analyze', 'true')
         
-        xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=True, listitem=li)
-        
+        xbmcplugin.setResolvedUrl(handle=self.addon_handle, succeeded=True, listitem=li)
         
     def browse_main(self):
         #main listing
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
+        xbmcplugin.setContent(self.addon_handle, "files")
         items = []
         items.append( (ADDON.getLocalizedString(11013),"plugin://plugin.audio.spotify/?action=browse_main_library","DefaultMusicCompilations.png" ) )
         items.append( (ADDON.getLocalizedString(11014),"plugin://plugin.audio.spotify/?action=browse_main_explore","DefaultMusicGenres.png" ) )
@@ -130,14 +142,14 @@ class Main():
             li.setProperty('IsPlayable', 'false')
             li.setArt( {"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"}  )
             li.addContextMenuItems([],True)
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item[1], listitem=li, isFolder=True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=True)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
     
     def browse_main_library(self):
         #library nodes
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11013))
+        xbmcplugin.setContent(self.addon_handle, "files")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', ADDON.getLocalizedString(11013))
         items = []
         items.append( (xbmc.getLocalizedString(136),"plugin://plugin.audio.spotify/?action=browse_playlists&ownerid=%s"%(self.userid),"DefaultMusicPlaylists.png" ) )
         items.append( (xbmc.getLocalizedString(132),"plugin://plugin.audio.spotify/?action=browse_savedalbums","DefaultMusicAlbums.png" ) )
@@ -155,12 +167,12 @@ class Main():
             li.setProperty('IsPlayable', 'false')
             li.setArt( {"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"}  )
             li.addContextMenuItems([],True)
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item[1], listitem=li, isFolder=True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=True)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         
     def browse_topartists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "artists")
+        xbmcplugin.setContent(self.addon_handle, "artists")
         items = self.getListFromCache("topartists")
         if not items:
             result = self.sp.current_user_top_artists(limit=20,offset=0)
@@ -168,16 +180,15 @@ class Main():
             while result["total"] > count:
                 result["items"] += self.sp.current_user_top_artists(limit=20,offset=count)["items"]
                 count += 50
-            print(result["items"])
             items = self.prepare_artist_listitems(result["items"])
             self.setListInCache("topartists",items)
         self.add_artist_listitems(items)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.artistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.artistDefaultView)
         
     def browse_toptracks(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
+        xbmcplugin.setContent(self.addon_handle, "songs")
         items = self.getListFromCache("toptracks")
         if not items:
             items = self.sp.current_user_top_tracks(limit=20,offset=0)
@@ -188,9 +199,10 @@ class Main():
             items = self.prepare_track_listitems(tracks=items["items"])
             self.setListInCache("toptracks",items)
         self.add_track_listitems(items,True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.songDefaultView:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
 
     def get_explore_categories(self):
         items = self.getListFromCache("explore_categories")
@@ -211,8 +223,8 @@ class Main():
     
     def browse_main_explore(self):
         #explore nodes
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11014))
+        xbmcplugin.setContent(self.addon_handle, "files")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', ADDON.getLocalizedString(11014))
         items = []
         items.append( (ADDON.getLocalizedString(11015),"plugin://plugin.audio.spotify/?action=browse_playlists&applyfilter=featured","DefaultMusicPlaylists.png" ) )
         items.append( (ADDON.getLocalizedString(11016),"plugin://plugin.audio.spotify/?action=browse_newreleases","DefaultMusicAlbums.png" ) )
@@ -230,9 +242,9 @@ class Main():
             li.setProperty('IsPlayable', 'false')
             li.setArt( {"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"}  )
             li.addContextMenuItems([],True)
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item[1], listitem=li, isFolder=True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=True)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
     
     def getAllAlbumTracks(self,album):
         count = 0
@@ -250,25 +262,26 @@ class Main():
         return alltracks
         
     def browse_album(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
+        xbmcplugin.setContent(self.addon_handle, "songs")
         album = self.sp.album(self.albumid,market=self.usercountry)
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', album["name"])
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', album["name"])
         tracks = self.getAllAlbumTracks(album)
         if album.get("album_type") == "compilation":
             self.add_track_listitems(tracks,True)
         else: self.add_track_listitems(tracks)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TRACKNUM)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_ARTIST)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TRACKNUM)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_ARTIST)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.songDefaultView:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
      
     def artist_toptracks(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11011))
+        xbmcplugin.setContent(self.addon_handle, "songs")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', ADDON.getLocalizedString(11011))
         cacheStr = "artisttoptracks.%s" %self.artistid
         tracks = self.getListFromCache(cacheStr)
         if not tracks:
@@ -276,17 +289,18 @@ class Main():
             tracks = self.prepare_track_listitems(tracks=tracks["tracks"])
             self.setListInCache(cacheStr,tracks)
         self.add_track_listitems(tracks)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TRACKNUM)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TRACKNUM)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.songDefaultView:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
     
     def related_artists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "artists")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11012))
+        xbmcplugin.setContent(self.addon_handle, "artists")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', ADDON.getLocalizedString(11012))
         cacheStr = "relatedartists.%s" %self.artistid
         artists = self.getListFromCache(cacheStr)
         if not artists:
@@ -294,9 +308,9 @@ class Main():
             artists = self.prepare_artist_listitems(artists['artists'])
             self.setListInCache(cacheStr,artists)
         self.add_artist_listitems(artists)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.artistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.artistDefaultView)
     
     def get_playlist(self, ownerid, playlistid):
         playlist = self.sp.user_playlist(ownerid, playlistid,market=self.usercountry, fields="tracks(total),name,owner(id),id")
@@ -317,13 +331,14 @@ class Main():
         return playlistdetails
     
     def browse_playlist(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
+        xbmcplugin.setContent(self.addon_handle, "songs")
         playlistdetails = self.get_playlist(self.ownerid,self.playlistid)
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', playlistdetails["name"])
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', playlistdetails["name"])
         self.add_track_listitems(playlistdetails["tracks"]["items"],True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.songDefaultView:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
     
     def get_category(self,categoryid):
         cachestr = "browse_category.%s" %categoryid
@@ -341,16 +356,16 @@ class Main():
         return playlists
     
     def browse_category(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
+        xbmcplugin.setContent(self.addon_handle, "files")
         playlists = self.get_category(self.filter)
         self.add_playlist_listitems(playlists['playlists']['items'])
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', playlists['category'])
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', playlists['category'])
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         
     def follow_playlist(self):
         result = self.sp.follow_playlist(self.ownerid, self.playlistid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing()
         
     def add_track_to_playlist(self):
@@ -388,47 +403,47 @@ class Main():
         
     def unfollow_playlist(self):
         self.sp.unfollow_playlist(self.ownerid, self.playlistid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing()
         
     def follow_artist(self):
         result = self.sp.follow("artist", self.artistid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["followed_artists","savedartists"])
     
     def unfollow_artist(self):
         self.sp.unfollow("artist", self.artistid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["followed_artists","savedartists"])
         
     def save_album(self):
         result = self.sp.current_user_saved_albums_add([self.albumid])
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["savedalbums","savedartists","savedalbumsids"])
         
     def remove_album(self):
         result = self.sp.current_user_saved_albums_delete([self.albumid])
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["savedalbums","savedartists","savedalbumsids"])
         
     def save_track(self):
         result = self.sp.current_user_saved_tracks_add([self.trackid])
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["usersavedtracks","usersavedtracksids"])
         
     def remove_track(self):
         result = self.sp.current_user_saved_tracks_delete([self.trackid])
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing(["usersavedtracks","usersavedtracksids"])
         
     def follow_user(self):
         result = self.sp.follow("user", self.userid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing()
         
     def unfollow_user(self):
         self.sp.unfollow("user", self.userid)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
         self.refresh_listing()
         
     def get_featured_playlists(self):
@@ -477,19 +492,19 @@ class Main():
         return playlistids
 
     def browse_playlists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
+        xbmcplugin.setContent(self.addon_handle, "files")
         if self.filter=="featured":
             playlists = self.get_featured_playlists()
-            xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', playlists['message'])
+            xbmcplugin.setProperty(self.addon_handle,'FolderName', playlists['message'])
             playlists = playlists['playlists']['items']
         else:
-            xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(136))
+            xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(136))
             playlists = self.get_user_playlists(self.ownerid)
         
         self.add_playlist_listitems(playlists)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("playlistDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.playlistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.playlistDefaultView)
     
     def get_newreleases(self):
         albums = self.getListFromCache("newreleases")
@@ -507,13 +522,13 @@ class Main():
         return albums
     
     def browse_newreleases(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "albums")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', ADDON.getLocalizedString(11005))
+        xbmcplugin.setContent(self.addon_handle, "albums")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', ADDON.getLocalizedString(11005))
         albums = self.get_newreleases()
         self.add_album_listitems(albums)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.albumDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.albumDefaultView)
     
     def prepare_track_listitems(self, trackids=[], tracks=[], playlistdetails=None, albumdetails=None):
         newtracks = []
@@ -529,7 +544,7 @@ class Main():
         for artist in self.get_followedartists():
             followedartists.append(artist["id"])
             
-        for i, track in enumerate(tracks):
+        for track in tracks:
             
             if track.get('track'): track = track['track']
             if albumdetails: track["album"] = albumdetails
@@ -542,11 +557,11 @@ class Main():
             if not track['id']: continue
     
             if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
-                url = track['preview_url']
+                track['url'] = track['preview_url']
             else:
-                url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],i,WINDOW.getProperty("Spotify.PlayToken"))
-            track['url'] = "plugin://plugin.audio.spotify/?action=play_track&trackid=%s" %track['id']
-            
+                #url = "http://%s/track/%s.wav" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'])
+                track['url'] = self.build_url({'action': 'play_track', 'trackid': track['id'] })
+
             artists = []
             for artist in track['artists']:
                 artists.append(artist["name"])
@@ -595,7 +610,7 @@ class Main():
         return newtracks
             
     def add_track_listitems(self,tracks,appendArtistToLabel=False):
-        
+        list_items = []
         for track in tracks:
         
             if appendArtistToLabel:
@@ -617,7 +632,7 @@ class Main():
             else:
                 title = track['name']
 
-            infolabels = { 
+            li.setInfo( 'music', { 
                     "title":title,
                     "genre": track["genre"],
                     "year": track["year"],
@@ -626,13 +641,13 @@ class Main():
                     "artist": track["artist"],
                     "rating": track["rating"],
                     "duration": track["duration_ms"]/1000
-                }
-            li.setInfo( type="Music", infoLabels=infolabels)
+                })
             li.setProperty("spotifytrackid",track['id'])
             if KODI_VERSION > 15:
                 li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"])
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=track["url"], listitem=li, isFolder=False)
+            list_items.append((track["url"], li, False))
+        xbmcplugin.addDirectoryItems(self.addon_handle, list_items)
     
     def prepare_album_listitems(self, albumids=[], albums=[]):
         
@@ -645,12 +660,12 @@ class Main():
         savedalbums = self.get_savedalbumsids()
                 
         #process listing
-        for i, item in enumerate(albums):    
+        for item in albums:    
             if item.get("images"):
                 item['thumb'] = item["images"][0]['url']
             else: item['thumb'] = ""
             
-            item['url']="plugin://plugin.audio.spotify/?action=browse_album&albumid=%s"%(item['id'])
+            item['url'] = self.build_url({'action': 'browse_album', 'albumid': item['id'] })
             
             artists = []
             for artist in item['artists']:
@@ -703,7 +718,7 @@ class Main():
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
             li.addContextMenuItems(item["contextitems"],False)
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item["url"], listitem=li, isFolder=True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item["url"], listitem=li, isFolder=True)
         
     def prepare_artist_listitems(self,artists,isFollowed=False):
         
@@ -720,7 +735,8 @@ class Main():
             if item.get("images"):
                 item["thumb"] = item["images"][0]['url']
             else: item["thumb"] = ""
-            item["url"]="plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s"%(item['id'])
+            
+            item['url'] = self.build_url({'action': 'browse_artistalbums', 'artistid': item['id'] })
             
             item["genre"] = " / ".join(item["genres"])
             item["rating"] = str(self.get_track_rating(item["popularity"]))
@@ -757,7 +773,7 @@ class Main():
             li.setProperty('IsPlayable', 'false')
             li.setLabel2(item["followerslabel"])
             li.addContextMenuItems(item["contextitems"])
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item["url"], listitem=li, isFolder=True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item["url"], listitem=li, isFolder=True, totalItems=len(artists))
 
     def prepare_playlist_listitems(self,playlists):
         playlists2 = []
@@ -768,7 +784,7 @@ class Main():
                 item["thumb"] = item["images"][0]['url']
             else: item["thumb"] = ""
             
-            item["url"] = "plugin://plugin.audio.spotify/?action=browse_playlist&playlistid=%s&ownerid=%s"%(item['id'],item['owner']['id'])
+            item['url'] = self.build_url({'action': 'browse_playlist', 'playlistid': item['id'], 'ownerid': item['owner']['id'] })
 
             contextitems = []
             if item['owner']['id'] != self.userid and item['id'] in followed_playlists:
@@ -797,11 +813,11 @@ class Main():
             
             li.addContextMenuItems(item["contextitems"])
             li.setArt( {"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"}  )
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item["url"], listitem=li, isFolder=True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item["url"], listitem=li, isFolder=True)
         
     def browse_artistalbums(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "albums")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(132))
+        xbmcplugin.setContent(self.addon_handle, "albums")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(132))
         cachestr = "artistalbums.%s" %self.artistid
         albums = self.getListFromCache(cachestr)
         if not albums:
@@ -817,12 +833,12 @@ class Main():
             albums = self.prepare_album_listitems(albumids)
             self.setListInCache(cachestr,albums)
         self.add_album_listitems(albums)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.albumDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.albumDefaultView)
     
     def get_savedalbumsids(self):
         albumids = self.getListFromCache("savedalbumsids")
@@ -846,16 +862,17 @@ class Main():
         return albums
     
     def browse_savedalbums(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "albums")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(132))
+        xbmcplugin.setContent(self.addon_handle, "albums")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(132))
         albums = self.get_savedalbums()
         self.add_album_listitems(albums,True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        xbmcplugin.setContent(self.addon_handle, "albums")
+        if self.albumDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.albumDefaultView)
     
     def get_saved_tracks_ids(self):
         trackids = self.getListFromCache("usersavedtracksids")
@@ -883,17 +900,18 @@ class Main():
         return tracks
     
     def browse_savedtracks(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(134))
+        xbmcplugin.setContent(self.addon_handle, "songs")
+        #xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(134))
         tracks = self.get_saved_tracks()
         self.add_track_listitems(tracks,True)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TRACKNUM)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_SONG_RATING)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        # xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        # xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TRACKNUM)
+        # xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        # xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        # xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        # if self.songDefaultView:
+            # xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
     
     def get_savedartists(self):
         artists = self.getListFromCache("savedartists")
@@ -917,13 +935,13 @@ class Main():
         return artists
     
     def browse_savedartists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "artists")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(133))
+        xbmcplugin.setContent(self.addon_handle, "artists")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(133))
         artists = self.get_savedartists()
         self.add_artist_listitems(artists)
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.artistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.artistDefaultView)
     
     def get_followedartists(self):
         artists = self.getListFromCache("followed_artists")
@@ -941,38 +959,39 @@ class Main():
         return artists
     
     def browse_followedartists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "artists")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(133))
+        xbmcplugin.setContent(self.addon_handle, "artists")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(133))
         artists = self.get_followedartists()
         self.add_artist_listitems(artists)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.artistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.artistDefaultView)
     
     def search_artists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "artists")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(133))
+        xbmcplugin.setContent(self.addon_handle, "artists")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(133))
         result = self.sp.search(q="artist:%s" %self.artistid, type='artist',limit=self.limit,offset=self.offset,market=self.usercountry)
         artists = self.prepare_artist_listitems(result['artists']['items'])
         self.add_artist_listitems(artists)
         self.addNextButton(result['artists']['total'])
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("artistDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.artistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.artistDefaultView)
         
     def search_tracks(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "songs")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(134))
+        xbmcplugin.setContent(self.addon_handle, "songs")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(134))
         result = self.sp.search(q="track:%s" %self.trackid, type='track',limit=self.limit,offset=self.offset,market=self.usercountry)
         tracks = self.prepare_track_listitems(tracks=result["tracks"]["items"])
         self.add_track_listitems(tracks,True)
         self.addNextButton(result['tracks']['total'])
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("songDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.songDefaultView:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' %self.songDefaultView)
         
     def search_albums(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "albums")
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(132))
+        xbmcplugin.setContent(self.addon_handle, "albums")
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(132))
         result = self.sp.search(q="album:%s" %self.albumid, type='album',limit=self.limit,offset=self.offset,market=self.usercountry)
         albumids = []
         for album in result['albums']['items']:
@@ -980,23 +999,23 @@ class Main():
         albums = self.prepare_album_listitems(albumids)
         self.add_album_listitems(albums,True)
         self.addNextButton(result['albums']['total'])
-        xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_UNSORTED)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("albumDefaultView") + ')')
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.albumDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.albumDefaultView)
         
     def search_playlists(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
+        xbmcplugin.setContent(self.addon_handle, "files")
         result = self.sp.search(q="playlist:%s" %self.playlistid, type='playlist',limit=self.limit,offset=self.offset,market=self.usercountry)
-        xbmcplugin.setProperty(int(sys.argv[1]),'FolderName', xbmc.getLocalizedString(136))
+        xbmcplugin.setProperty(self.addon_handle,'FolderName', xbmc.getLocalizedString(136))
         playlists = self.prepare_playlist_listitems(result['playlists']['items'])
         self.add_playlist_listitems(playlists)
         self.addNextButton(result['playlists']['total'])
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
-        xbmc.executebuiltin('Container.SetViewMode(' + SETTING("playlistDefaultView") + ')')
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.playlistDefaultView: xbmc.executebuiltin('Container.SetViewMode(%s)' %self.playlistDefaultView)
         
     def search(self):
-        xbmcplugin.setContent(int(sys.argv[1]), "files")
-        xbmcplugin.setPluginCategory(int(sys.argv[1]), xbmc.getLocalizedString(283))
+        xbmcplugin.setContent(self.addon_handle, "files")
+        xbmcplugin.setPluginCategory(self.addon_handle, xbmc.getLocalizedString(283))
         kb = xbmc.Keyboard('', xbmc.getLocalizedString(16017))
         kb.doModal()
         if kb.isConfirmed():
@@ -1016,8 +1035,8 @@ class Main():
                 li.setProperty('do_not_analyze', 'true')
                 li.setProperty('IsPlayable', 'false')
                 li.addContextMenuItems([],True)
-                xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=item[1], listitem=li, isFolder=True)
-        xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+                xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=True)
+        xbmcplugin.endOfDirectory(handle=self.addon_handle)
             
     def checkLoginDetails(self):
         username = SETTING("username").decode("utf-8")
@@ -1100,7 +1119,7 @@ class Main():
                     )
                 li.setProperty('do_not_analyze', 'true')
                 li.setProperty('IsPlayable', 'false')
-                xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder=True)
+                xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=url, listitem=li, isFolder=True)
             
     def main(self):
         #parse params
@@ -1136,7 +1155,7 @@ class Main():
                 self.browse_main()
                 self.precacheAllitems()
         else:
-            xbmcplugin.endOfDirectory(handle=int(sys.argv[1]))
+            xbmcplugin.endOfDirectory(handle=self.addon_handle)
         
         if WINDOW.getProperty("Spotify.IgnoreCache") == "ignore1":
             WINDOW.setProperty("Spotify.IgnoreCache","ignore2")
