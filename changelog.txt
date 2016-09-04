@@ -1,3 +1,5 @@
-v.1.0.1
--initial version with all basic webapi functionality implemented
--playback code based on spotimc addon (huge thanks to the original author)
+v.1.0.20
+-code cleanup
+- fix some error handling
+- stability issues
+

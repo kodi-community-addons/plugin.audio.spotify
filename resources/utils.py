@@ -32,9 +32,8 @@ except: import json
 
 def logMsg(msg, debug=False):
     if (enableDebugLog and debug) or not debug:
-        try:
+        if isinstance(msg, unicode):
             msg = msg.encode('utf-8')
-        except: pass
         xbmc.log("%s --> %s" %(ADDON_NAME,msg), level=xbmc.LOGNOTICE)
     if "exception" in msg.lower():
         print_exc()
@@ -92,18 +91,18 @@ def add_native_libraries():
     DLL_DIRS = {
         (Platform.LINUX, Architecture.X86) : ["resources/dlls/linux/x86"],
         (Platform.LINUX, Architecture.X86_64) : ["resources/dlls/linux/x86_64"],
-        (Platform.LINUX, Architecture.ARMV6) : ["resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6"],
+        (Platform.LINUX, Architecture.ARMV6) : ["resources/dlls/linux/armv6","resources/dlls/linux/armv6hf"],
         (Platform.LINUX, Architecture.ARMV7) : ["resources/dlls/linux/armv7","resources/dlls/linux/armv6hf"],
         (Platform.LINUX, Architecture.AARCH64) : ["resources/dlls/linux/aarch64"],
         (Platform.WINDOWS, Architecture.X86) : ["resources/dlls/windows/x86"],
         (Platform.WINDOWS, Architecture.X86_64) : ["resources/dlls/windows/x86"],
         (Platform.OSX, Architecture.X86) : ["resources/dlls/osx"],		
         (Platform.OSX, Architecture.X86_64) : ["resources/dlls/osx"],
-        (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/android/arm","resources/dlls/linux/armv6hf", "resources/dlls/linux/armv6"],
-        (Platform.ANDROID, Architecture.ARMV7) : ["resources/dlls/android/arm","resources/dlls/linux/armv7","resources/dlls/linux/armv6hf"],
-        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/linux/x86","resources/dlls/android/arm"],
-        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/linux/x86_64","resources/dlls/android/arm"],
-        (Platform.ANDROID, Architecture.AARCH64) : ["resources/dlls/linux/aarch64","resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.ARMV6) : ["resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.ARMV7) : ["resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.X86) : ["resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.X86_64) : ["resources/dlls/android/arm"],
+        (Platform.ANDROID, Architecture.AARCH64) : ["resources/dlls/android/arm"],
         (Platform.IOS, Architecture.ARMV6) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.ARMV7) : ["resources/dlls/ios"],
         (Platform.IOS, Architecture.X86) : ["resources/dlls/ios"]        

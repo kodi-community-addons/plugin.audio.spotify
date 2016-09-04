@@ -70,7 +70,7 @@ class Callbacks(SessionCallbacks):
     def play_token_lost(self, session):
         self.__audio_buffer.stop()
         #Only stop if we're actually playing spotify content
-        if "Spotify" in xbmc.getInfoLabel('Player.Filenameandpath'):
+        if xbmc.getInfoLabel("MusicPlayer.(0).Property(spotifytrackid)"):
             xbmc.executebuiltin('PlayerControl(stop)')
 
     def end_of_track(self, session):
@@ -232,6 +232,15 @@ def main():
             logMsg('starting proxy at port {0}'.format(proxy_runner.get_port()) )
             preloader_cb = get_preloader_callback(sess, buf)
             proxy_runner.set_stream_end_callback(preloader_cb)
+            
+            user_agent = try_decode('Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion")))
+            playtoken = proxy_runner.get_user_token(user_agent)
+            header_dict = {
+                'User-Agent': user_agent,
+                'X-Spotify-Token': playtoken
+                }
+            url_headers = urlencode(header_dict)
+            WINDOW.setProperty("Spotify.PlayToken",url_headers)
             WINDOW.setProperty("Spotify.PlayServer","%s:%s" %(proxy_runner.get_host(),proxy_runner.get_port()))
             WINDOW.setProperty("Spotify.ServiceReady","ready")
 

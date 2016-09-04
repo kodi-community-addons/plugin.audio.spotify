@@ -90,7 +90,7 @@ class Main():
         if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
             url = track['preview_url']
         else:
-            url = "http://%s/track/%s.wav" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'])
+            url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
         
         artists = []
         for artist in track['artists']:
@@ -557,10 +557,9 @@ class Main():
             if not track['id']: continue
     
             if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
-                track['url'] = track['preview_url']
+                track["url"] = track['preview_url']
             else:
-                #url = "http://%s/track/%s.wav" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'])
-                track['url'] = self.build_url({'action': 'play_track', 'trackid': track['id'] })
+                track["url"] = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
 
             artists = []
             for artist in track['artists']:
@@ -1073,6 +1072,7 @@ class Main():
             
             #check token for webapi
             self.token = util.prompt_for_user_token(username)
+            error = WINDOW.getProperty("Spotify.Lasterror")
             if not self.token:
                 xbmcgui.Dialog().ok(ADDON_NAME, ADDON.getLocalizedString(11019) + ': ' + error)
                 return False
@@ -1081,7 +1081,6 @@ class Main():
             elif WINDOW.getProperty("Spotify.ServiceReady") == "noplayback" and self.token:
                 return True
             else:
-                error = WINDOW.getProperty("Spotify.Lasterror")
                 errorStr = error
                 try:
                     error = int(error)

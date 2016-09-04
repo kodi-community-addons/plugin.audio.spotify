@@ -1,10 +1,4 @@
-'''
-Created on 06/05/2011
-
-@author: mikel
-'''
-
-#Why the hell "import spotify" does not work?
+# -*- coding: utf8 -*-
 from spotify import link, session, SampleType, track as _track
 from spotify.utils.loaders import load_track
 import threading, time, StringIO, cherrypy, re, struct
@@ -16,7 +10,6 @@ import weakref
 from datetime import datetime
 import string, random
 from utils import DynamicCallback, NullLogHandler
-import xbmc
 
 
 class HTTPProxyError(Exception):
@@ -32,18 +25,59 @@ class TrackLoadCallback(session.SessionCallbacks):
     def metadata_updated(self, session):
         self.__checker.check_conditions()
 
+def format_http_date(dt):
+    """
+    As seen on SO, compatible with py2.4+:
+    http://stackoverflow.com/questions/225086/rfc-1123-date-representation-in-python
+    """
+    """Return a string representation of a date according to RFC 1123
+    (HTTP/1.1).
 
+    The supplied date must be in UTC.
+
+    """
+    weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][dt.weekday()]
+    month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+             "Oct", "Nov", "Dec"][dt.month - 1]
+    return "%s, %02d %s %04d %02d:%02d:%02d GMT" % (weekday, dt.day, month,
+        dt.year, dt.hour, dt.minute, dt.second)
+
+def create_base_token(length=30):
+    """
+    Creates a random token with an optional length.
+    Original from SO:
+    http://stackoverflow.com/a/9011133/28581
+    """
+    pool = string.letters + string.digits
+    return ''.join(random.choice(pool) for i in xrange(length))
+
+def create_user_token(base_token, user_agent):
+    return sha1sum(str.join('', [base_token, user_agent]))
+
+def sha1sum(data):
+    #SHA1 lib 2.4 compatibility
+    try:
+        from hashlib import sha1
+        hash_obj = sha1()
+    except:
+        import sha
+        hash_obj = sha.new()
+    
+    hash_obj.update(data)
+    return hash_obj.hexdigest()
 
 class Track:
     __session = None
     __audio_buffer = None
     __is_playing = None
+    __base_token = None
     __allowed_ips = None
     __allow_ranges = None
     
     def __init__(self, session, audio_buffer, base_token, allowed_ips, on_stream_ended, allow_ranges=True):
         self.__session = session
         self.__audio_buffer = audio_buffer
+        self.__base_token = base_token
         self.__allowed_ips = allowed_ips
         self.__is_playing = False
         self.__cb_stream_ended = on_stream_ended
@@ -72,10 +106,8 @@ class Track:
         #Fail if we reach this point
         raise cherrypy.HTTPError(404)
     
-    
     def _write_wave_header(self, numsamples, channels, samplerate, bitspersample):
         file = StringIO.StringIO()
-        
         #Generate format chunk
         format_chunk_spec = "<4sLHHLLHH"
         format_chunk = struct.pack(
@@ -127,7 +159,6 @@ class Track:
         
         return file.getvalue(), all_cunks_size + 8
     
-    
     def _get_sample_width(self, sample_type):
         if sample_type == SampleType.Int16NativeEndian:
             return 16
@@ -135,10 +166,8 @@ class Track:
         else:
             return -1
     
-    
     def _get_total_samples(self, frame, track):
         return frame.sample_rate * track.duration() / 1000
-    
     
     def _generate_file_header(self, frame, num_samples):
         #Build the whole header
@@ -146,7 +175,6 @@ class Track:
             num_samples, frame.num_channels, frame.sample_rate,
             self._get_sample_width(frame.sample_type)
         )
-    
     
     def _write_file_content(self, buf, filesize, wave_header=None, max_buffer_size=65535):
         
@@ -212,7 +240,6 @@ class Track:
         #Notify that the stream ended
         self.__cb_stream_ended()
     
-    
     def _check_request(self):
         method = cherrypy.request.method.upper()
         headers = cherrypy.request.headers
@@ -223,6 +250,13 @@ class Track:
         
         #Error if the requester is not allowed
         if headers['Remote-Addr'] not in self.__allowed_ips:
+            raise cherrypy.HTTPError(403)
+        
+        #Check that the supplied token is correct
+        user_token = headers.get('X-Spotify-Token','')
+        user_agent = headers.get('User-Agent','')
+        correct_token = create_user_token(self.__base_token, user_agent)
+        if user_token != correct_token:
             raise cherrypy.HTTPError(403)
         
         return method
@@ -270,18 +304,13 @@ class Track:
         #Calculate file size, and obtain the header
         file_header, filesize = self._generate_file_header(frame, num_samples)
         
-        xbmc.log("cherrypy.request.headers: %s" %(cherrypy.request.headers), level=xbmc.LOGNOTICE)
-        
         self._write_http_headers(filesize)
         
         #If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
             return self._write_file_content(buf, filesize, file_header)
-
-            
+ 
     default._cp_config = {'response.stream': True}
-
-
 
 class Root:
     __session = None
@@ -296,8 +325,6 @@ class Root:
     def cleanup(self):
         self.__session = None
         self.track = None
-
-
 
 class ProxyRunner(threading.Thread):
     __server = None
@@ -324,6 +351,7 @@ class ProxyRunner(threading.Thread):
         port = self._find_free_port(host, try_ports)
         self.__audio_buffer = audio_buffer
         sess_ref = weakref.proxy(session)
+        self.__base_token = create_base_token()
         self.__allowed_ips = allowed_ips
         self.__cb_stream_ended = DynamicCallback()
         self.__root = Root(
@@ -357,7 +385,10 @@ class ProxyRunner(threading.Thread):
         return self.__server.bind_addr[1]
     
     def get_host(self):
-        return self.__server.bind_addr[0]   
+        return self.__server.bind_addr[0]
+
+    def get_user_token(self, user_agent):
+        return create_user_token(self.__base_token, user_agent)
     
     def ready_wait(self):
         while not self.__server.ready:
