@@ -15,7 +15,6 @@ KODI_VERSION  = int(xbmc.getInfoLabel( "System.BuildVersion" ).split(".")[0])
 WINDOW = xbmcgui.Window(10000)
 SETTING = ADDON.getSetting
 SAVESETTING = ADDON.setSetting
-enableDebugLog = False
 
 try: from urlparse import urlparse
 except: from urllib.parse import urlparse
@@ -31,11 +30,14 @@ try: import simplejson as json
 except: import json
 
 def logMsg(msg, debug=False):
-    if (enableDebugLog and debug) or not debug:
-        if isinstance(msg, unicode):
-            msg = msg.encode('utf-8')
-        xbmc.log("%s --> %s" %(ADDON_NAME,msg), level=xbmc.LOGNOTICE)
-    if "exception" in msg.lower():
+    if debug: 
+        loglevel = xbmc.LOGDEBUG
+    else: 
+        loglevel = xbmc.LOGNOTICE
+    if isinstance(msg, unicode):
+        msg = msg.encode('utf-8')
+    xbmc.log("%s --> %s" %(ADDON_NAME,msg), level=loglevel)
+    if "exception" in msg.lower() and debug:
         print_exc()
      
 def getJSON(method,params):

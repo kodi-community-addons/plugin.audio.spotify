@@ -1,6 +1,12 @@
-# -*- coding: utf8 -*-
-from spotify import link, session, SampleType, track as _track
-from spotify.utils.loaders import load_track
+'''
+Created on 06/05/2011
+
+@author: mikel
+'''
+
+#Why the hell "import spotify" does not work?
+from spotify import image as _image, link, session, SampleType, track as _track
+from spotify.utils.loaders import load_track, load_image
 import threading, time, StringIO, cherrypy, re, struct
 from audio import QueueItem, BufferStoppedError
 import cherrypy
@@ -9,21 +15,20 @@ from cherrypy.process import servers
 import weakref
 from datetime import datetime
 import string, random
-from utils import DynamicCallback, NullLogHandler
+from utils import DynamicCallback
+
+#TODO: urllib 3.x compatibility
+import urllib2
+from utils import NullLogHandler
+
+
+
 
 
 class HTTPProxyError(Exception):
     pass
 
-class TrackLoadCallback(session.SessionCallbacks):
-    __checker = None
-    
-    def __init__(self, checker):
-        self.__checker = checker
-    
-    
-    def metadata_updated(self, session):
-        self.__checker.check_conditions()
+
 
 def format_http_date(dt):
     """
@@ -42,6 +47,8 @@ def format_http_date(dt):
     return "%s, %02d %s %04d %02d:%02d:%02d GMT" % (weekday, dt.day, month,
         dt.year, dt.hour, dt.minute, dt.second)
 
+
+
 def create_base_token(length=30):
     """
     Creates a random token with an optional length.
@@ -51,8 +58,12 @@ def create_base_token(length=30):
     pool = string.letters + string.digits
     return ''.join(random.choice(pool) for i in xrange(length))
 
+
+
 def create_user_token(base_token, user_agent):
     return sha1sum(str.join('', [base_token, user_agent]))
+
+
 
 def sha1sum(data):
     #SHA1 lib 2.4 compatibility
@@ -66,6 +77,76 @@ def sha1sum(data):
     hash_obj.update(data)
     return hash_obj.hexdigest()
 
+
+
+class ImageCallbacks(_image.ImageCallbacks):
+    __checker = None
+    
+    
+    def __init__(self, checker):
+        self.__checker = checker
+    
+    
+    def image_loaded(self, image):
+        self.__checker.check_conditions()
+
+
+
+class Image:
+    __session = None
+    __last_modified = None
+    
+    
+    def __init__(self, session):
+        self.__session = session
+        self.__last_modified = format_http_date(datetime.utcnow())
+    
+    
+    def _get_clean_image_id(self, image_str):
+        #Strip the optional extension...
+        r = re.compile('\.jpg$', re.IGNORECASE)
+        return re.sub(r, '', image_str)
+    
+    
+    @cherrypy.expose
+    def default(self, image_id, **kwargs):
+        method = cherrypy.request.method.upper()
+        
+        #Fail for other methods than get or head
+        if method not in ("GET", "HEAD"):
+            raise cherrypy.HTTPError(405)
+        
+        clean_image_id = self._get_clean_image_id(image_id)
+        img_obj = _image.create(self.__session, clean_image_id)
+        load_image(img_obj, 10)
+        
+        #Fail if image was not loaded or wrong format
+        if not img_obj.is_loaded() or img_obj.format() != _image.ImageFormat.JPEG:
+            raise cherrypy.HTTPError(500)
+        
+        else:
+            cherrypy.response.headers["Content-Type"] = "image/jpeg"
+            cherrypy.response.headers["Content-Length"] = len(img_obj.data())
+            cherrypy.response.headers["Last-Modified"] = self.__last_modified
+            
+            if method == 'GET':
+                return img_obj.data()
+
+
+
+class TrackLoadCallback(session.SessionCallbacks):
+    __checker = None
+    
+    
+    def __init__(self, checker):
+        self.__checker = checker
+    
+    
+    def metadata_updated(self, session):
+        self.__checker.check_conditions()
+
+
+
 class Track:
     __session = None
     __audio_buffer = None
@@ -73,6 +154,7 @@ class Track:
     __base_token = None
     __allowed_ips = None
     __allow_ranges = None
+    
     
     def __init__(self, session, audio_buffer, base_token, allowed_ips, on_stream_ended, allow_ranges=True):
         self.__session = session
@@ -82,6 +164,7 @@ class Track:
         self.__is_playing = False
         self.__cb_stream_ended = on_stream_ended
         self.__allow_ranges = allow_ranges
+    
     
     def _get_track_object(self, track_str):
         
@@ -106,8 +189,10 @@ class Track:
         #Fail if we reach this point
         raise cherrypy.HTTPError(404)
     
+    
     def _write_wave_header(self, numsamples, channels, samplerate, bitspersample):
         file = StringIO.StringIO()
+        
         #Generate format chunk
         format_chunk_spec = "<4sLHHLLHH"
         format_chunk = struct.pack(
@@ -159,6 +244,7 @@ class Track:
         
         return file.getvalue(), all_cunks_size + 8
     
+    
     def _get_sample_width(self, sample_type):
         if sample_type == SampleType.Int16NativeEndian:
             return 16
@@ -166,8 +252,10 @@ class Track:
         else:
             return -1
     
+    
     def _get_total_samples(self, frame, track):
         return frame.sample_rate * track.duration() / 1000
+    
     
     def _generate_file_header(self, frame, num_samples):
         #Build the whole header
@@ -175,6 +263,7 @@ class Track:
             num_samples, frame.num_channels, frame.sample_rate,
             self._get_sample_width(frame.sample_type)
         )
+    
     
     def _write_file_content(self, buf, filesize, wave_header=None, max_buffer_size=65535):
         
@@ -240,6 +329,7 @@ class Track:
         #Notify that the stream ended
         self.__cb_stream_ended()
     
+    
     def _check_request(self):
         method = cherrypy.request.method.upper()
         headers = cherrypy.request.headers
@@ -248,16 +338,24 @@ class Track:
         if method not in ("GET", "HEAD"):
             raise cherrypy.HTTPError(405)
         
+        #Error if no token or user agent are provided
+        if 'User-Agent' not in headers or 'X-Spotify-Token' not in headers:
+            raise cherrypy.HTTPError(403)
+        
         #Error if the requester is not allowed
         if headers['Remote-Addr'] not in self.__allowed_ips:
             raise cherrypy.HTTPError(403)
         
         #Check that the supplied token is correct
-        user_token = headers.get('X-Spotify-Token','')
-        user_agent = headers.get('User-Agent','')
+        user_token = headers['X-Spotify-Token']
+        user_agent = headers['User-Agent']
         correct_token = create_user_token(self.__base_token, user_agent)
         if user_token != correct_token:
             raise cherrypy.HTTPError(403)
+            
+        #we do not accept range requests
+        if headers.get('Range','') and headers.get('Range','') != "bytes=0-":
+            raise cherrypy.HTTPError(416)
         
         return method
     
@@ -268,12 +366,20 @@ class Track:
         cherrypy.response.headers['Accept-Ranges'] = 'none'
     
     
-    def _parse_ranges(self):
-        r = re.compile('^bytes=(\d*)-(\d*)$')
-        m = r.match(cherrypy.request.headers['Range'])
-        if m is not None:
-            return m.group(1), m.group(2)
-        
+    def _create_dummy_frame(self):
+        """
+        Create a dummy frame with default format.
+        """
+        return QueueItem(
+            '',
+            1,
+            SampleType.Int16NativeEndian,
+            44100,
+            2,
+            1.0 / 44100,
+        )
+    
+    
     def _check_track(self, track):
         """
         Check if the track is playable or not.
@@ -295,8 +401,13 @@ class Track:
         self._check_track(track_obj)
         
         #Get the first frame of the track
-        buf = self.__audio_buffer.open(self.__session, track_obj)
-        frame = buf.get_frame_wait(0)[0]
+        if cherrypy.request.method.upper() == 'GET':
+            buf = self.__audio_buffer.open(self.__session, track_obj)
+            frame = buf.get_frame_wait(0)[0]
+        
+        #Or just create a fake one
+        else:
+            frame = self._create_dummy_frame()
         
         #Calculate the total number of samples in the track
         num_samples = self._get_total_samples(frame, track_obj)
@@ -309,22 +420,32 @@ class Track:
         #If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
             return self._write_file_content(buf, filesize, file_header)
- 
+    
     default._cp_config = {'response.stream': True}
+
+
 
 class Root:
     __session = None
+    
+    image = None
     track = None
+    
     
     def __init__(self, session, audio_buffer, base_token, allowed_ips, on_stream_ended, allow_ranges=True):
         self.__session = session
+        self.image = Image(session)
         self.track = Track(
             session, audio_buffer, base_token, allowed_ips, on_stream_ended, allow_ranges
         )
     
+    
     def cleanup(self):
         self.__session = None
+        self.image = None
         self.track = None
+
+
 
 class ProxyRunner(threading.Thread):
     __server = None
@@ -375,25 +496,32 @@ class ProxyRunner(threading.Thread):
     def set_stream_end_callback(self, callback):
         self.__cb_stream_ended.set_callback(callback)
     
+    
     def clear_stream_end_callback(self):
         self.__cb_stream_ended.clear_callback();
         
+    
     def run(self):
         self.__server.start()
+    
     
     def get_port(self):
         return self.__server.bind_addr[1]
     
+    
     def get_host(self):
         return self.__server.bind_addr[0]
-
+    
+    
     def get_user_token(self, user_agent):
         return create_user_token(self.__base_token, user_agent)
+    
     
     def ready_wait(self):
         while not self.__server.ready:
             time.sleep(.1)
-
+    
+    
     def stop(self):
         self.__audio_buffer.stop()
         self.__server.stop()

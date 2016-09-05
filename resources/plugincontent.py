@@ -90,7 +90,7 @@ class Main():
         if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
             url = track['preview_url']
         else:
-            url = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
+            url = "http://%s/track/%s.wav?idx=1|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],WINDOW.getProperty("Spotify.PlayToken"))
         
         artists = []
         for artist in track['artists']:
@@ -559,7 +559,7 @@ class Main():
             if WINDOW.getProperty("Spotify.ServiceReady") == "noplayback":
                 track["url"] = track['preview_url']
             else:
-                track["url"] = "http://%s/track/%s.wav?idx=%s|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],1,WINDOW.getProperty("Spotify.PlayToken"))
+                track["url"] = "http://%s/track/%s.wav?idx=1|%s" %(WINDOW.getProperty("Spotify.PlayServer"),track['id'],WINDOW.getProperty("Spotify.PlayToken"))
 
             artists = []
             for artist in track['artists']:
