@@ -237,7 +237,7 @@ def main():
             playtoken = proxy_runner.get_user_token(user_agent)
             header_dict = {
                 'User-Agent': user_agent,
-                'X-Spotify-Token': playtoken
+                'x-csrf-token': playtoken
                 }
             url_headers = urlencode(header_dict)
             WINDOW.setProperty("Spotify.PlayToken",url_headers)

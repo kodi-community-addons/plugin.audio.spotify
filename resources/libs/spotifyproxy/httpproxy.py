@@ -339,7 +339,7 @@ class Track:
             raise cherrypy.HTTPError(405)
         
         #Error if no token or user agent are provided
-        if 'User-Agent' not in headers or 'X-Spotify-Token' not in headers:
+        if 'User-Agent' not in headers or 'x-csrf-token' not in headers:
             raise cherrypy.HTTPError(403)
         
         #Error if the requester is not allowed
@@ -347,7 +347,7 @@ class Track:
             raise cherrypy.HTTPError(403)
         
         #Check that the supplied token is correct
-        user_token = headers['X-Spotify-Token']
+        user_token = headers['x-csrf-token']
         user_agent = headers['User-Agent']
         correct_token = create_user_token(self.__base_token, user_agent)
         if user_token != correct_token:

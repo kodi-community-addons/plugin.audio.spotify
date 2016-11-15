@@ -38,64 +38,25 @@ def prompt_for_user_token(username, scope=None, client_id = None,
         
         auth_url = sp_oauth.get_authorize_url()
         
-        if xbmc.getCondVisibility("System.Platform.Android"):
-            #for android we just launch the default android browser
-            xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,"+auth_url+")")
-            browser = "android"
-        else:
-            #try to find a browser...
-            browsers = []
-            browser = ""
-            browsers.append("c:\program files (x86)\Google\Chrome\Application\chrome.exe")
-            browsers.append("c:\program files\Google\Chrome\Application\chrome.exe")
-            browsers.append("c:\program files (x86)\Internet Explorer\iexplore.exe")
-            browsers.append("c:\program files\Internet Explorer\iexplore.exe")
-            browsers.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-            browsers.append("/Applications/Safari/Contents/MacOS/Safari")
-            browsers.append("/usr/bin/google-chrome")
-            browsers.append("/usr/bin/chromium-browser")
-            browsers.append("/usr/bin/chromium")
-            browsers.append("/usr/bin/firefox")
-            #openelec browsers
-            if xbmc.getCondVisibility("System.HasAddon(browser.chromium)"):
-                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium').getAddonInfo('path'), 'bin') + '/chromium')
-            if xbmc.getCondVisibility("System.HasAddon(browser.chromium-browser)"):
-                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium-browser').getAddonInfo('path'), 'bin') + '/chromium')
+        #launch webbrowser
+        #try to find a browser...
+        import webbrowser
+        webbrowser.open(auth_url, new=1)                
 
-            for item in browsers:
-                if xbmcvfs.exists(item):
-                    browser = item
-                    #browser found, execute the browser and wait for our token
-                    WINDOW.clearProperty("spotify-token_info")
-                    logMsg("Launching browser " + browser)
-                    p = subprocess.Popen( [browser,auth_url],shell=False )
-                    break
+        #wait for token...
+        count = 0
+        while not WINDOW.getProperty("spotify-token_info"):
+            logMsg("Waiting for authentication token...")
+            xbmc.sleep(1000)
+            if count == 120: break
+            count += 1
                 
-        if not browser:
-            WINDOW.setProperty("Spotify.Lasterror", ADDON.getLocalizedString(11003))
-        else:
-            #wait for token...
-            count = 0
-            while not WINDOW.getProperty("spotify-token_info"):
-                logMsg("Waiting for authentication token...")
-                xbmc.sleep(1000)
-                if count == 120: break
-                count += 1
-                
-            #close browser
-            if browser != "android":
-                try: 
-                    p.terminate()
-                    p.kill()
-                except: 
-                    pass
-                
-            response = WINDOW.getProperty("spotify-token_info")
-            webService.stop()
-            WINDOW.clearProperty("spotify-token_info")
-            
-            code = sp_oauth.parse_response_code(response)
-            token_info = sp_oauth.get_access_token(code)
+        response = WINDOW.getProperty("spotify-token_info")
+        webService.stop()
+        WINDOW.clearProperty("spotify-token_info")
+        
+        code = sp_oauth.parse_response_code(response)
+        token_info = sp_oauth.get_access_token(code)
     
     # Auth'ed API request
     if token_info:
@@ -127,7 +88,8 @@ class WebService(threading.Thread):
         try:
             server = StoppableHttpServer(('127.0.0.1', port), StoppableHttpRequestHandler)
             server.serve_forever()
-        except Exception as e: logMsg("WebServer exception occurred " + str(e))
+        except Exception as e: 
+            logMsg("WebServer exception occurred " + str(e))
             
 class Request(object):
     # attributes from urlsplit that this class also sets
