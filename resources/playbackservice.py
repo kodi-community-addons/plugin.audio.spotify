@@ -5,6 +5,7 @@ import xbmc, xbmcgui
 import threading
 import weakref
 import re
+import traceback
 from utils import *
 load_all_libraries()
 from spotify import MainLoop, ConnectionState, ErrorType, Bitrate, link
@@ -84,7 +85,7 @@ class Callbacks(SessionCallbacks):
 
     def connectionstate_changed(self, session):
         self.__app.get_var('connstate_event').set()
-        
+
     def search_complete(self, result):
         pass
 
@@ -125,12 +126,13 @@ def do_login(session, app):
         prev_error = app.get_var('login_last_error')
     else:
         prev_error = 0
-        
+
     #Get login details from settings
     username = SETTING("username").decode("utf-8")
     password = SETTING("password").decode("utf-8")
 
     #If no previous errors and we have a remembered user
+    logMsg('Checking remembered_user ..')
     if prev_error == 0 and try_decode(session.remembered_user()) == username:
         session.relogin()
         status = True
@@ -179,7 +181,7 @@ def get_next_track(sess_obj):
             local_track = link_obj.as_track()
             return load_track(sess_obj, local_track.get_playable(sess_obj))
     else: return None
-    
+
 def get_preloader_callback(session, buffer):
     session = weakref.proxy(session)
     def preloader():
@@ -224,21 +226,24 @@ def main():
         if not do_login(sess, app):
             WINDOW.setProperty("Spotify.ServiceReady","error")
             app.set_var('exit_requested', True)
-        
+
         elif wait_for_connstate(sess, app, ConnectionState.LoggedIn):
-            
+
             proxy_runner = ProxyRunner(sess, buf, host='127.0.0.1', allow_ranges=True)
             proxy_runner.start()
             logMsg('starting proxy at port {0}'.format(proxy_runner.get_port()) )
             preloader_cb = get_preloader_callback(sess, buf)
+            logMsg('Setting callback ..')
             proxy_runner.set_stream_end_callback(preloader_cb)
-            
-            user_agent = try_decode('Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion")))
+
+            user_agent = try_decode('Spotify/{0} (XBMC/{1})'.format(ADDON_VERSION, xbmc.getInfoLabel("System.BuildVersion"))).decode('utf-8', 'ignore')
+            logMsg('Obtaining user token ..')
             playtoken = proxy_runner.get_user_token(user_agent)
             header_dict = {
                 'User-Agent': user_agent,
                 'x-csrf-token': playtoken
                 }
+            logMsg('Encoding header ..')
             url_headers = urlencode(header_dict)
             WINDOW.setProperty("Spotify.PlayToken",url_headers)
             WINDOW.setProperty("Spotify.PlayServer","%s:%s" %(proxy_runner.get_host(),proxy_runner.get_port()))
@@ -254,6 +259,7 @@ def main():
 
             #Playback and proxy deinit sequence
             xbmc.executebuiltin('PlayerControl(stop)')
+            logMsg('Clearing stream / stopping ..')
             proxy_runner.clear_stream_end_callback()
             proxy_runner.stop()
             buf.cleanup()
@@ -263,6 +269,7 @@ def main():
             preloader_cb = None
 
             #Logout
+            logMsg('Logging out ..')
             if sess.user():
                 sess.logout()
                 logout_event.wait(2)
@@ -274,10 +281,13 @@ def main():
 
     except (Exception) as ex:
         if str(ex) != '':
-            logMsg("EXCEPTION in backgroundservice! " + str(ex))
+            # trace = traceback.format_exc()
+            logMsg("TRACE: " + ( ''.join(traceback.format_stack()) ) )
+            logMsg("EXCEPTION in background service: " + str(ex))
+            # logMsg("STACK: %s" %trace, True)
             if "Unable to find" in str(ex):
                 WINDOW.setProperty("Spotify.LastError","999")
-            else: 
+            else:
                 error = str(ex)
                 WINDOW.clearProperty("Spotify.ServiceReady")
                 WINDOW.setProperty("Spotify.LastError",error)
