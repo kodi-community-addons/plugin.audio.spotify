@@ -1,5 +1,0 @@
-v.1.0.20
--code cleanup
-- fix some error handling
-- stability issues
-
