@@ -41,23 +41,56 @@ def prompt_for_user_token(username, scope=None, client_id = None,
         #launch webbrowser
         #try to find a browser...
         import webbrowser
-        webbrowser.open(auth_url, new=1)                
-
-        #wait for token...
-        count = 0
-        while not WINDOW.getProperty("spotify-token_info"):
-            logMsg("Waiting for authentication token...")
-            xbmc.sleep(1000)
-            if count == 120: break
-            count += 1
-                
-        response = WINDOW.getProperty("spotify-token_info")
-        webService.stop()
-        WINDOW.clearProperty("spotify-token_info")
         
-        code = sp_oauth.parse_response_code(response)
-        token_info = sp_oauth.get_access_token(code)
-    
+        browser_path = None
+        WINDOW.clearProperty("spotify-token_info")
+        if xbmc.getCondVisibility("System.Platform.Android"):
+            # for android we just launch the default android browser
+            xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,"+auth_url+")")
+            browser_path = "android"
+        elif webbrowser.open(auth_url, new=1):
+            # use webbrowser module
+            logMsg("Launching browser: autodetect")
+            browser_path = "autodetect"
+        else:
+            # look for a browser on linux machines
+            browser_path = None
+            browsers = ["/usr/bin/google-chrome", "/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/firefox"]
+            if xbmc.getCondVisibility("System.HasAddon(browser.chromium)"):
+                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium').getAddonInfo('path'), 'bin') + '/chromium')
+            if xbmc.getCondVisibility("System.HasAddon(browser.chromium-browser)"):
+                browsers.append(os.path.join(xbmcaddon.Addon('browser.chromium-browser').getAddonInfo('path'), 'bin') + '/chromium')
+            for item in browsers:
+                if xbmcvfs.exists(item):
+                    browser_path = item
+                    break
+            if not browser_path:
+                # No webbrowser found - try the manual way
+                if xbmc.Dialog().yesno("No webbrowser detected", "The webbrowser could not be auto detected. Do you have one installed ?"):
+                    browser_path = xbmc.Dialog().browse(2, "Executable of browser", 'files').decode("utf-8")
+
+            if browser_path:
+                #browser found, execute the browser and wait for our token
+                logMsg("Launching browser " + browser_path)
+                p = subprocess.Popen( [browser_path, auth_url], shell=False )
+            
+
+        if browser_path:
+
+            count = 0
+            while not WINDOW.getProperty("spotify-token_info"):
+                logMsg("Waiting for authentication token...")
+                xbmc.sleep(1000)
+                if count == 120: break
+                count += 1
+                    
+            response = WINDOW.getProperty("spotify-token_info")
+            webService.stop()
+            WINDOW.clearProperty("spotify-token_info")
+            if response:
+                code = sp_oauth.parse_response_code(response)
+                token_info = sp_oauth.get_access_token(code)
+        
     # Auth'ed API request
     if token_info:
         return token_info['access_token']
