@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="plugin.audio.spotify" version="1.0.25" name="Spotify" provider-name="marcelveldt">
+<addon id="plugin.audio.spotify" version="1.0.26" name="Spotify" provider-name="marcelveldt">
     <requires>
         <import addon="xbmc.python" version="2.1.0"/>
         <import addon="xbmc.addon" version="12.0.0"/>
