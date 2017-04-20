@@ -1255,7 +1255,7 @@ class SpotifyRadioTrackBuffer(object):
    
     def _fetch(self):
         xbmc.log("Spotify radio track buffer invoking recommendations() via spotipy")
-        tracks = self._client.recommendations(seed_tracks=[t["id"] for t in self._buffer], limit=self.FETCH_SIZE)["tracks"]
+        tracks = self._client.recommendations(seed_tracks=[t["id"] for t in self._buffer[0:5]], limit=self.FETCH_SIZE)["tracks"]
         xbmc.log("Spotify radio track buffer got %d results back" % len(tracks))
         return tracks
 
