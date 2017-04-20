@@ -6,8 +6,10 @@ import math
 import urlparse
 import urllib
 import threading, thread
+import time
 import spotipy
 import spotipy.util as util
+import xbmc
 
 class Main():
 
@@ -77,9 +79,8 @@ class Main():
             return 0
         else:
             return int(math.ceil(popularity * 6 / 100.0)) - 1
-            
-    def play_track(self):
-        track = self.sp.track(self.trackid, market=self.usercountry)
+
+    def parse_spotify_track(self, track, include_track_number=True):
         if track.get("images"): 
             thumb = track["images"][0]['url']
         elif track['album'].get("images"): 
@@ -111,20 +112,36 @@ class Main():
                     "title":track['name'],
                     "genre": track["genre"],
                     "year": track["year"],
-                    "tracknumber": track["track_number"],
                     "album": track['album']["name"],
                     "artist": track["artist"],
                     "rating": track["rating"],
                     "duration": track["duration_ms"]/1000
                 }
+
+        if include_track_number:
+            infolabels["tracknumber"] = track["track_number"]
+
         li.setInfo( type="Music", infoLabels=infolabels)
         li.setProperty("spotifytrackid",track['id'])
         if KODI_VERSION > 15:
             li.setContentLookup(False)
         li.setProperty('do_not_analyze', 'true')
         
+        return url, li
+
+    def play_track(self):
+        track = self.sp.track(self.trackid, market=self.usercountry)
+        _url, li = self.parse_spotify_track(track)
         xbmcplugin.setResolvedUrl(handle=self.addon_handle, succeeded=True, listitem=li)
-        
+
+    def play_track_radio(self):
+        player = SpotifyRadioPlayer()
+        player.set_parent(self)
+        player.set_seed_track_id(self.trackid)
+        player.play()
+        while(not xbmc.abortRequested):
+            xbmc.sleep(100)
+
     def browse_main(self):
         #main listing
         xbmcplugin.setContent(self.addon_handle, "files")
@@ -586,6 +603,8 @@ class Main():
             else:
                 contextitems.append( (ADDON.getLocalizedString(11007),"RunPlugin(plugin://plugin.audio.spotify/?action=save_track&trackid=%s)"%(real_trackid)) )
             
+            contextitems.append( (ADDON.getLocalizedString(11035),"RunPlugin(plugin://plugin.audio.spotify/?action=play_track_radio&trackid=%s)"%(real_trackid)) )
+
             if playlistdetails and playlistdetails["owner"]["id"] == self.userid:
                 contextitems.append( (ADDON.getLocalizedString(11017),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_track_from_playlist&trackid=%s&playlistid=%s)"%(real_trackuri,playlistdetails["id"])) )
             elif not playlistdetails:
@@ -1176,7 +1195,104 @@ class Main():
             self.get_newreleases()
             self.get_featured_playlists()
             WINDOW.setProperty("Spotify.PreCachedItems","done")
-            
-        
-        
-        
+
+class SpotifyRadioTrackBuffer(object):
+    FETCH_SIZE = 20
+    MIN_BUFFER_SIZE = FETCH_SIZE / 2
+    CHECK_BUFFER_PERIOD = 0.5
+
+    # Public interface
+    def __init__(self, client, seed_track_ids):
+        self._client = client # spotipy client instance
+        self._buffer = [self._client.track(track_id) for track_id in seed_track_ids]
+        self._buffer_lock = threading.Lock()
+        self._running = False
+
+    def start(self):
+        self._running = True
+        xbmc.log("Starting Spotify radio track buffer worker thread")
+        t = threading.Thread(target=self._fill_buffer)
+        t.start()
+
+    def stop(self):
+        xbmc.log("Stopping Spotify radio track buffer worker thread")
+        self._running = False
+
+    def __next__(self):
+        # For the most part, the buffer-filling thread should prevent the need for waiting here,
+        # but wait exponentially (up to about 32 seconds) for it to fill before giving up.
+        xbmc.log("Spotify radio track buffer asked for next item")
+        attempts = 0
+        while attempts <= 5:
+            self._buffer_lock.acquire()
+            if len(self._buffer) <= self.MIN_BUFFER_SIZE:
+                self._buffer_lock.release()
+                sleep_time = pow(2, attempts)
+                xbmc.log("Spotify radio track buffer empty, sleeping for %d seconds" % sleep_time)
+                time.sleep(sleep_time)
+                attempts += 1
+            else:
+                track = self._buffer.pop(0)
+                self._buffer_lock.release()
+                xbmc.log("Got track '%s' from Spotify radio track buffer" % track["id"])
+                return track
+        raise StopIteration
+
+    # Support both Python 2.7 & Python 3.0
+    next = __next__
+
+    # Implementation
+    def _fill_buffer(self):
+        while self._running:
+            self._buffer_lock.acquire()
+            if len(self._buffer) <= self.MIN_BUFFER_SIZE:
+                xbmc.log("Spotify radio track buffer was %d, below minimum size of %d - filling" % (len(self._buffer), self.MIN_BUFFER_SIZE))
+                self._buffer += self._fetch()
+                self._buffer_lock.release()
+            else:
+                self._buffer_lock.release()
+                time.sleep(self.CHECK_BUFFER_PERIOD)
+   
+    def _fetch(self):
+        xbmc.log("Spotify radio track buffer invoking recommendations() via spotipy")
+        tracks = self._client.recommendations(seed_tracks=[t["id"] for t in self._buffer], limit=self.FETCH_SIZE)["tracks"]
+        xbmc.log("Spotify radio track buffer got %d results back" % len(tracks))
+        return tracks
+
+class SpotifyRadioPlayer(xbmc.Player):
+    def set_parent(self, parent):
+        self._parent = parent
+
+    def set_seed_track_id(self, seed_track_id):
+        self._seed_track_id = seed_track_id
+
+    def play(self, *args, **kwds):
+        self._pl = xbmc.PlayList(0)
+        self._pl.clear()
+        self._source = SpotifyRadioTrackBuffer(self._parent.sp, [self._seed_track_id])
+        self._source.start()
+
+        xbmc.executebuiltin('XBMC.RandomOff')
+        xbmc.executebuiltin('XBMC.RepeatOff')
+
+        for _i in range(2):
+            self._add_to_playlist()
+
+        xbmc.Player.play(self, self._pl)
+
+    def onPlayBackStarted(self):
+        self._add_to_playlist()
+        xbmc.Player.onPlayBackStarted(self)
+
+    def onPlayBackEnded( self ):
+        xbmc.Player.onPlayBackEnded(self)
+
+    def onPlayBackStopped(self):
+        self._source.stop()
+        self._pl.clear()
+        xbmc.Player.onPlayBackStopped(self)
+
+    def _add_to_playlist(self):
+        track = self._source.next()
+        url, li = self._parent.parse_spotify_track(track, include_track_number=False)
+        self._pl.add(url, li)
