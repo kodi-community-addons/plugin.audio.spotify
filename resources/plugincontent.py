@@ -1202,7 +1202,7 @@ class Main():
             WINDOW.setProperty("Spotify.PreCachedItems","done")
 
 class SpotifyRadioTrackBuffer(object):
-    FETCH_SIZE = 20
+    FETCH_SIZE = 100
     MIN_BUFFER_SIZE = FETCH_SIZE / 2
     CHECK_BUFFER_PERIOD = 0.5
 
