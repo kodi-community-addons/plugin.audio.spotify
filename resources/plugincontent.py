@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
 from utils import *
+from traceback import format_exc
 add_external_libraries()
 import math
 import urlparse
@@ -137,7 +138,8 @@ class Main():
     def play_track_radio(self):
         player = SpotifyRadioPlayer()
         player.set_parent(self)
-        player.set_seed_track_id(self.trackid)
+        seed_track = self.sp.track(self.trackid)
+        player.set_seed_tracks([seed_track])
         player.play()
         while(not xbmc.abortRequested):
             xbmc.sleep(100)
@@ -1116,6 +1118,9 @@ class Main():
                 return False
         return False
 
+    def getUsername(self):
+        return SETTING("username").decode("utf-8")
+
     def addNextButton(self,listtotal):
         #adds a next button if needed
         params = self.params
@@ -1202,9 +1207,16 @@ class SpotifyRadioTrackBuffer(object):
     CHECK_BUFFER_PERIOD = 0.5
 
     # Public interface
-    def __init__(self, client, seed_track_ids):
-        self._client = client # spotipy client instance
-        self._buffer = [self._client.track(track_id) for track_id in seed_track_ids]
+    def __init__(self, username, seed_tracks):
+        # Instantiate the Spotify OAuth implementation once.
+        # We ask it for the cached token perodically (when fetching) - it handles
+        # refreshing the token for us as required.
+        self._sp_oauth = spotipy.oauth2.SpotifyOAuth(util.PLUGIN_CLIENT_ID,
+                                                     util.PLUGIN_CLIENT_SECRET,
+                                                     util.PLUGIN_REDIRECT_URI, 
+                                                     scope=util.PLUGIN_SPOTIFY_SCOPE,
+                                                     cache_path=util.get_token_cache_path_for_user(username))
+        self._buffer = seed_tracks[:]
         self._buffer_lock = threading.Lock()
         self._running = False
 
@@ -1255,21 +1267,31 @@ class SpotifyRadioTrackBuffer(object):
    
     def _fetch(self):
         xbmc.log("Spotify radio track buffer invoking recommendations() via spotipy")
-        tracks = self._client.recommendations(seed_tracks=[t["id"] for t in self._buffer[0:5]], limit=self.FETCH_SIZE)["tracks"]
-        xbmc.log("Spotify radio track buffer got %d results back" % len(tracks))
-        return tracks
+        try:
+            token_info = self._sp_oauth.get_cached_token()
+            if not token_info:
+                raise ValueError("No cached spotify token available")
+            token = token_info['access_token']
+            client = spotipy.Spotify(token)
+            tracks = client.recommendations(seed_tracks=[t["id"] for t in self._buffer[0:5]], limit=self.FETCH_SIZE)["tracks"]
+            xbmc.log("Spotify radio track buffer got %d results back" % len(tracks))
+            return tracks
+        except Exception:
+            xbmc.log(format_exc(), xbmc.LOGERROR)
+            xbmc.log("Failed to fetch recommendations, returning empty result")
+            return []
 
 class SpotifyRadioPlayer(xbmc.Player):
     def set_parent(self, parent):
         self._parent = parent
 
-    def set_seed_track_id(self, seed_track_id):
-        self._seed_track_id = seed_track_id
+    def set_seed_tracks(self, seed_tracks):
+        self._seed_tracks = seed_tracks
 
     def play(self, *args, **kwds):
         self._pl = xbmc.PlayList(0)
         self._pl.clear()
-        self._source = SpotifyRadioTrackBuffer(self._parent.sp, [self._seed_track_id])
+        self._source = SpotifyRadioTrackBuffer(self._parent.getUsername(), self._seed_tracks)
         self._source.start()
 
         xbmc.executebuiltin('XBMC.RandomOff')
