@@ -141,8 +141,8 @@ class Main():
         seed_track = self.sp.track(self.trackid)
         player.set_seed_tracks([seed_track])
         player.play()
-        while(not xbmc.abortRequested):
-            xbmc.sleep(100)
+        monitor = xbmc.Monitor()
+        monitor.waitForAbort()
 
     def browse_main(self):
         #main listing
