@@ -11,16 +11,24 @@ from . import oauth2
 import spotipy
 port = 52308
 
+PLUGIN_SPOTIFY_SCOPE="playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-follow-modify user-follow-read user-library-read user-library-modify user-read-private user-read-email user-read-birthdate user-top-read"
+PLUGIN_CLIENT_ID='4940f5cc79b149af9f71d5ef9319eff0'
+PLUGIN_CLIENT_SECRET='779F4D60BD3B42E29984ADF423F19688'
+PLUGIN_REDIRECT_URI='http://localhost:%s/callback' % port
+
+def get_token_cache_path_for_user(username):
+    return xbmc.translatePath(u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(username))).decode("utf-8")
+
 def prompt_for_user_token(username, scope=None, client_id = None,
         client_secret = None, redirect_uri = None):
 
-    scope = "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-follow-modify user-follow-read user-library-read user-library-modify user-read-private user-read-email user-read-birthdate user-top-read"
-    client_id = '4940f5cc79b149af9f71d5ef9319eff0'
-    client_secret = '779f4d60bd3b42e29984adf423f19688'
-    redirect_uri = 'http://localhost:%s/callback' %port
+    scope = PLUGIN_SPOTIFY_SCOPE
+    client_id = PLUGIN_CLIENT_ID
+    client_secret = PLUGIN_CLIENT_SECRET
+    redirect_uri = PLUGIN_REDIRECT_URI
     
     #request the token
-    cachepath=xbmc.translatePath(u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID,normalize_string(username))).decode("utf-8")
+    cachepath=get_token_cache_path_for_user(username)
     sp_oauth = oauth2.SpotifyOAuth(client_id, client_secret, redirect_uri, 
         scope=scope, cache_path=cachepath )
 
