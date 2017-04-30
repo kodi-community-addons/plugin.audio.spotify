@@ -151,3 +151,7 @@ msgstr "Liste d'albums comme vue par défaut"
 msgctxt "#11034"
 msgid "Default view for song list"
 msgstr "Liste de chansons comme vue par défaut"
+
+msgctxt "#11035"
+msgid "Play song radio"
+msgstr "Jouer la radio"
