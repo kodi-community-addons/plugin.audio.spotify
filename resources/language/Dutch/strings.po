@@ -111,3 +111,7 @@ msgstr "Artiest niet volgen"
 msgctxt "#11027"
 msgid "Refresh listing"
 msgstr "Lijst vernieuwen"
+
+msgctxt "#11035"
+msgid "Play song radio"
+msgstr "Spelen radio"

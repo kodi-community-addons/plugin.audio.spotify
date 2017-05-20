@@ -1,4 +1,4 @@
-﻿# Kodi Media Center language file
+# Kodi Media Center language file
 # Addon Name: Spotify
 # Addon id: plugin.audio.spotify
 # Addon Provider: marcelveldt
@@ -8,8 +8,8 @@ msgstr ""
 "Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
 "POT-Creation-Date: 2015-11-04 18:30+0100\n"
 "PO-Revision-Date: 2015-11-04 18:30+0100\n"
-"Last-Translator: logi85\n"
-"Language-Team: English\n"
+"Last-Translator: xsellier\n"
+"Language-Team: French\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -22,136 +22,136 @@ msgstr ""
 
 msgctxt "#11001"
 msgid "Username"
-msgstr ""
+msgstr "Nom d'utilisateur"
 
 msgctxt "#11002"
 msgid "Password"
-msgstr ""
+msgstr "Mot de passe"
 
 msgctxt "#11003"
 msgid "No valid browser was found on your system to perform the authorization request to Spotify."
-msgstr ""
+msgstr "Aucun navigateur compatible n'a été trouvé sur votre système afin d'effectuer une authentification"
 
 msgctxt "#11004"
 msgid "This track is unavailable in your country."
-msgstr ""
+msgstr "Cette chanson n'est pas disponible dans votre pays"
 
 msgctxt "#11005"
 msgid "New releases"
-msgstr ""
+msgstr "Nouveautés"
 
 msgctxt "#11006"
 msgid "Saved albums"
-msgstr ""
+msgstr "Albums préférés"
 
 msgctxt "#11007"
 msgid "Save to My Music"
-msgstr ""
+msgstr "Ajouter a Ma Musique"
 
 msgctxt "#11008"
 msgid "Remove from My Music"
-msgstr ""
+msgstr "Enlever de Ma Musique"
 
 msgctxt "#11009"
 msgid "Follow"
-msgstr ""
+msgstr "Suivre"
 
 msgctxt "#11010"
 msgid "Unfollow"
-msgstr ""
+msgstr "Arrêter de suivre"
 
 msgctxt "#11011"
 msgid "Artist top tracks"
-msgstr ""
+msgstr "Les meilleures chansons de l'artiste"
 
 msgctxt "#11012"
 msgid "Related artists"
-msgstr ""
+msgstr "Artistes similaires"
 
 msgctxt "#11013"
 msgid "My Music"
-msgstr ""
+msgstr "Ma Musique"
 
 msgctxt "#11014"
 msgid "Explore"
-msgstr ""
+msgstr "Explorer"
 
 msgctxt "#11015"
 msgid "Featured playlists"
-msgstr ""
+msgstr "Listes de lectures mises en avant"
 
 msgctxt "#11016"
 msgid "New releases"
-msgstr ""
+msgstr "Nouveautés"
 
 msgctxt "#11017"
 msgid "Remove from playlist"
-msgstr ""
+msgstr "Enlever de la liste de lecture"
 
 msgctxt "#11018"
 msgid "All albums for artist"
-msgstr ""
+msgstr "Tous les albums de cet artiste"
 
 msgctxt "#11019"
 msgid "Login error"
-msgstr ""
+msgstr "Erreur d'authentification"
 
 msgctxt "#11021"
 msgid "You need a premium Spotify account to use this app"
-msgstr ""
+msgstr "Il faut avoir un abonnement premium pour pouvoir utiliser cette application"
 
 msgctxt "#11022"
 msgid "Recommendations"
-msgstr ""
+msgstr "Recommandations"
 
 msgctxt "#11023"
 msgid "Most played artists"
-msgstr ""
+msgstr "Les artistes les plus écoutés"
 
 msgctxt "#11024"
 msgid "Most played tracks"
-msgstr ""
+msgstr "Les musiques les plus jouées"
 
 msgctxt "#11025"
 msgid "Follow artist"
-msgstr ""
+msgstr "Suivre l'artiste"
 
 msgctxt "#11026"
 msgid "Unfollow artist"
-msgstr ""
+msgstr "Arrêter de suivre l'artiste"
 
 msgctxt "#11027"
 msgid "Refresh listing"
-msgstr ""
+msgstr "Rafraîchir la liste"
 
 msgctxt "#11028"
 msgid "Login details"
-msgstr ""
+msgstr "Détails de l'authentification"
 
 msgctxt "#11029"
 msgid "Other settings"
-msgstr ""
+msgstr "Autres paramètres"
 
 msgctxt "#11030"
 msgid "Append artist name to song title"
-msgstr ""
+msgstr "Mettre l nom de l'artiste à la suite du titre de la chanson"
 
 msgctxt "#11031"
 msgid "Default view for playlists"
-msgstr ""
+msgstr "Liste de lecture comme vue par défaut"
 
 msgctxt "#11032"
 msgid "Default view for artist list"
-msgstr ""
+msgstr "Liste d'artistes comme vue par défaut"
 
 msgctxt "#11033"
 msgid "Default view for album list"
-msgstr ""
+msgstr "Liste d'albums comme vue par défaut"
 
 msgctxt "#11034"
 msgid "Default view for song list"
-msgstr ""
+msgstr "Liste de chansons comme vue par défaut"
 
 msgctxt "#11035"
 msgid "Play song radio"
-msgstr ""
+msgstr "Jouer la radio"

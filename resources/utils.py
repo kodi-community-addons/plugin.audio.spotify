@@ -158,7 +158,7 @@ def add_library_paths(paths):
 
 def add_library_path(path):
     full_path = os.path.join(ADDON_PATH, path)
-    sys.path.append(full_path)
+    sys.path.insert(1, full_path)
 
 def try_encode(text, encoding="utf-8"):
     try:
