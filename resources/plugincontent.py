@@ -591,9 +591,9 @@ class Main():
             elif not playlistdetails:
                 contextitems.append( (xbmc.getLocalizedString(526),"RunPlugin(plugin://plugin.audio.spotify/?action=add_track_to_playlist&trackid=%s)"%real_trackuri) )
             
-            contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%track["artistid"]) )
-            contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%track["artistid"]) )
-            contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%track["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11011),"Container.Update(,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%track["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11012),"Container.Update(,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%track["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11018),"Container.Update(,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%track["artistid"]) )
             
             if track["artistid"] in followedartists:
                 #unfollow artist
@@ -681,9 +681,9 @@ class Main():
                 contextitems.append( (ADDON.getLocalizedString(11008),"RunPlugin(plugin://plugin.audio.spotify/?action=remove_album&albumid=%s)"%(item['id'])) )
             else:
                 contextitems.append( (ADDON.getLocalizedString(11007),"RunPlugin(plugin://plugin.audio.spotify/?action=save_album&albumid=%s)"%(item['id'])) )
-            contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%item["artistid"]) )
-            contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%item["artistid"]) )
-            contextitems.append( (ADDON.getLocalizedString(11018),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%item["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11011),"Container.Update(,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%item["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11012),"Container.Update(,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%item["artistid"]) )
+            contextitems.append( (ADDON.getLocalizedString(11018),"Container.Update(,plugin://plugin.audio.spotify/?action=browse_artistalbums&artistid=%s)"%item["artistid"]) )
             contextitems.append( (ADDON.getLocalizedString(11027),"RunPlugin(plugin://plugin.audio.spotify/?action=refresh_listing)") )
             item["contextitems"] = contextitems
         return albums
@@ -741,9 +741,9 @@ class Main():
             item["rating"] = str(self.get_track_rating(item["popularity"]))
             item["followerslabel"] = "%s followers" %item["followers"]["total"]
             contextitems = []
-            contextitems.append( (xbmc.getLocalizedString(132),"ActivateWindow(Music,%s)"%item["url"]) )
-            contextitems.append( (ADDON.getLocalizedString(11011),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%(item['id'])) )
-            contextitems.append( (ADDON.getLocalizedString(11012),"ActivateWindow(Music,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%(item['id'])) )
+            contextitems.append( (xbmc.getLocalizedString(132),"Container.Update(,%s)"%item["url"]) )
+            contextitems.append( (ADDON.getLocalizedString(11011),"Container.Update(,plugin://plugin.audio.spotify/?action=artist_toptracks&artistid=%s)"%(item['id'])) )
+            contextitems.append( (ADDON.getLocalizedString(11012),"Container.Update(,plugin://plugin.audio.spotify/?action=related_artists&artistid=%s)"%(item['id'])) )
             if isFollowed or item["id"] in followedartists:
                 #unfollow artist
                 contextitems.append( (ADDON.getLocalizedString(11026),"RunPlugin(plugin://plugin.audio.spotify/?action=unfollow_artist&artistid=%s)"%item['id']) )
