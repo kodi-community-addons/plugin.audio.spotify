@@ -155,3 +155,7 @@ msgstr ""
 msgctxt "#11035"
 msgid "Play song radio"
 msgstr ""
+
+msgctxt "#11036"
+msgid "Enable (experimental) Spotify Connect support"
+msgstr ""
