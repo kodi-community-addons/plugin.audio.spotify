@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from utils import log_msg, log_exception, get_playername, parse_spotify_track, PROXY_PORT
+from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT
 import xbmc
 import xbmcgui
 from urllib import quote_plus
@@ -67,23 +67,20 @@ class KodiPlayer(xbmc.Player):
         if not trackdetails:
             trackdetails = self.sp.current_playback()["item"]
         self.playlist.clear()
-        url, li = parse_spotify_track(trackdetails)
-        self.playlist.add(url, li)
-        
+        url1, li = parse_spotify_track(trackdetails)
+        self.playlist.add(url1, li)
         li = xbmcgui.ListItem("Spotify Connect")
         li.setInfo('music',
                      {
                          'title': "Spotify Connect",
                          'duration': 10
                      })
-        url = "http://127.0.0.1:%s/loadtrack" % PROXY_PORT
-        self.playlist.add(url, li)
-        
-        self.play(self.playlist, startpos=0)
-
-    def wait_for_player(self):
-        count = 0
-        xbmc.sleep(500)
-        while not xbmc.getCondVisibility("Player.HasAudio") and count < 10:
-            xbmc.sleep(250)
-            count += 1
+        url2 = "http://127.0.0.1:%s/loadtrack" % PROXY_PORT
+        self.playlist.add(url2, li)
+        playingfile = ""
+        try:
+            playingfile = self.getPlayingFile()
+        except Exception:
+            pass
+        if playingfile != url1:
+            self.play(self.playlist, startpos=0)

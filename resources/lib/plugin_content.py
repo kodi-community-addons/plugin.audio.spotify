@@ -888,6 +888,7 @@ class PluginContent():
             li.setProperty("spotifytrackid", track['id'])
             li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"], True)
+            li.setProperty('do_not_analyze', 'true')
             list_items.append((url, li, False))
         xbmcplugin.addDirectoryItems(self.addon_handle, list_items)
 
@@ -1445,13 +1446,21 @@ class PluginContent():
 
     def precache_library(self):
         if not self.win.getProperty("Spotify.PreCachedItems"):
+            monitor = xbmc.Monitor()
             self.win.setProperty("Spotify.PreCachedItems", "busy")
             userplaylists = self.get_user_playlists(self.userid)
             for playlist in userplaylists:
                 self.get_playlist_details(playlist['owner']['id'], playlist["id"])
+                if monitor.abortRequested():
+                    return
             self.get_savedalbums()
+            if monitor.abortRequested():
+                return
             self.get_savedartists()
+            if monitor.abortRequested():
+                return
             self.get_saved_tracks()
+            del monitor
             self.win.setProperty("Spotify.PreCachedItems", "done")
 
 

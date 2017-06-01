@@ -12,6 +12,7 @@ import xbmc
 import xbmcvfs
 import xbmcgui
 import os
+import stat
 import sys
 import urllib
 from traceback import format_exc
@@ -21,9 +22,7 @@ import xbmcaddon
 import struct
 import random
 import time
-import threading
 import math
-
 
 
 PROXY_PORT = 52308
@@ -80,48 +79,8 @@ def log_msg(msg, loglevel=xbmc.LOGNOTICE):
 
 def log_exception(modulename, exceptiondetails):
     '''helper to properly log an exception'''
-    log_msg(format_exc(sys.exc_info()), xbmc.LOGWARNING)
-    log_msg("Exception in %s ! --> %s" % (modulename, exceptiondetails), xbmc.LOGDEBUG)
-
-
-def get_spotty_binary():
-    '''find the correct spotty binary belonging to the platform'''
-    sp_binary = None
-    if xbmc.getCondVisibility("System.Platform.Windows"):
-        sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
-    elif xbmc.getCondVisibility("System.Platform.OSX"):
-        sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "macos", "spotty")
-        st = os.stat(sp_binary)
-        os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
-    elif xbmc.getCondVisibility("System.Platform.Linux"):
-        # try to find out the correct architecture by trial and error
-        import platform
-        architecture = platform.machine()
-        if architecture.startswith('i686') or architecture.startswith('i386'):
-            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
-        elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
-        else:
-            # for arm cpu's we just try it out
-            for item in ["spotty-muslhf", "spotty-hf"]:
-                bin_path = os.path.join(os.path.dirname(__file__), "spotty", "armhf-linux", item)
-                try:
-                    args = [bin_path, "-n", "test", "--check"]
-                    sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-                    stdout, stderr = sp_exec.communicate()
-                    if "ok" in stderr:
-                        sp_binary = bin_path
-                        break
-                except Exception:
-                    pass
-        if sp_binary:
-            st = os.stat(sp_binary)
-            os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
-        else:
-            log_msg("Failed to detect architecture or platform not supported !")
-    else:
-        log_msg("Unsupported platform! - for iOS and Android you need to install a spotify app yourself and make sure it's running in the background.")
-    return sp_binary
+    log_msg(format_exc(sys.exc_info()), xbmc.LOGDEBUG)
+    log_msg("Exception in %s ! --> %s" % (modulename, exceptiondetails), xbmc.LOGWARNING)
 
 
 def kill_spotty():
@@ -134,25 +93,25 @@ def kill_spotty():
         os.system("killall spotty")
 
 
-def get_token(username, password):
+def get_token(spotty):
     # get authentication token for api - prefer cached version
     token_info = None
     try:
-        cache_path = u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(username))
+        cache_path = u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(spotty.username))
         cache_path = xbmc.translatePath(cache_path).decode("utf-8")
         token_info = get_cached_token(cache_path)
         # try to get a token with spotty
         if not token_info:
-            token_info = request_token_spotty(cache_path, username, password)
+            token_info = request_token_spotty(cache_path, spotty)
         # request new token with web flow
         if not token_info:
-            token_info = request_token_web(cache_path, username, password)
+            token_info = request_token_web(cache_path)
     except Exception as exc:
         log_msg("Couldn't request authentication token. Username/password error ?")
-        log_exception(__name__, exc)
+        log_exception("utils.get_token", exc)
         token_info = None
     return token_info
-    
+
 
 def get_cached_token(cache_path):
     ''' token retrieved from spotty can't be refreshed so only perform expriry check'''
@@ -176,27 +135,13 @@ def get_cached_token(cache_path):
     return token_info
 
 
-def request_token_spotty(cache_path, username, password):
+def request_token_spotty(cache_path, spotty):
     '''request token by using the spotty binary'''
     token_info = None
-    sp_binary = get_spotty_binary()
-    if sp_binary:
-        playername = get_playername()
-        args = [
-            sp_binary, "-n", playername, "-u", username, "-p", password, "-t", "--client-id",
-            CLIENTID, "--scope", ",".join(SCOPE)
-        ]
-        startupinfo = None
-        if xbmc.getCondVisibility("System.Platform.Windows"):
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-        sp_exec = subprocess.Popen(
-            args,
-            startupinfo=startupinfo,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
-            bufsize=0)
-        stdout, stderr = sp_exec.communicate()
+    if spotty.playback_supported:
+        args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE)]
+        spotty = spotty.run_spotty(arguments=args)
+        stdout, stderr = spotty.communicate()
         result = eval(stdout)
         # transform token info to spotipy compatible format
         token_info = {}
@@ -210,12 +155,12 @@ def request_token_spotty(cache_path, username, password):
         f = open(cache_path, 'w')
         f.write(json.dumps(token_info))
         f.close()
-        del sp_exec
-        log_msg("Token from spotty: %s" %token_info, xbmc.LOGDEBUG)
+        del spotty
+        log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
     return token_info
 
 
-def request_token_web(cache_path, username, password):
+def request_token_web(cache_path):
     '''request the (initial) auth token by webbrowser'''
     from spotipy import oauth2
     scope = " ".join(SCOPE)
@@ -259,42 +204,8 @@ def request_token_web(cache_path, username, password):
             token_info = sp_oauth.get_access_token(response)
         webservice.stop()
         xbmc.sleep(2000)  # allow enough time for the webbrowser to stop
-    log_msg("Token from web: %s" %token_info, xbmc.LOGDEBUG)
+    log_msg("Token from web: %s" % token_info, xbmc.LOGDEBUG)
     return token_info
-
-
-def start_spotty(username=None, password=None, arguments=None):
-    '''On supported platforms we include spotty binary'''
-    playername = get_playername()
-    sp_binary = get_spotty_binary()
-    if not username or not password:
-        addon = xbmcaddon.Addon(id=ADDON_ID)
-        username = addon.getSetting("username").decode("utf-8")
-        password = addon.getSetting("password").decode("utf-8")
-        del addon
-    if sp_binary:
-        try:
-            args = [sp_binary,
-                    "-n", playername,
-                    "-u", username,
-                    "-p", password
-                    ]
-            if arguments:
-                args += arguments
-            startupinfo = None
-            if os.name == 'nt':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-            return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, bufsize=0)
-        except Exception as exc:
-            log_exception(__name__, exc)
-    return None
-
-
-def stop_spotty(sp_exec):
-    '''stop spotty if supported'''
-    if sp_exec:
-        sp_exec.terminate()
 
 
 def create_wave_header(duration):
@@ -370,14 +281,6 @@ def process_method_on_list(method_to_run, items):
     return all_items
 
 
-def get_playername():
-    playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
-    if playername == "Kodi":
-        import socket
-        playername = "Kodi - %s" % socket.gethostname()
-    return playername
-
-
 def get_track_rating(popularity):
     if popularity == 0:
         return 0
@@ -415,9 +318,6 @@ def parse_spotify_track(track, include_track_number=True):
         infolabels["tracknumber"] = track["track_number"]
     li.setInfo(type="Music", infoLabels=infolabels)
     li.setProperty("spotifytrackid", track['id'])
-    li.setContentLookup(False)
-    li.setProperty('do_not_analyze', 'true')
-    li.setProperty('isPlayable', 'true')
     return url, li
 
 
@@ -458,29 +358,93 @@ def normalize_string(text):
     return text
 
 
-class SpottyDaemon(threading.Thread):
+class Spotty(object):
     '''
-    I couldn't make reading the audio from the stdout working reliable so instead
-    this reads the output delayed to fake realtime playback
-    note: the stdout of spotty can return the whole audio within a few seconds so that's why we need to simulate
-    that it's outputted as stream
+        spotty is wrapped into a seperate class to store common properties
+        this is done to prevent hitting a kodi issue where calling one of the infolabel methods
+        causes a crash of the playback
     '''
+    username = None
+    password = None
+    playback_supported = False
+    playername = None
+    __spotty_binary = None
 
     def __init__(self):
-        threading.Thread.__init__(self)
-        spotty_args = ["--onstart", "curl http://localhost:%s/playercmd/start" % PROXY_PORT,
-                       "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
-        self.__spotty = start_spotty(arguments=spotty_args)
-        self.__stop = False
-        threading.Thread.__init__(self)
+        '''initialize with default values'''
+        addon = xbmcaddon.Addon(id=ADDON_ID)
+        self.username = addon.getSetting("username").decode("utf-8")
+        self.password = addon.getSetting("password").decode("utf-8")
+        del addon
+        self.playername = self.get_playername()
+        self.__spotty_binary = self.get_spotty_binary()
+        if self.__spotty_binary:
+            self.playback_supported = True
 
-    def run(self):
-        while not self.__stop:
-            line = self.__spotty.stdout.readline()
-            xbmc.sleep(10)
+    def run_spotty(self, arguments=None):
+        '''On supported platforms we include spotty binary'''
+        if self.playback_supported:
+            try:
+                args = [self.__spotty_binary,
+                        "-n", self.playername,
+                        "-u", self.username,
+                        "-p", self.password
+                        ]
+                if arguments:
+                    args += arguments
+                startupinfo = None
+                if os.name == 'nt':
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+                return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, bufsize=0)
+            except Exception as exc:
+                log_exception(__name__, exc)
+        return None
 
-    def stop(self):
-        self.__stop = True
-        self.__spotty.terminate()
-        self.join(5)
+    @staticmethod
+    def get_spotty_binary():
+        '''find the correct spotty binary belonging to the platform'''
+        sp_binary = None
+        if xbmc.getCondVisibility("System.Platform.Windows"):
+            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
+        elif xbmc.getCondVisibility("System.Platform.OSX"):
+            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "macos", "spotty")
+            st = os.stat(sp_binary)
+            os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
+        elif xbmc.getCondVisibility("System.Platform.Linux"):
+            # try to find out the correct architecture by trial and error
+            import platform
+            architecture = platform.machine()
+            if architecture.startswith('i686') or architecture.startswith('i386'):
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
+            elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
+            else:
+                # for arm cpu's we just try it out
+                for item in ["spotty-muslhf", "spotty-hf"]:
+                    bin_path = os.path.join(os.path.dirname(__file__), "spotty", "armhf-linux", item)
+                    try:
+                        args = [bin_path, "-n", "test", "--check"]
+                        sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+                        stdout, stderr = sp_exec.communicate()
+                        if "ok" in stderr:
+                            sp_binary = bin_path
+                            break
+                    except Exception:
+                        pass
+            if sp_binary:
+                st = os.stat(sp_binary)
+                os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
+            else:
+                log_msg("Failed to detect architecture or platform not supported !")
+        else:
+            log_msg("Unsupported platform! - for iOS and Android you need to install a spotify app yourself and make sure it's running in the background.")
+        return sp_binary
+
+    @staticmethod
+    def get_playername():
+        playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
+        if playername == "Kodi":
+            import socket
+            playername = "Kodi (%s)" % socket.gethostname()
+        return playername

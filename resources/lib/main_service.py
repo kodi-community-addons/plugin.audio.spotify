@@ -8,7 +8,7 @@
     Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, start_spotty, SpottyDaemon, PROXY_PORT, get_playername, get_spotty_binary
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT
 from player_monitor import KodiPlayer
 from webservice import WebService
 import xbmc
@@ -21,26 +21,27 @@ import xbmcvfs
 import stat
 import spotipy
 import time
+import threading
 
 
 class MainService:
     '''our main background service running the various threads'''
     sp = None
-    username = None
     addon = None
     win = None
     kodiplayer = None
     webservice = None
-    spotty_daemon = None
+    spotty = None
+    connect_daemon = None
 
     def __init__(self):
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
         self.win = xbmcgui.Window(10000)
         self.kodimonitor = xbmc.Monitor()
+        self.spotty = Spotty()
 
         # set flag that local playback is supported
-        playback_supported = get_spotty_binary() is not None
-        if playback_supported:
+        if self.spotty.playback_supported:
             self.win.setProperty("spotify.supportsplayback", "true")
         else:
             self.win.clearProperty("spotify.supportsplayback")
@@ -50,13 +51,13 @@ class MainService:
 
         # start experimental spotify connect daemon
         if self.addon.getSetting("connect_player") == "true":
-            self.spotty_daemon = SpottyDaemon()
-            self.spotty_daemon.start()
+            self.connect_daemon = ConnectDaemon(spotty=self.spotty)
+            self.connect_daemon.start()
             playerid = self.get_playerid()
             self.kodiplayer = KodiPlayer(sp=self.sp, playerid=playerid)
 
         # start the webproxy which hosts the audio
-        self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer)
+        self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
         self.webservice.start()
 
         # start mainloop
@@ -65,13 +66,23 @@ class MainService:
     def main_loop(self):
         '''main loop which monitors our other threads and keeps them alive'''
         loop_count = 0
-        refresh_interval = 3500
-        while not self.kodimonitor.waitForAbort(1):
+        refresh_interval = 700
+        while not self.kodimonitor.waitForAbort(5):
             # monitor logged in user and spotipy session
             username = self.addon.getSetting("username").decode("utf-8")
-            if (self.username != username) or (loop_count >= refresh_interval):
+            password = self.addon.getSetting("password").decode("utf-8")
+            if (self.spotty.username != username) or (self.spotty.password != password):
+                # username changed
+                log_msg("username changed!")
+                refresh_interval = self.init_spotipy() / 5
+                # restart daemon
+                if self.connect_daemon:
+                    self.connect_daemon.stop()
+                    self.connect_daemon = ConnectDaemon(spotty=self.spotty)
+                    self.connect_daemon.start()
+            elif loop_count >= refresh_interval:
                 loop_count = 0
-                refresh_interval = self.init_spotipy()
+                refresh_interval = self.init_spotipy() / 5
             else:
                 loop_count += 1
         # end of loop: we should exit
@@ -80,11 +91,11 @@ class MainService:
     def close(self):
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGNOTICE)
-        if self.spotty_daemon:
-            self.spotty_daemon.stop()
-            self.kodiplayer.close()
-            del self.kodiplayer
         self.webservice.stop()
+        if self.connect_daemon:
+            self.connect_daemon.stop()
+        if self.kodiplayer:
+            self.kodiplayer.close()
         del self.win
         del self.addon
         del self.kodimonitor
@@ -98,10 +109,11 @@ class MainService:
             username = self.addon.getSetting("username").decode("utf-8")
             password = self.addon.getSetting("password").decode("utf-8")
             if username and password:
-                self.username = username
-                auth_token = get_token(username, password)
+                self.spotty.username = username
+                self.spotty.password = password
+                auth_token = get_token(self.spotty)
             if not auth_token:
-                log_msg("waiting for credentials...", xbmc.LOGDEBUG)
+                log_msg("waiting for credentials...", xbmc.LOGNOTICE)
                 if self.kodimonitor.waitForAbort(5):
                     return  # exit if abort requested
 
@@ -125,13 +137,43 @@ class MainService:
 
     def get_playerid(self):
         '''get the ID which is assigned to our virtual connect device'''
-        playername = get_playername()
+        playername = self.spotty.playername
         playerid = ""
         while not playerid:
             xbmc.sleep(1000)
-            log_msg("waiting for playerid", xbmc.LOGDEBUG)
-            for device in self.sp.devices()["devices"]:
-                if device["name"] == playername:
-                    playerid = device["id"]
+            log_msg("waiting for playerid", xbmc.LOGNOTICE)
+            devices = self.sp.devices()
+            if devices and devices.get("devices"):
+                for device in devices["devices"]:
+                    if device["name"] == playername:
+                        playerid = device["id"]
         log_msg("Playerid: %s" % playerid, xbmc.LOGDEBUG)
         return playerid
+
+
+class ConnectDaemon(threading.Thread):
+    '''
+    I couldn't make reading the audio from the stdout working reliable so instead
+    this reads the output delayed to fake realtime playback
+    note: the stdout of spotty can return the whole audio within a few seconds so that's why we need to simulate
+    that it's outputted as stream
+    '''
+
+    def __init__(self, *args, **kwargs):
+        spotty_args = ["--onstart", "curl http://localhost:%s/playercmd/start" % PROXY_PORT,
+                       "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
+                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
+        spotty = kwargs.get("spotty")
+        self.__spotty = spotty.run_spotty(arguments=spotty_args)
+        self.__stop = False
+        threading.Thread.__init__(self, *args)
+
+    def run(self):
+        while not self.__stop:
+            line = self.__spotty.stdout.readline()
+            xbmc.sleep(10)
+
+    def stop(self):
+        self.__stop = True
+        self.__spotty.terminate()
+        self.join(5)
