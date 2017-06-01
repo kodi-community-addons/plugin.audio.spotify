@@ -3,7 +3,7 @@
     <category label="11028">
         <setting id="username" type="text" label="11001" default=""/>
         <setting id="password" type="text" option="hidden" label="11002" default=""/>
-        <setting id="connect_player" type="bool" label="11036" default="false"/>
+        <setting id="connect_player" type="bool" label="11036" default="false" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
 	</category>
     
     <category label="11029">

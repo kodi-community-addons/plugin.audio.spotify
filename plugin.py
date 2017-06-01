@@ -8,7 +8,7 @@
 
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "resources", "lib"))
-from plugincontent import PluginContent
+from plugin_content import PluginContent
 #main entrypoint
 if __name__ == "__main__":
     PluginContent()
