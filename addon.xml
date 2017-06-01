@@ -6,6 +6,8 @@
         <import addon="script.module.requests" version="2.3.0"/>
         <import addon="script.module.simplejson" version="3.3.0"/>
         <import addon="script.module.simplecache" version="1.0.0"/>
+        <import addon="script.module.six" version="1.9.0"/>
+        <import addon="script.module.unidecode" version="0.4.14"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="plugin.py">
         <provides>audio</provides>
