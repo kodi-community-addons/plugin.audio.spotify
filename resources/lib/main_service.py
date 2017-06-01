@@ -94,11 +94,14 @@ class MainService:
         self.webservice.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
+            del self.connect_daemon
         if self.kodiplayer:
             self.kodiplayer.close()
+            del self.kodiplayer
         del self.win
         del self.addon
         del self.kodimonitor
+        del self.webservice
         log_msg('stopped', xbmc.LOGNOTICE)
 
     def init_spotipy(self):
@@ -176,4 +179,4 @@ class ConnectDaemon(threading.Thread):
     def stop(self):
         self.__stop = True
         self.__spotty.terminate()
-        self.join(5)
+        self.join(2)

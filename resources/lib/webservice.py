@@ -37,7 +37,7 @@ class WebService(threading.Thread):
             kill_spotty()
         except Exception as exc:
             log_exception(__name__, exc)
-        self.join(5)
+        self.join(2)
         log_msg("Audio proxy - stopped")
 
     def run(self):
