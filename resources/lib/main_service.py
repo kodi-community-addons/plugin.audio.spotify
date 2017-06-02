@@ -159,10 +159,10 @@ class MainService:
 
 class ConnectDaemon(threading.Thread):
     '''
-    I couldn't make reading the audio from the stdout working reliable so instead
-    this reads the output delayed to fake realtime playback
-    note: the stdout of spotty can return the whole audio within a few seconds so that's why we need to simulate
-    that it's outputted as stream
+        I couldn't make reading the audio from the stdout working reliable so instead
+        this reads the output delayed to fake realtime playback
+        note: the stdout of spotty can return the whole audio within a few seconds so that's why we need to simulate
+        that it's outputted as stream
     '''
 
     def __init__(self, *args, **kwargs):

@@ -109,7 +109,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_header("Content-type", "text/html")
         else:
             self.send_header('Content-type', 'audio/wave')
-            self.send_header('Connection', 'keep-alive')
+            self.send_header('Connection', 'Keep-Alive')
         self.end_headers()
 
     def do_GET(self):
@@ -133,13 +133,13 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         wave_header, filesize = create_wave_header(duration)
         self.wfile.write(wave_header)
         self.wfile._sock.settimeout(duration)
-        args = ["--disable-discovery", "--single-track", track_id]
+        args = ["--single-track", track_id]
         self.spotty_bin = self.server.spotty.run_spotty(arguments=args)
         bytes_written = 0
         while bytes_written < filesize:
             line = self.spotty_bin.stdout.readline()
             if self.server.exit or not line:
-                return
+                break
             bytes_written += len(line)
             self.wfile.write(line)
 
