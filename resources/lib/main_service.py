@@ -67,14 +67,14 @@ class MainService:
         '''main loop which monitors our other threads and keeps them alive'''
         loop_count = 0
         refresh_interval = 700
-        while not self.kodimonitor.waitForAbort(5):
+        while not self.kodimonitor.waitForAbort(1):
             # monitor logged in user and spotipy session
             username = self.addon.getSetting("username").decode("utf-8")
             password = self.addon.getSetting("password").decode("utf-8")
             if (self.spotty.username != username) or (self.spotty.password != password):
                 # username changed
                 log_msg("username changed!")
-                refresh_interval = self.init_spotipy() / 5
+                refresh_interval = self.init_spotipy()
                 # restart daemon
                 if self.connect_daemon:
                     self.connect_daemon.stop()
@@ -82,7 +82,7 @@ class MainService:
                     self.connect_daemon.start()
             elif loop_count >= refresh_interval:
                 loop_count = 0
-                refresh_interval = self.init_spotipy() / 5
+                refresh_interval = self.init_spotipy()
             else:
                 loop_count += 1
         # end of loop: we should exit
@@ -106,7 +106,7 @@ class MainService:
         '''initialize spotipy class and refresh auth token'''
         # get authorization key
         auth_token = None
-        while not auth_token:
+        while not auth_token and not self.kodimonitor.abortRequested():
             username = self.addon.getSetting("username").decode("utf-8")
             password = self.addon.getSetting("password").decode("utf-8")
             if username and password:
@@ -116,7 +116,7 @@ class MainService:
             if not auth_token:
                 log_msg("waiting for credentials...", xbmc.LOGNOTICE)
                 if self.kodimonitor.waitForAbort(5):
-                    return  # exit if abort requested
+                    return 0
 
         # store authtoken as window prop for easy access by plugin entry
         self.win.setProperty("spotify-token", auth_token['access_token'])
@@ -132,7 +132,7 @@ class MainService:
             log_msg("Authentication token updated...")
 
         # return the remaining seconds before the token expires so we can refresh it in time
-        token_refresh = auth_token['expires_at'] - int(time.time()) - 30
+        token_refresh = auth_token['expires_at'] - int(time.time()) - 60
         log_msg("token refresh needed in %s seconds" % token_refresh, xbmc.LOGDEBUG)
         return token_refresh
 
@@ -140,7 +140,7 @@ class MainService:
         '''get the ID which is assigned to our virtual connect device'''
         playername = self.spotty.playername
         playerid = ""
-        while not playerid:
+        while not playerid and not self.kodimonitor.abortRequested():
             xbmc.sleep(1000)
             log_msg("waiting for playerid", xbmc.LOGNOTICE)
             devices = self.sp.devices()

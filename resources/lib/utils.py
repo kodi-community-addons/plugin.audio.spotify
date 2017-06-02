@@ -97,15 +97,11 @@ def get_token(spotty):
     # get authentication token for api - prefer cached version
     token_info = None
     try:
-        cache_path = u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(spotty.username))
-        cache_path = xbmc.translatePath(cache_path).decode("utf-8")
-        token_info = get_cached_token(cache_path)
         # try to get a token with spotty
-        if not token_info:
-            token_info = request_token_spotty(cache_path, spotty)
+        token_info = request_token_spotty(spotty)
         # request new token with web flow
         if not token_info:
-            token_info = request_token_web(cache_path)
+            token_info = request_token_web(spotty.username)
     except Exception as exc:
         log_msg("Couldn't request authentication token. Username/password error ?")
         log_exception("utils.get_token", exc)
@@ -113,29 +109,7 @@ def get_token(spotty):
     return token_info
 
 
-def get_cached_token(cache_path):
-    ''' token retrieved from spotty can't be refreshed so only perform expriry check'''
-    token_info = None
-    try:
-        f = open(cache_path)
-        token_info_string = f.read()
-        f.close()
-        token_info = json.loads(token_info_string)
-        # if scopes don't match, then bail
-        if 'scope' not in token_info or not set(SCOPE) <= set(token_info['scope'].split()):
-            log_msg("scope mismatch - ignoring token", xbmc.LOGDEBUG)
-            return None
-        # check if the cached token is not expired
-        if token_info['expires_at'] - int(time.time()) < 60:
-            log_msg("token expired", xbmc.LOGDEBUG)
-            return None
-        log_msg("cached token: %s" % token_info, xbmc.LOGDEBUG)
-    except Exception:
-        log_msg("Couldn't read token info from cache")
-    return token_info
-
-
-def request_token_spotty(cache_path, spotty):
+def request_token_spotty(spotty):
     '''request token by using the spotty binary'''
     token_info = None
     if spotty.playback_supported:
@@ -151,17 +125,15 @@ def request_token_spotty(cache_path, spotty):
         token_info["scope"] = ' '.join(result["scope"])
         token_info['expires_at'] = int(time.time()) + token_info['expires_in']
         token_info['refresh_token'] = result["accessToken"]
-        # save token
-        with open(cache_path, 'w') as f:
-            f.write(json.dumps(token_info))
-        spotty.terminate()
         log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
     return token_info
 
 
-def request_token_web(cache_path):
+def request_token_web(username):
     '''request the (initial) auth token by webbrowser'''
     from spotipy import oauth2
+    cache_path = u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(username))
+    cache_path = xbmc.translatePath(cache_path).decode("utf-8")
     scope = " ".join(SCOPE)
     redirect_url = 'http://localhost:%s/callback' % PROXY_PORT
     sp_oauth = oauth2.SpotifyOAuth(CLIENTID, CLIENT_SECRET, redirect_url, scope=scope, cache_path=cache_path)

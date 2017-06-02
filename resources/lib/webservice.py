@@ -15,8 +15,9 @@ import socket
 
 quit_event = threading.Event()
 
+
 class WebService(threading.Thread):
-    '''Main webservice class which holds the SimpleHTTPServer instance'''
+    '''Main webservice class which holds the BaseHTTPServer instance'''
     exit = False
     server = None
 
@@ -26,15 +27,23 @@ class WebService(threading.Thread):
         self.spotty = kwargs.get("spotty")
         threading.Thread.__init__(self, *args)
 
+    @staticmethod
+    def stop_server():
+        '''send stop command to webserver'''
+        try:
+            conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
+            conn.request("QUIT", "/")
+            conn.getresponse()
+        except:
+            pass
+
     def stop(self):
         '''called when the thread needs to stop'''
         log_msg("Audio proxy - stop called")
-        conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
-        conn.request("QUIT", "/")
-        response = conn.getresponse()
+        self.stop_server()
         quit_event.wait()
         self.server.shutdown()
-        self.join(0.1)
+        self.join(1)
         log_msg("Audio proxy - stopped")
 
     def run(self):
@@ -48,25 +57,26 @@ class WebService(threading.Thread):
             self.server.exit = False
             self.server.serve_forever()
         except Exception as exc:
-            log_exception("webservice.run", exc)
+            log_exception(__name__, exc)
+
 
 class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     '''http request handler with QUIT stopping the server'''
     raw_requestline = ""
-    spotty = None
+    spotty_bin = None
 
     def __init__(self, request, client_address, server):
         BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, request, client_address, server)
-        
+
     def handle(self):
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.handle(self)
         except socket.error:
             pass
-        if self.spotty:
-            self.spotty.terminate()
-            
-    def finish(self,*args,**kw):
+        if self.spotty_bin:
+            self.spotty_bin.terminate()
+
+    def finish(self, *args, **kw):
         try:
             if not self.wfile.closed:
                 self.wfile.flush()
@@ -77,8 +87,8 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_QUIT(self):
         '''send 200 OK response, and set server.exit to True'''
-        self.server.exit = True
         quit_event.set()
+        self.server.exit = True
         self.send_response(200)
         self.end_headers()
 
@@ -113,30 +123,29 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         elif "playercmd" in self.path:
             self.player_control()
         return
-        
+
     def write_chunk(self, chunk):
-        tosend = '%X\r\n%s\r\n'%(len(chunk), chunk)
+        tosend = '%X\r\n%s\r\n' % (len(chunk), chunk)
         self.wfile.write(tosend)
 
     def single_track(self):
         track_id = self.path.split("/")[-1]
-        log_msg("Playback requested for track %s" %track_id)
+        log_msg("Playback requested for track %s" % track_id)
         track_info = self.server.sp.track(track_id)
         duration = track_info["duration_ms"] / 1000
         wave_header, filesize = create_wave_header(duration)
         self.write_chunk(wave_header)
-        #self.wfile._sock.settimeout(duration)
+        self.wfile._sock.settimeout(duration)
         args = ["--disable-discovery", "--single-track", track_id]
-        log_msg("spotty start")
-        self.spotty = self.server.spotty.run_spotty(arguments=args)
+        self.spotty_bin = self.server.spotty.run_spotty(arguments=args)
         bytes_written = 0
-        line = self.spotty.stdout.readline()
+        line = self.spotty_bin.stdout.readline()
         while line and not self.server.exit and bytes_written < filesize:
             bytes_written += len(line)
             self.write_chunk(line)
-            line = self.spotty.stdout.readline()
+            line = self.spotty_bin.stdout.readline()
         self.wfile.write('0\r\n\r\n')
-    
+
     def silence(self, duration=20):
         self.wfile._sock.settimeout(duration)
         wave_header, filesize = create_wave_header(duration)
@@ -146,7 +155,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             bytes_written += 4096
             self.write_chunk('\0' * 4096)
         self.wfile.write('0\r\n\r\n')
-        
+
     def player_control(self):
         if "start" in self.path or "change" in self.path:
             log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
@@ -171,8 +180,8 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.close()
         xbmc.executebuiltin("SetProperty(spotify-token-info,%s,Home)" % self.path)
         return
-       
-    
+
+
 class StoppableHttpServer (SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """http server that reacts to self.stop flag"""
     pass
