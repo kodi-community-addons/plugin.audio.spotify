@@ -11,15 +11,16 @@ import xbmc
 import xbmcvfs
 import urlparse
 import urllib
+import socket
 
+quit_event = threading.Event()
 
 class WebService(threading.Thread):
     '''Main webservice class which holds the SimpleHTTPServer instance'''
-    event = None
     exit = False
+    server = None
 
     def __init__(self, *args, **kwargs):
-        self.event = threading.Event()
         self.sp = kwargs.get("sp")
         self.kodiplayer = kwargs.get("kodiplayer")
         self.spotty = kwargs.get("spotty")
@@ -27,69 +28,59 @@ class WebService(threading.Thread):
 
     def stop(self):
         '''called when the thread needs to stop'''
-        try:
-            self.exit = True
-            self.event.set()
-            log_msg("Audio proxy - stop called")
-            conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
-            conn.request("QUIT", "/")
-            conn.getresponse()
-            kill_spotty()
-        except Exception as exc:
-            log_exception(__name__, exc)
-        self.join(2)
+        log_msg("Audio proxy - stop called")
+        conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
+        conn.request("QUIT", "/")
+        response = conn.getresponse()
+        quit_event.wait()
+        self.server.shutdown()
+        self.join(0.1)
         log_msg("Audio proxy - stopped")
 
     def run(self):
         '''called to start our webservice'''
-        log_msg("start audio proxy on port %s" % PROXY_PORT, xbmc.LOGNOTICE)
+        log_msg("Audio proxy started on port %s" % PROXY_PORT, xbmc.LOGNOTICE)
         try:
-            server = StoppableHttpServer(('127.0.0.1', PROXY_PORT), StoppableHttpRequestHandler)
-            server.sp = self.sp
-            server.kodiplayer = self.kodiplayer
-            server.spotty = self.spotty
-            server.serve_forever()
+            self.server = StoppableHttpServer(('127.0.0.1', PROXY_PORT), StoppableHttpRequestHandler)
+            self.server.sp = self.sp
+            self.server.kodiplayer = self.kodiplayer
+            self.server.spotty = self.spotty
+            self.server.exit = False
+            self.server.serve_forever()
         except Exception as exc:
             log_exception("webservice.run", exc)
 
-
-class Request(object):
-    '''attributes from urlsplit that this class also sets'''
-    uri_attrs = ('scheme', 'netloc', 'path', 'query', 'fragment')
-
-    def __init__(self, uri, headers, rfile=None):
-        self.uri = uri
-        self.headers = headers
-        parsed = urlparse.urlsplit(uri)
-        for i, attr in enumerate(self.uri_attrs):
-            setattr(self, attr, parsed[i])
-        try:
-            body_len = int(self.headers.get('Content-length', 0))
-        except ValueError:
-            body_len = 0
-        if body_len and rfile:
-            self.body = rfile.read(body_len)
-        else:
-            self.body = None
-
-
-class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
+class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     '''http request handler with QUIT stopping the server'''
     raw_requestline = ""
-    protocol_version = 'HTTP/1.0'
+    spotty = None
 
     def __init__(self, request, client_address, server):
+        BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+        
+    def handle(self):
         try:
-            SimpleHTTPServer.SimpleHTTPRequestHandler.__init__(self, request, client_address, server)
-        except Exception as exc:
-            if not "10054" in str(exc):
-                log_exception("requesthandler.init", exc)
+            BaseHTTPServer.BaseHTTPRequestHandler.handle(self)
+        except socket.error:
+            pass
+        if self.spotty:
+            self.spotty.terminate()
+            
+    def finish(self,*args,**kw):
+        try:
+            if not self.wfile.closed:
+                self.wfile.flush()
+                self.wfile.close()
+        except socket.error:
+            pass
+        self.rfile.close()
 
     def do_QUIT(self):
-        '''send 200 OK response, and set server.stop to True'''
+        '''send 200 OK response, and set server.exit to True'''
+        self.server.exit = True
+        quit_event.set()
         self.send_response(200)
         self.end_headers()
-        self.server.stop = True
 
     def log_message(self, logformat, *args):
         ''' log message to kodi log'''
@@ -106,25 +97,21 @@ class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
         else:
             self.send_header('Content-type', 'audio/x-wav')
             self.send_header('Transfer-Encoding', 'chunked')
-            #self.send_header('Connection', 'Close')
+            self.send_header('Connection', 'Close')
         self.end_headers()
 
     def do_GET(self):
         '''send headers and reponse'''
-        try:
-            self.send_headers()
-            if "callback" in self.path:
-                self.auth_callback()
-            elif "loadtrack" in self.path:
-                self.server.sp.next_track()
-                self.silence()
-            elif "track" in self.path:
-                self.single_track()
-            elif "playercmd" in self.path:
-                self.player_control()
-        except Exception as exc:
-            if not "timed out" in str(exc) and not "10054" in str(exc):
-                log_exception("requesthandler.get", exc)
+        self.send_headers()
+        if "callback" in self.path:
+            self.auth_callback()
+        elif "loadtrack" in self.path:
+            self.server.sp.next_track()
+            self.silence()
+        elif "track" in self.path:
+            self.single_track()
+        elif "playercmd" in self.path:
+            self.player_control()
         return
         
     def write_chunk(self, chunk):
@@ -138,25 +125,16 @@ class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
         duration = track_info["duration_ms"] / 1000
         wave_header, filesize = create_wave_header(duration)
         self.write_chunk(wave_header)
-        self.wfile._sock.settimeout(duration)
+        #self.wfile._sock.settimeout(duration)
         args = ["--disable-discovery", "--single-track", track_id]
-        spotty = self.server.spotty.run_spotty(arguments=args)
+        log_msg("spotty start")
+        self.spotty = self.server.spotty.run_spotty(arguments=args)
         bytes_written = 0
-        try:
-            line = spotty.stdout.readline()
-            while line and not self.server.stop and bytes_written < filesize:
-                bytes_written += len(line)
-                self.write_chunk(line)
-                line = spotty.stdout.readline()
-            # stream some silence untill end is reached
-            while bytes_written < filesize and not self.server.stop:
-                bytes_written += 4096
-                self.write_chunk('\0' * 4096)
-        except Exception as exc:
-            log_msg(exc, xbmc.LOGDEBUG)
-        finally:
-            spotty.terminate()
-            del spotty
+        line = self.spotty.stdout.readline()
+        while line and not self.server.exit and bytes_written < filesize:
+            bytes_written += len(line)
+            self.write_chunk(line)
+            line = self.spotty.stdout.readline()
         self.wfile.write('0\r\n\r\n')
     
     def silence(self, duration=20):
@@ -164,7 +142,7 @@ class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
         wave_header, filesize = create_wave_header(duration)
         self.write_chunk(wave_header)
         bytes_written = 0
-        while bytes_written < filesize and not self.server.stop:
+        while bytes_written < filesize and not self.server.exit:
             bytes_written += 4096
             self.write_chunk('\0' * 4096)
         self.wfile.write('0\r\n\r\n')
@@ -197,20 +175,4 @@ class StoppableHttpRequestHandler (SimpleHTTPServer.SimpleHTTPRequestHandler):
     
 class StoppableHttpServer (SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """http server that reacts to self.stop flag"""
-
-    def serve_forever(self):
-        """Handle one request at a time until stopped."""
-        self.stop = False
-        while not self.stop:
-            self.handle_request()
-
-    # def finish_request(self, request, client_address):
-        # request.settimeout(30)
-        # BaseHTTPServer.HTTPServer.finish_request(self, request, client_address)
-
-
-def stop_server(port):
-    """send QUIT request to http server running on localhost:<port>"""
-    conn = httplib.HTTPConnection("localhost:%d" % port)
-    conn.request("QUIT", "/")
-    conn.getresponse()
+    pass

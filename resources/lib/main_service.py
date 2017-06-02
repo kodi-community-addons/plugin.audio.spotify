@@ -94,14 +94,12 @@ class MainService:
         self.webservice.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
-            del self.connect_daemon
         if self.kodiplayer:
             self.kodiplayer.close()
             del self.kodiplayer
         del self.win
         del self.addon
         del self.kodimonitor
-        del self.webservice
         log_msg('stopped', xbmc.LOGNOTICE)
 
     def init_spotipy(self):
@@ -168,15 +166,17 @@ class ConnectDaemon(threading.Thread):
                        "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
         spotty = kwargs.get("spotty")
         self.__spotty = spotty.run_spotty(arguments=spotty_args)
-        self.__stop = False
         threading.Thread.__init__(self, *args)
 
     def run(self):
+        log_msg("Start Spotify Connect Daemon")
+        self.__stop = False
         while not self.__stop:
             line = self.__spotty.stdout.readline()
             xbmc.sleep(10)
+        log_msg("Stopped Spotify Connect Daemon")
 
     def stop(self):
-        self.__stop = True
         self.__spotty.terminate()
-        self.join(2)
+        self.__stop = True
+        self.join(0.1)

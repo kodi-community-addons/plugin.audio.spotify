@@ -152,10 +152,9 @@ def request_token_spotty(cache_path, spotty):
         token_info['expires_at'] = int(time.time()) + token_info['expires_in']
         token_info['refresh_token'] = result["accessToken"]
         # save token
-        f = open(cache_path, 'w')
-        f.write(json.dumps(token_info))
-        f.close()
-        del spotty
+        with open(cache_path, 'w') as f:
+            f.write(json.dumps(token_info))
+        spotty.terminate()
         log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
     return token_info
 
