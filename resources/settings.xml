@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
     <category label="11028">
-        <setting id="username" type="text" label="11001" default=""/>
-        <setting id="password" type="text" option="hidden" label="11002" default=""/>
-        <setting id="connect_player" type="bool" label="11036" default="false" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
+        <setting id="username" type="text" label="11001" default="" visible="eq(2,false)"/>
+        <setting id="password" type="text" option="hidden" label="11002" default="" visible="eq(1,false)"/>
+        <setting id="multi_account" type="bool" label="11041" default="false"/>
+        <setting id="username1" type="text" label="11042" default="" visible="eq(-1,true)"/>
+        <setting id="password1" type="text" option="hidden" label="11002" default="" visible="eq(-2,true)"/>
+        <setting type="sep"/>
+        <setting id="username2" type="text" label="11043" default="" visible="eq(-4,true)"/>
+        <setting id="password2" type="text" option="hidden" label="11002" default="" visible="eq(-5,true)"/>
+        <setting type="sep"/>
+        <setting id="username3" type="text" label="11044" default="" visible="eq(-7,true)"/>
+        <setting id="password3" type="text" option="hidden" label="11002" default="" visible="eq(-8,true)"/>
+        <setting type="sep"/>
+        <setting id="username4" type="text" label="11045" default="" visible="eq(-10,true)"/>
+        <setting id="password4" type="text" option="hidden" label="11002" default="" visible="eq(-11,true)"/>
+        <setting type="sep"/>
+        <setting id="username5" type="text" label="11046" default="" visible="eq(-13,true)"/>
+        <setting id="password5" type="text" option="hidden" label="11002" default="" visible="eq(-14,true)"/>
 	</category>
     
     <category label="11029">
+        <setting id="connect_player" type="bool" label="11036" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
         <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>
         <setting id="playlistDefaultView" type="text" label="11031" default=""/>
         <setting id="artistDefaultView" type="text" label="11032" default=""/>

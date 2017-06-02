@@ -150,7 +150,7 @@ def request_token_web(username):
         webservice.start()
         xbmc.sleep(3000)  # allow enough time for the webbrowser to start
 
-        xbmc.executebuiltin("ClearProperty(spotify-token_info,Home)")
+        xbmc.executebuiltin("ClearProperty(spotify-token-info,Home)")
         if xbmc.getCondVisibility("System.Platform.Android"):
             # for android we just launch the default android browser
             xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,%s)" % auth_url)
@@ -169,7 +169,7 @@ def request_token_web(username):
             count += 1
 
         response = xbmc.getInfoLabel("Window(Home).Property(spotify-token-info)")
-        xbmc.executebuiltin("ClearProperty(spotify-token_info,Home)")
+        xbmc.executebuiltin("ClearProperty(spotify-token-info,Home)")
         if response:
             response = sp_oauth.parse_response_code(response)
             token_info = sp_oauth.get_access_token(response)

@@ -171,3 +171,35 @@ msgstr ""
 msgctxt "#11040"
 msgid "Active"
 msgstr ""
+
+msgctxt "#11041"
+msgid "Enable support for multiple accounts"
+msgstr ""
+
+msgctxt "#11042"
+msgid "Username 1"
+msgstr ""
+
+msgctxt "#11043"
+msgid "Username 2"
+msgstr ""
+
+msgctxt "#11044"
+msgid "Username 3"
+msgstr ""
+
+msgctxt "#11045"
+msgid "Username 4"
+msgstr ""
+
+msgctxt "#11046"
+msgid "Username 5"
+msgstr ""
+
+msgctxt "#11047"
+msgid "Current user"
+msgstr ""
+
+msgctxt "#11048"
+msgid "Select user"
+msgstr ""

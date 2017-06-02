@@ -33,6 +33,7 @@ class MainService:
     webservice = None
     spotty = None
     connect_daemon = None
+    token_info = None
 
     def __init__(self):
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
@@ -40,51 +41,53 @@ class MainService:
         self.kodimonitor = xbmc.Monitor()
         self.spotty = Spotty()
 
-        # set flag that local playback is supported
-        if self.spotty.playback_supported:
-            self.win.setProperty("spotify.supportsplayback", "true")
-        else:
-            self.win.clearProperty("spotify.supportsplayback")
+        # authenticate and grab token
+        self.token_info = self.get_auth_token()
 
-        # initialize Spotipy
-        self.init_spotipy()
+        if self.token_info:
 
-        # start experimental spotify connect daemon
-        if self.addon.getSetting("connect_player") == "true":
-            self.connect_daemon = ConnectDaemon(spotty=self.spotty)
-            self.connect_daemon.start()
-            playerid = self.get_playerid()
+            # initialize spotipy
+            self.sp = spotipy.Spotify(auth=self.token_info['access_token'])
+            me = self.sp.me()
+            log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
+            log_msg("Userdetails: %s" % me, xbmc.LOGDEBUG)
+
+            # start experimental spotify connect daemon
+            if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
+                self.connect_daemon = ConnectDaemon(spotty=self.spotty)
+                self.connect_daemon.start()
+                playerid = self.get_playerid()
+            else:
+                playerid = ""
+            
             self.kodiplayer = KodiPlayer(sp=self.sp, playerid=playerid)
 
-        # start the webproxy which hosts the audio
-        self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
-        self.webservice.start()
+            # start the webproxy which hosts the audio
+            self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
+            self.webservice.start()
 
-        # start mainloop
-        self.main_loop()
+            # set flag that local playback is supported
+            if self.spotty.playback_supported:
+                self.win.setProperty("spotify.supportsplayback", "true")
+            else:
+                self.win.clearProperty("spotify.supportsplayback")
+
+            # start mainloop
+            self.main_loop()
 
     def main_loop(self):
-        '''main loop which monitors our other threads and keeps them alive'''
-        loop_count = 0
-        refresh_interval = 700
-        while not self.kodimonitor.waitForAbort(1):
-            # monitor logged in user and spotipy session
+        '''main loop which keeps our threads alive and refreshes the token'''
+        while not self.kodimonitor.waitForAbort(5):
+            # monitor logged in user
             username = self.addon.getSetting("username").decode("utf-8")
             password = self.addon.getSetting("password").decode("utf-8")
             if (self.spotty.username != username) or (self.spotty.password != password):
-                # username changed
-                log_msg("username changed!")
-                refresh_interval = self.init_spotipy()
-                # restart daemon
-                if self.connect_daemon:
-                    self.connect_daemon.stop()
-                    self.connect_daemon = ConnectDaemon(spotty=self.spotty)
-                    self.connect_daemon.start()
-            elif loop_count >= refresh_interval:
-                loop_count = 0
-                refresh_interval = self.init_spotipy()
-            else:
-                loop_count += 1
+                # username and/or password changed !
+                self.switch_user()
+            # monitor auth token expiration
+            if self.token_info['expires_at'] - 60 <= (int(time.time())):
+                # token expired !
+                self.renew_token()
         # end of loop: we should exit
         self.close()
 
@@ -95,47 +98,58 @@ class MainService:
         self.webservice.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
-        if self.kodiplayer:
-            self.kodiplayer.close()
-            del self.kodiplayer
+        self.kodiplayer.close()
+        del self.kodiplayer
         del self.win
         del self.addon
         del self.kodimonitor
         log_msg('stopped', xbmc.LOGNOTICE)
 
-    def init_spotipy(self):
-        '''initialize spotipy class and refresh auth token'''
-        # get authorization key
+    def get_auth_token(self):
+        '''check for valid credentials and grab token'''
         auth_token = None
-        while not auth_token and not self.kodimonitor.abortRequested():
+        # loop untill we have a valid token
+        while not self.kodimonitor.abortRequested():
             username = self.addon.getSetting("username").decode("utf-8")
             password = self.addon.getSetting("password").decode("utf-8")
             if username and password:
                 self.spotty.username = username
                 self.spotty.password = password
                 auth_token = get_token(self.spotty)
-            if not auth_token:
-                log_msg("waiting for credentials...", xbmc.LOGNOTICE)
-                if self.kodimonitor.waitForAbort(5):
-                    return 0
-
+            if auth_token:
+                log_msg("Retrieved auth token")
+                break
+            else:
+                log_msg("waiting for credentials...", xbmc.LOGDEBUG)
+                self.kodimonitor.waitForAbort(2)
         # store authtoken as window prop for easy access by plugin entry
         self.win.setProperty("spotify-token", auth_token['access_token'])
+        return auth_token
 
-        # initialize spotipy
-        if not self.sp:
-            self.sp = spotipy.Spotify(auth=auth_token['access_token'])
+    def switch_user(self):
+        '''called whenever we switch to a different user/credentials'''
+        log_msg("login credentials changed")
+        if self.renew_token():
+            xbmc.executebuiltin("Container.Refresh")
             me = self.sp.me()
             log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
-            log_msg("Userdetails: %s" % me, xbmc.LOGDEBUG)
-        else:
-            self.sp._auth = auth_token['access_token']
-            log_msg("Authentication token updated...")
+            # restart daemon
+            if self.connect_daemon:
+                self.connect_daemon.stop()
+                self.connect_daemon = ConnectDaemon(spotty=self.spotty)
+                self.connect_daemon.start()
+                playerid = self.get_playerid()
+                self.kodiplayer.playerid = playerid
 
-        # return the remaining seconds before the token expires so we can refresh it in time
-        token_refresh = auth_token['expires_at'] - int(time.time()) - 60
-        log_msg("token refresh needed in %s seconds" % token_refresh, xbmc.LOGDEBUG)
-        return token_refresh
+    def renew_token(self):
+        '''refresh the token'''
+        self.token_info = self.get_auth_token()
+        if self.token_info:
+            log_msg("Authentication token updated...")
+            # only update token info in spotipy object
+            self.sp._auth = self.token_info['access_token']
+            return True
+        return False
 
     def get_playerid(self):
         '''get the ID which is assigned to our virtual connect device'''

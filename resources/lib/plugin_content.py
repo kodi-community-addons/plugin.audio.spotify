@@ -60,7 +60,7 @@ class PluginContent():
 
     def get_authkey(self):
         '''get authentication key'''
-        auth_token = xbmc.getInfoLabel("Window(Home).Property(spotify-token)").decode("utf-8")
+        auth_token = self.win.getProperty("spotify-token").decode("utf-8")
         if not auth_token:
             xbmc.executebuiltin("Addon.OpenSettings(%s)" % ADDON_ID)
         return auth_token
@@ -130,17 +130,38 @@ class PluginContent():
         self.addon.setSetting("cache_checksum", time.strftime("%Y%m%d%H%M%S", time.gmtime()))
         xbmc.executebuiltin("Container.Refresh")
 
-    def unavailablemessage(self):
-        dlg = xbmcgui.Dialog()
-        dlg.ok(self.addon_NAME, self.addon.getLocalizedString(11004))
-        xbmcplugin.setResolvedUrl(handle=self.addon_handle, succeeded=False, listitem=xbmcgui.ListItem())
+    def switch_user(self):
+        '''switch the currently logged in user'''
+        usernames = []
+        count = 1
+        while True:
+            username = self.addon.getSetting("username%s" % count)
+            count += 1
+            if not username:
+                break
+            else:
+                display_name = self.sp.user(username)["display_name"]
+                if not display_name:
+                    display_name = username
+                usernames.append(display_name)
+        dialog = xbmcgui.Dialog()
+        ret = dialog.select(self.addon.getLocalizedString(11048), usernames)
+        del dialog
+        if ret != -1:
+            ret += 1
+            new_user = self.addon.getSetting("username%s" % ret)
+            new_pass = self.addon.getSetting("password%s" % ret)
+            self.addon.setSetting("username", new_user)
+            self.addon.setSetting("password", new_pass)
 
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
         if self.addon.getSetting("playback_device") == "squeezebox":
             # handle playback with squeezebox addon
             if self.playlistid:
-                params = urllib.quote_plus("playlist play spotify:user:%s:playlist:%s" % (self.ownerid, self.playlistid))
+                params = urllib.quote_plus(
+                    "playlist play spotify:user:%s:playlist:%s" %
+                    (self.ownerid, self.playlistid))
             elif self.albumid:
                 params = urllib.quote_plus("playlist play spotify:album:%s" % (self.albumid))
             elif self.artistid:
@@ -153,7 +174,8 @@ class PluginContent():
                 xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.squeezebox?action=command&params=%s)" % params)
         else:
             # handle playback with spotify connect
-            # Note: the offset by trackid seems to be broken in the api so we have to use the numeric offset numeric position
+            # Note: the offset by trackid seems to be broken in the api so we have to
+            # use the numeric offset numeric position
             if self.offset:
                 offset = {"position": self.offset}
             elif self.trackid:
@@ -189,19 +211,28 @@ class PluginContent():
         items.append(
             (self.addon.getLocalizedString(11013),
              "plugin://plugin.audio.spotify/?action=browse_main_library",
-             "DefaultMusicCompilations.png"))
+             "DefaultMusicCompilations.png", True))
         items.append(
             (self.addon.getLocalizedString(11014),
              "plugin://plugin.audio.spotify/?action=browse_main_explore",
-             "DefaultMusicGenres.png"))
+             "DefaultMusicGenres.png", True))
         items.append(
             (xbmc.getLocalizedString(137),
              "plugin://plugin.audio.spotify/?action=search",
-             "DefaultMusicSearch.png"))
+             "DefaultMusicSearch.png", True))
         items.append(
             ("%s: %s" % (self.addon.getLocalizedString(11039), self.playername),
              "plugin://plugin.audio.spotify/?action=browse_playback_devices",
-             "DefaultMusicSearch.png"))
+             "DefaultMusicPlugins.png", True))
+        if self.addon.getSetting("multi_account") == "true":
+            cur_user_label = self.sp.me()["display_name"]
+            if not cur_user_label:
+                cur_user_label = self.sp.me()["id"]
+            label = "%s: %s" % (self.addon.getLocalizedString(11047), cur_user_label)
+            items.append(
+                (label,
+                 "plugin://plugin.audio.spotify/?action=switch_user",
+                 "DefaultActor.png", False))
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
@@ -211,7 +242,7 @@ class PluginContent():
             li.setProperty('IsPlayable', 'false')
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
-            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=item[3])
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=self.addon_handle)
 
@@ -338,7 +369,7 @@ class PluginContent():
     def browse_topartists(self):
         xbmcplugin.setContent(self.addon_handle, "artists")
         result = self.sp.current_user_top_artists(limit=20, offset=0)
-        cachestr = "spotify.topartists"
+        cachestr = "spotify.topartists.%s" % self.userid
         checksum = self.cache_checksum(result["total"])
         items = self.cache.get(cachestr, checksum=checksum)
         if not items:
@@ -357,7 +388,7 @@ class PluginContent():
     def browse_toptracks(self):
         xbmcplugin.setContent(self.addon_handle, "songs")
         results = self.sp.current_user_top_tracks(limit=20, offset=0)
-        cachestr = "spotify.toptracks"
+        cachestr = "spotify.toptracks.%s" % self.userid
         checksum = self.cache_checksum(results["total"])
         items = self.cache.get(cachestr, checksum=checksum)
         if not items:
@@ -676,7 +707,7 @@ class PluginContent():
         playlists = self.sp.current_user_playlists(limit=1, offset=0)
         count = len(playlists['items'])
         total = playlists['total']
-        cachestr = "spotify.userplaylistids"
+        cachestr = "spotify.userplaylistids.%s" % self.userid
         playlistids = self.cache.get(cachestr, checksum=total)
         if not playlistids:
             playlistids = []
@@ -1155,7 +1186,7 @@ class PluginContent():
 
     def get_savedalbumsids(self):
         albums = self.sp.current_user_saved_albums(limit=1, offset=0)
-        cachestr = "spotify-savedalbumids"
+        cachestr = "spotify-savedalbumids.%s" % self.userid
         checksum = albums["total"]
         cache = self.cache.get(cachestr, checksum=checksum)
         if cache:
@@ -1173,7 +1204,7 @@ class PluginContent():
 
     def get_savedalbums(self):
         albumids = self.get_savedalbumsids()
-        cachestr = "spotify.savedalbums"
+        cachestr = "spotify.savedalbums.%s" % self.userid
         checksum = self.cache_checksum(len(albumids))
         albums = self.cache.get(cachestr, checksum=checksum)
         if not albums:
@@ -1199,7 +1230,7 @@ class PluginContent():
         saved_tracks = self.sp.current_user_saved_tracks(
             limit=1, offset=self.offset, market=self.usercountry)
         total = saved_tracks["total"]
-        cachestr = "spotify.savedtracksids"
+        cachestr = "spotify.savedtracksids.%s" % self.userid
         cache = self.cache.get(cachestr, checksum=total)
         if cache:
             return cache
@@ -1219,7 +1250,7 @@ class PluginContent():
     def get_saved_tracks(self):
         # get from cache first
         trackids = self.get_saved_tracks_ids()
-        cachestr = "spotify.savedtracks"
+        cachestr = "spotify.savedtracks.%s" % self.userid
         tracks = self.cache.get(cachestr, checksum=len(trackids))
         if not tracks:
             # get from api
@@ -1240,7 +1271,7 @@ class PluginContent():
     def get_savedartists(self):
         saved_albums = self.get_savedalbums()
         followed_artists = self.get_followedartists()
-        cachestr = "spotify.savedartists"
+        cachestr = "spotify.savedartists.%s" % self.userid
         checksum = len(saved_albums) + len(followed_artists)
         artists = self.cache.get(cachestr, checksum=checksum)
         if not artists:
@@ -1272,7 +1303,7 @@ class PluginContent():
 
     def get_followedartists(self):
         artists = self.sp.current_user_followed_artists(limit=50)
-        cachestr = "spotify.followedartists"
+        cachestr = "spotify.followedartists.%s" % self.userid
         checksum = artists["artists"]["total"]
         cache = self.cache.get(cachestr, checksum=checksum)
         if cache:
