@@ -40,10 +40,11 @@ class WebService(threading.Thread):
     def stop(self):
         '''called when the thread needs to stop'''
         log_msg("Audio proxy - stop called")
+        self.server.exit = True
         self.stop_server()
         quit_event.wait()
         self.server.shutdown()
-        self.join(1)
+        self.join(0.1)
         log_msg("Audio proxy - stopped")
 
     def run(self):
@@ -140,9 +141,11 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.spotty_bin = self.server.spotty.run_spotty(arguments=args)
         bytes_written = 0
         line = self.spotty_bin.stdout.readline()
-        while line and not self.server.exit and bytes_written < filesize:
+        while line and bytes_written < filesize:
             bytes_written += len(line)
             self.write_chunk(line)
+            if self.server.exit:
+                return
             line = self.spotty_bin.stdout.readline()
         self.wfile.write('0\r\n\r\n')
 
