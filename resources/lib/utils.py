@@ -344,7 +344,6 @@ class Spotty(object):
     playername = None
     supports_discovery = True
     __spotty_binary = None
-    
 
     def __init__(self):
         '''initialize with default values'''
@@ -361,9 +360,15 @@ class Spotty(object):
         '''On supported platforms we include spotty binary'''
         if self.playback_supported:
             try:
-                args = [self.__spotty_binary, "-n", self.playername]
-                if not discovery or not self.supports_discovery:
-                    args += ["-u", self.username, "-p", self.password]
+                args = [
+                    self.__spotty_binary,
+                    "-n", self.playername,
+                    "-u", self.username,
+                    "-p", self.password
+                ]
+                if not discovery:
+                    # discovery is disabled for now untill we work around grabbing the stream directly
+                    args.append("--disable-discovery")
                 if arguments:
                     args += arguments
                 startupinfo = None
@@ -392,7 +397,9 @@ class Spotty(object):
             if architecture.startswith('i686') or architecture.startswith('i386'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
+                #sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
+                # always use 32 bits binary because the 64 bits is somehow failing to play audio
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
             else:
                 # for arm cpu's we just try it out
                 for item in ["spotty-muslhf", "spotty-hf"]:

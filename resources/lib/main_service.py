@@ -141,8 +141,12 @@ class MainService:
         '''get the ID which is assigned to our virtual connect device'''
         playername = self.spotty.playername
         playerid = ""
+        count = 0
         while not playerid and not self.kodimonitor.abortRequested():
             xbmc.sleep(1000)
+            count += 1
+            if count == 10:
+                break
             log_msg("waiting for playerid", xbmc.LOGNOTICE)
             devices = self.sp.devices()
             if devices and devices.get("devices"):
@@ -164,7 +168,8 @@ class ConnectDaemon(threading.Thread):
     def __init__(self, *args, **kwargs):
         spotty_args = ["--onstart", "curl http://localhost:%s/playercmd/start" % PROXY_PORT,
                        "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
+                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT,
+                       "--disable-discovery"]
         spotty = kwargs.get("spotty")
         self.__spotty = spotty.run_spotty(arguments=spotty_args, discovery=True)
         threading.Thread.__init__(self, *args)
