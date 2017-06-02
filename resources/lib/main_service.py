@@ -59,7 +59,7 @@ class MainService:
                 playerid = self.get_playerid()
             else:
                 playerid = ""
-            
+
             self.kodiplayer = KodiPlayer(sp=self.sp, playerid=playerid)
 
             # start the webproxy which hosts the audio
@@ -182,10 +182,9 @@ class ConnectDaemon(threading.Thread):
     def __init__(self, *args, **kwargs):
         spotty_args = ["--onstart", "curl http://localhost:%s/playercmd/start" % PROXY_PORT,
                        "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT,
-                       "--disable-discovery"]
+                       "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
         spotty = kwargs.get("spotty")
-        self.__spotty = spotty.run_spotty(arguments=spotty_args, discovery=True)
+        self.__spotty = spotty.run_spotty(arguments=spotty_args)
         threading.Thread.__init__(self, *args)
 
     def run(self):
