@@ -289,6 +289,9 @@ def parse_spotify_track(track, include_track_number=True):
         infolabels["tracknumber"] = track["track_number"]
     li.setInfo(type="Music", infoLabels=infolabels)
     li.setProperty("spotifytrackid", track['id'])
+    li.setContentLookup(False)
+    li.setProperty('do_not_analyze', 'true')
+    li.setMimeType("audio/wave")
     return url, li
 
 
@@ -339,7 +342,9 @@ class Spotty(object):
     password = None
     playback_supported = False
     playername = None
+    supports_discovery = True
     __spotty_binary = None
+    
 
     def __init__(self):
         '''initialize with default values'''
@@ -352,15 +357,13 @@ class Spotty(object):
         if self.__spotty_binary:
             self.playback_supported = True
 
-    def run_spotty(self, arguments=None):
+    def run_spotty(self, arguments=None, discovery=False):
         '''On supported platforms we include spotty binary'''
         if self.playback_supported:
             try:
-                args = [self.__spotty_binary,
-                        "-n", self.playername,
-                        "-u", self.username,
-                        "-p", self.password
-                        ]
+                args = [self.__spotty_binary, "-n", self.playername]
+                if not discovery or not self.supports_discovery:
+                    args += ["-u", self.username, "-p", self.password]
                 if arguments:
                     args += arguments
                 startupinfo = None
@@ -372,12 +375,12 @@ class Spotty(object):
                 log_exception(__name__, exc)
         return None
 
-    @staticmethod
-    def get_spotty_binary():
+    def get_spotty_binary(self):
         '''find the correct spotty binary belonging to the platform'''
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
             sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
+            self.supports_discovery = False
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "macos", "spotty")
             st = os.stat(sp_binary)

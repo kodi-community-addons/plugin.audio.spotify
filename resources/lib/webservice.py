@@ -72,17 +72,19 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def handle(self):
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.handle(self)
-        except socket.error:
+        except Exception as exc:
+            log_exception(__name__, exc)
+        except SystemExit:
             pass
-        if self.spotty_bin:
-            self.spotty_bin.terminate()
 
     def finish(self, *args, **kw):
+        if self.spotty_bin:
+            self.spotty_bin.terminate()
         try:
             if not self.wfile.closed:
                 self.wfile.flush()
                 self.wfile.close()
-        except socket.error:
+        except:
             pass
         self.rfile.close()
 
@@ -106,9 +108,8 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         if "playercmd" in self.path or "callback" in self.path:
             self.send_header("Content-type", "text/html")
         else:
-            self.send_header('Content-type', 'audio/x-wav')
-            self.send_header('Transfer-Encoding', 'chunked')
-            self.send_header('Connection', 'Close')
+            self.send_header('Content-type', 'audio/wave')
+            self.send_header('Connection', 'keep-alive')
         self.end_headers()
 
     def do_GET(self):
@@ -117,17 +118,12 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         if "callback" in self.path:
             self.auth_callback()
         elif "loadtrack" in self.path:
-            self.server.sp.next_track()
-            self.silence()
+            self.load_connect_track()
         elif "track" in self.path:
             self.single_track()
         elif "playercmd" in self.path:
             self.player_control()
         return
-
-    def write_chunk(self, chunk):
-        tosend = '%X\r\n%s\r\n' % (len(chunk), chunk)
-        self.wfile.write(tosend)
 
     def single_track(self):
         track_id = self.path.split("/")[-1]
@@ -135,29 +131,30 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         track_info = self.server.sp.track(track_id)
         duration = track_info["duration_ms"] / 1000
         wave_header, filesize = create_wave_header(duration)
-        self.write_chunk(wave_header)
+        self.wfile.write(wave_header)
         self.wfile._sock.settimeout(duration)
         args = ["--disable-discovery", "--single-track", track_id]
         self.spotty_bin = self.server.spotty.run_spotty(arguments=args)
         bytes_written = 0
-        line = self.spotty_bin.stdout.readline()
-        while line and bytes_written < filesize:
-            bytes_written += len(line)
-            self.write_chunk(line)
-            if self.server.exit:
-                return
+        while bytes_written < filesize:
             line = self.spotty_bin.stdout.readline()
-        self.wfile.write('0\r\n\r\n')
+            if self.server.exit or not line:
+                return
+            bytes_written += len(line)
+            self.wfile.write(line)
 
-    def silence(self, duration=20):
+    def load_connect_track(self):
+        # tell connect player to move to the next track
+        self.server.sp.next_track()
+        duration = 10
         self.wfile._sock.settimeout(duration)
         wave_header, filesize = create_wave_header(duration)
-        self.write_chunk(wave_header)
+        self.wfile.write(wave_header)
+        # stream silence untill the next track is received
         bytes_written = 0
         while bytes_written < filesize and not self.server.exit:
-            bytes_written += 4096
-            self.write_chunk('\0' * 4096)
-        self.wfile.write('0\r\n\r\n')
+            bytes_written += 65536
+            self.wfile.write('\0' * 65536)
 
     def player_control(self):
         if "start" in self.path or "change" in self.path:

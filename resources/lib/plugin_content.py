@@ -889,6 +889,7 @@ class PluginContent():
             li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"], True)
             li.setProperty('do_not_analyze', 'true')
+            li.setMimeType("audio/wave")
             list_items.append((url, li, False))
         xbmcplugin.addDirectoryItems(self.addon_handle, list_items)
 

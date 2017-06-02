@@ -73,8 +73,9 @@ class KodiPlayer(xbmc.Player):
         li.setInfo('music',
                      {
                          'title': "Spotify Connect",
-                         'duration': 10
+                         'duration': 30
                      })
+        li.setMimeType("audio/wave")
         url2 = "http://127.0.0.1:%s/loadtrack" % PROXY_PORT
         self.playlist.add(url2, li)
         playingfile = ""

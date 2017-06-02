@@ -8,7 +8,7 @@
     Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty
 from player_monitor import KodiPlayer
 from webservice import WebService
 import xbmc
@@ -91,6 +91,7 @@ class MainService:
     def close(self):
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGNOTICE)
+        kill_spotty()
         self.webservice.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
@@ -165,7 +166,7 @@ class ConnectDaemon(threading.Thread):
                        "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
                        "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
         spotty = kwargs.get("spotty")
-        self.__spotty = spotty.run_spotty(arguments=spotty_args)
+        self.__spotty = spotty.run_spotty(arguments=spotty_args, discovery=True)
         threading.Thread.__init__(self, *args)
 
     def run(self):
@@ -173,7 +174,7 @@ class ConnectDaemon(threading.Thread):
         self.__stop = False
         while not self.__stop:
             line = self.__spotty.stdout.readline()
-            xbmc.sleep(10)
+            xbmc.sleep(5)
         log_msg("Stopped Spotify Connect Daemon")
 
     def stop(self):
