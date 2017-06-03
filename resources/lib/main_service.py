@@ -40,6 +40,14 @@ class MainService:
         self.win = xbmcgui.Window(10000)
         self.kodimonitor = xbmc.Monitor()
         self.spotty = Spotty()
+        
+        # spotipy and the webservice are always prestarted in the background
+        # the auth key for spotipy will be set afterwards
+        # the webserver is also used for the authentication callbacks from spotify api
+        self.sp = spotipy.Spotify()
+        self.kodiplayer = KodiPlayer(sp=self.sp)
+        self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
+        self.webservice.start()
 
         # authenticate and grab token
         self.token_info = self.get_auth_token()
@@ -47,7 +55,7 @@ class MainService:
         if self.token_info:
 
             # initialize spotipy
-            self.sp = spotipy.Spotify(auth=self.token_info['access_token'])
+            self.sp._auth = self.token_info["access_token"]
             me = self.sp.me()
             log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
             log_msg("Userdetails: %s" % me, xbmc.LOGDEBUG)
@@ -56,15 +64,7 @@ class MainService:
             if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
                 self.connect_daemon = ConnectDaemon(spotty=self.spotty)
                 self.connect_daemon.start()
-                playerid = self.get_playerid()
-            else:
-                playerid = ""
-
-            self.kodiplayer = KodiPlayer(sp=self.sp, playerid=playerid)
-
-            # start the webproxy which hosts the audio
-            self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
-            self.webservice.start()
+                self.kodiplayer.playerid = self.get_playerid()
 
             # set flag that local playback is supported
             if self.spotty.playback_supported:

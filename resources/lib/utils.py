@@ -144,12 +144,6 @@ def request_token_web(username):
         p = None
         auth_url = sp_oauth.get_authorize_url()
 
-        # temporary start webservice
-        from webservice import WebService
-        webservice = WebService()
-        webservice.start()
-        xbmc.sleep(3000)  # allow enough time for the webbrowser to start
-
         xbmc.executebuiltin("ClearProperty(spotify-token-info,Home)")
         if xbmc.getCondVisibility("System.Platform.Android"):
             # for android we just launch the default android browser
@@ -173,7 +167,6 @@ def request_token_web(username):
         if response:
             response = sp_oauth.parse_response_code(response)
             token_info = sp_oauth.get_access_token(response)
-        webservice.stop()
         xbmc.sleep(2000)  # allow enough time for the webbrowser to stop
     log_msg("Token from web: %s" % token_info, xbmc.LOGDEBUG)
     return token_info
@@ -403,16 +396,17 @@ class Spotty(object):
             else:
                 # for arm cpu's we just try it out
                 for item in ["spotty-muslhf", "spotty-hf"]:
-                    bin_path = os.path.join(os.path.dirname(__file__), "spotty", "armhf-linux", item)
+                    bin_path = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm", item)
                     try:
                         args = [bin_path, "-n", "test", "--check"]
                         sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
                         stdout, stderr = sp_exec.communicate()
                         if "ok" in stderr:
                             sp_binary = bin_path
+                            log_msg("Architecture detected succesfullly")
                             break
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log_msg(__name__, exc)
             if sp_binary:
                 st = os.stat(sp_binary)
                 os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
