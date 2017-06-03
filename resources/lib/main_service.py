@@ -66,12 +66,6 @@ class MainService:
                 self.connect_daemon.start()
                 self.kodiplayer.playerid = self.get_playerid()
 
-            # set flag that local playback is supported
-            if self.spotty.playback_supported:
-                self.win.setProperty("spotify.supportsplayback", "true")
-            else:
-                self.win.clearProperty("spotify.supportsplayback")
-
             # start mainloop
             self.main_loop()
 

@@ -203,3 +203,11 @@ msgstr ""
 msgctxt "#11048"
 msgid "Select user"
 msgstr ""
+
+msgctxt "#11049"
+msgid "The default browser should now be opened, follow the directions to authorize this app on Spotify"
+msgstr ""
+
+msgctxt "#11050"
+msgid "No credentials have been set or the login failed.\nPlease enter your credentials in the next settings dialog."
+msgstr ""

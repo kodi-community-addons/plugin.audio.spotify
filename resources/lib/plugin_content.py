@@ -65,6 +65,11 @@ class PluginContent():
         '''get authentication key'''
         auth_token = self.win.getProperty("spotify-token").decode("utf-8")
         if not auth_token:
+            dialog = xbmcgui.Dialog()
+            header = self.addon.getAddonInfo("name")
+            msg = self.addon.getLocalizedString(11050)
+            dialog.ok(header, msg)
+            del dialog
             xbmc.executebuiltin("Addon.OpenSettings(%s)" % ADDON_ID)
         return auth_token
 

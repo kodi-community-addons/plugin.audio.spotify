@@ -143,8 +143,14 @@ def request_token_web(username):
         # request token by using the webbrowser
         p = None
         auth_url = sp_oauth.get_authorize_url()
+        
+        # show message to user that the browser is going to be launched
+        dialog = xbmcgui.Dialog()
+        header = xbmc.getInfoLabel("System.AddonTitle(%s)" %ADDON_ID).decode("utf-8")
+        msg = xbmc.getInfoLabel("$ADDON[%s 11049]" %ADDON_ID).decode("utf-8")
+        dialog.ok(header, msg)
+        del dialog
 
-        xbmc.executebuiltin("ClearProperty(spotify-token-info,Home)")
         if xbmc.getCondVisibility("System.Platform.Android"):
             # for android we just launch the default android browser
             xbmc.executebuiltin("StartAndroidActivity(,android.intent.action.VIEW,,%s)" % auth_url)
@@ -157,8 +163,8 @@ def request_token_web(username):
         count = 0
         while not xbmc.getInfoLabel("Window(Home).Property(spotify-token-info)"):
             log_msg("Waiting for authentication token...")
-            xbmc.sleep(1000)
-            if count == 120:
+            xbmc.sleep(2000)
+            if count == 60:
                 break
             count += 1
 
@@ -348,6 +354,7 @@ class Spotty(object):
         self.__spotty_binary = self.get_spotty_binary()
         if self.__spotty_binary:
             self.playback_supported = True
+            xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
 
     def run_spotty(self, arguments=None, discovery=False):
         '''On supported platforms we include spotty binary'''
@@ -402,9 +409,9 @@ class Spotty(object):
                         args = [bin_path, "-n", "test", "--check"]
                         sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
                         stdout, stderr = sp_exec.communicate()
-                        if "ok" in stderr:
+                        if "ok" in stdout:
                             sp_binary = bin_path
-                            log_exc("Architecture detected succesfullly")
+                            log_exc("Architecture detected")
                             break
                     except Exception as exc:
                         log_exception(__name__, exc)

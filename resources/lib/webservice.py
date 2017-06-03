@@ -171,6 +171,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
 
     def auth_callback(self):
         '''callback for spotify authentication request'''
+        log_msg("auth_callback called")
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
@@ -179,6 +180,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write("</body></html>")
         self.wfile.close()
         xbmc.executebuiltin("SetProperty(spotify-token-info,%s,Home)" % self.path)
+        log_msg("authkey sent")
         return
 
 
