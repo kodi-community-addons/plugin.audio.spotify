@@ -37,25 +37,28 @@ class PluginContent():
     _cache_checksum = ""
 
     def __init__(self):
-
-        self.addon = xbmcaddon.Addon(id=ADDON_ID)
-        self.win = xbmcgui.Window(10000)
-        self.cache = SimpleCache()
-        auth_token = self.get_authkey()
-        if auth_token:
-            self.parse_params()
-            self.sp = spotipy.Spotify(auth=auth_token)
-            me = self.sp.me()
-            self.userid = me["id"]
-            self.usercountry = me["country"]
-            self.local_playback, self.playername = self.active_playback_device()
-            if self.action:
-                action = "self." + self.action
-                eval(action)()
+        try:
+            self.addon = xbmcaddon.Addon(id=ADDON_ID)
+            self.win = xbmcgui.Window(10000)
+            self.cache = SimpleCache()
+            auth_token = self.get_authkey()
+            if auth_token:
+                self.parse_params()
+                self.sp = spotipy.Spotify(auth=auth_token)
+                me = self.sp.me()
+                self.userid = me["id"]
+                self.usercountry = me["country"]
+                self.local_playback, self.playername = self.active_playback_device()
+                if self.action:
+                    action = "self." + self.action
+                    eval(action)()
+                else:
+                    self.browse_main()
+                    self.precache_library()
             else:
-                self.browse_main()
-                self.precache_library()
-        else:
+                xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        except Exception as exc:
+            log_exception(__name__, exc)
             xbmcplugin.endOfDirectory(handle=self.addon_handle)
 
     def get_authkey(self):
