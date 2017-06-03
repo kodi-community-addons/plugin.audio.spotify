@@ -403,10 +403,10 @@ class Spotty(object):
                         stdout, stderr = sp_exec.communicate()
                         if "ok" in stderr:
                             sp_binary = bin_path
-                            log_msg("Architecture detected succesfullly")
+                            log_exc("Architecture detected succesfullly")
                             break
                     except Exception as exc:
-                        log_msg(__name__, exc)
+                        log_exception(__name__, exc)
             if sp_binary:
                 st = os.stat(sp_binary)
                 os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
