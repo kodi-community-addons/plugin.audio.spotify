@@ -113,19 +113,22 @@ def request_token_spotty(spotty):
     '''request token by using the spotty binary'''
     token_info = None
     if spotty.playback_supported:
-        args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE)]
-        spotty = spotty.run_spotty(arguments=args)
-        stdout, stderr = spotty.communicate()
-        result = eval(stdout)
-        # transform token info to spotipy compatible format
-        token_info = {}
-        token_info["access_token"] = result["accessToken"]
-        token_info["expires_in"] = result["expiresIn"]
-        token_info["token_type"] = result["tokenType"]
-        token_info["scope"] = ' '.join(result["scope"])
-        token_info['expires_at'] = int(time.time()) + token_info['expires_in']
-        token_info['refresh_token'] = result["accessToken"]
-        log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
+        try:
+            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE)]
+            spotty = spotty.run_spotty(arguments=args)
+            stdout, stderr = spotty.communicate()
+            result = eval(stdout)
+            # transform token info to spotipy compatible format
+            token_info = {}
+            token_info["access_token"] = result["accessToken"]
+            token_info["expires_in"] = result["expiresIn"]
+            token_info["token_type"] = result["tokenType"]
+            token_info["scope"] = ' '.join(result["scope"])
+            token_info['expires_at'] = int(time.time()) + token_info['expires_in']
+            token_info['refresh_token'] = result["accessToken"]
+            log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
+        except Exception as exc:
+            log_exception(__name__, exc)
     return token_info
 
 
@@ -258,15 +261,18 @@ def get_track_rating(popularity):
         return int(math.ceil(popularity * 6 / 100.0)) - 1
 
 
-def parse_spotify_track(track, include_track_number=True):
+def parse_spotify_track(track, is_album_track=True, is_connect=False):
     if track.get("images"):
         thumb = track["images"][0]['url']
     elif track['album'].get("images"):
         thumb = track['album']["images"][0]['url']
     else:
         thumb = ""
-
-    url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
+    
+    if is_connect:
+        url = "http://localhost:%s/connect/%s" % (PROXY_PORT, track['id'])
+    else:
+        url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
 
     li = xbmcgui.ListItem(
         track['name'],
@@ -276,7 +282,6 @@ def parse_spotify_track(track, include_track_number=True):
     )
     infolabels = {
         "title": track['name'],
-        'discnumber': track["disc_number"],
         "genre": " / ".join(track["album"].get("genres", [])),
         "year": int(track["album"].get("release_date", "0").split("-")[0]),
         "album": track['album']["name"],
@@ -284,8 +289,9 @@ def parse_spotify_track(track, include_track_number=True):
         "rating": str(get_track_rating(track["popularity"])),
         "duration": track["duration_ms"] / 1000
     }
-    if include_track_number:
+    if is_album_track:
         infolabels["tracknumber"] = track["track_number"]
+        infolabels["discnumber"] = track["disc_number"]
     li.setInfo(type="Music", infoLabels=infolabels)
     li.setProperty("spotifytrackid", track['id'])
     li.setContentLookup(False)

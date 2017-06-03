@@ -12,7 +12,8 @@ class KodiPlayer(xbmc.Player):
     playlist = None
     trackchanging = False
     exit = False
-    is_playing = False
+    connect_playing = False # spotify connect is playing
+    connect_local = False # connect player is this device 
     is_busy = False
 
     def __init__(self, **kwargs):
@@ -28,13 +29,13 @@ class KodiPlayer(xbmc.Player):
 
     def onPlayBackPaused(self):
         '''Kodi event fired when playback is paused'''
-        if self.is_playing:
+        if self.connect_playing:
             self.sp.pause_playback()
             log_msg("Playback paused")
 
     def onPlayBackResumed(self):
         '''Kodi event fired when playback is resumed after pause'''
-        if self.is_playing:
+        if self.connect_playing:
             self.sp.start_playback()
             log_msg("Playback unpaused")
 
@@ -43,9 +44,12 @@ class KodiPlayer(xbmc.Player):
 
     def onPlayBackStarted(self):
         '''Kodi event fired when playback is started (including next tracks)'''
-        # set the is_playing bool to indicate we are playing spotify connect content
+        # set the connect_playing bool to indicate we are playing spotify connect content
         current_playback = self.sp.current_playback()
-        self.is_playing = current_playback["device"]["id"] == self.playerid and current_playback["is_playing"]          
+        self.connect_local = current_playback["device"]["id"] == self.playerid
+        self.connect_playing = current_playback["is_playing"]
+        if self.connect_playing:
+            self.update_playlist()
 
     def onPlayBackSpeedChanged(self, speed):
         '''Kodi event fired when player is fast forwarding/rewinding'''
@@ -57,31 +61,15 @@ class KodiPlayer(xbmc.Player):
 
     def onPlayBackStopped(self):
         '''Kodi event fired when playback is stopped'''
-        if self.is_playing:
+        if self.connect_playing:
             self.sp.pause_playback()
             log_msg("playback stopped")
-        self.is_playing = False
+        self.connect_playing = False
+        self.connect_local = False
 
-    def update_playlist(self, trackdetails=None):
-        '''Update the playlist'''
-        if not trackdetails:
-            trackdetails = self.sp.current_playback()["item"]
-        self.playlist.clear()
-        url1, li = parse_spotify_track(trackdetails)
-        self.playlist.add(url1, li)
+    def update_playlist(self):
+        '''Update the playlist: add fake item at the end which allows us to skip'''
         li = xbmcgui.ListItem("Spotify Connect")
-        li.setInfo('music',
-                     {
-                         'title': "Spotify Connect",
-                         'duration': 30
-                     })
         li.setMimeType("audio/wave")
-        url2 = "http://127.0.0.1:%s/loadtrack" % PROXY_PORT
-        self.playlist.add(url2, li)
-        playingfile = ""
-        try:
-            playingfile = self.getPlayingFile()
-        except Exception:
-            pass
-        if playingfile != url1:
-            self.play(self.playlist, startpos=0)
+        url = "plugin://plugin.audio.spotify/?action=next_track"
+        self.playlist.add(url, li)

@@ -162,6 +162,18 @@ class PluginContent():
             self.addon.setSetting("username", new_user)
             self.addon.setSetting("password", new_pass)
 
+    def next_track(self):
+        '''special entry which tells our connect player to move to the next track'''
+        # move to next track
+        self.sp.next_track()
+        # play next track
+        xbmc.sleep(100)
+        cur_playback = self.sp.current_playback()
+        trackdetails = cur_playback["item"]
+        is_connect = cur_playback["device"]["id"] != self.win.getProperty("spotify-connectid")
+        url, li = parse_spotify_track(trackdetails, is_connect=is_connect)
+        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+    
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
         if self.addon.getSetting("playback_device") == "squeezebox":
@@ -182,8 +194,7 @@ class PluginContent():
                 xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.squeezebox?action=command&params=%s)" % params)
         else:
             # handle playback with spotify connect
-            # Note: the offset by trackid seems to be broken in the api so we have to
-            # use the numeric offset numeric position
+            # Note: the offset by trackid seems to be broken in the api so we have to use the numeric offset
             if self.offset:
                 offset = {"position": self.offset}
             elif self.trackid:
@@ -202,7 +213,15 @@ class PluginContent():
             elif self.trackid:
                 uris = ["spotify:track:%s" % self.trackid]
                 self.sp.start_playback(uris=uris)
-
+            # determine if we're controlling a remote connect device
+            xbmc.sleep(100)
+            cur_playback = self.sp.current_playback()
+            if cur_playback["device"]["id"] != self.win.getProperty("spotify-connectid"):
+                import httplib
+                conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
+                conn.request("GET", "/playercmd/startconnect")
+                conn.getresponse()
+            
     def play_track_radio(self):
         player = SpotifyRadioPlayer()
         player.set_parent(self)
@@ -256,13 +275,15 @@ class PluginContent():
 
     def set_playback_device(self):
         '''set the active playback device'''
-        if self.params["deviceid"][0] == "local":
+        deviceid = self.params["deviceid"][0]
+        if deviceid == "local":
             self.addon.setSetting("playback_device", "local")
-        elif self.params["deviceid"][0] == "squeezebox":
+        elif deviceid == "squeezebox":
             self.addon.setSetting("playback_device", "squeezebox")
         else:
-            self.sp.transfer_playback(self.params["deviceid"][0], False)
+            self.sp.transfer_playback(deviceid, False)
             self.addon.setSetting("playback_device", "connect")
+            self.addon.setSetting("connect_id", deviceid)
         xbmc.executebuiltin("Container.Refresh")
 
     def browse_playback_devices(self):
@@ -1612,5 +1633,5 @@ class SpotifyRadioPlayer(xbmc.Player):
 
     def _add_to_playlist(self):
         track = self._source.next()
-        url, li = parse_spotify_track(track, include_track_number=False)
+        url, li = parse_spotify_track(track)
         self._pl.add(url, li)

@@ -8,7 +8,7 @@
     Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty, parse_spotify_track
 from player_monitor import KodiPlayer
 from webservice import WebService
 import xbmc
@@ -49,9 +49,8 @@ class MainService:
         self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, spotty=self.spotty)
         self.webservice.start()
 
-        # authenticate and grab token
+        # authenticate
         self.token_info = self.get_auth_token()
-
         if self.token_info:
 
             # initialize spotipy
@@ -66,22 +65,50 @@ class MainService:
                 self.connect_daemon.start()
                 self.kodiplayer.playerid = self.get_playerid()
 
-            # start mainloop
-            self.main_loop()
+        # start mainloop
+        self.main_loop()
 
     def main_loop(self):
         '''main loop which keeps our threads alive and refreshes the token'''
         while not self.kodimonitor.waitForAbort(5):
             # monitor logged in user
             username = self.addon.getSetting("username").decode("utf-8")
-            password = self.addon.getSetting("password").decode("utf-8")
-            if (self.spotty.username != username) or (self.spotty.password != password):
+            if username and self.spotty.username != username:
                 # username and/or password changed !
                 self.switch_user()
             # monitor auth token expiration
-            if self.token_info['expires_at'] - 60 <= (int(time.time())):
-                # token expired !
+            elif self.spotty.username and not self.token_info:
+                # we do not yet have a token
                 self.renew_token()
+            elif self.token_info and self.token_info['expires_at'] - 60 <= (int(time.time())):
+                # token needs refreshing !
+                self.renew_token()
+            elif not username and self.addon.getSetting("multi_account") == "true":
+                # edge case where user sets multi user directly at first start
+                # in that case copy creds to default
+                username1 = self.addon.getSetting("username1").decode("utf-8")
+                password1 = self.addon.getSetting("password1").decode("utf-8")
+                if username1 and password1:
+                    self.addon.setSetting("username", username1)
+                    self.addon.setSetting("password", password1)
+                    self.switch_user()
+            elif self.addon.getSetting("playback_device") == "connect" and self.kodiplayer.connect_playing:
+                # monitor fake connect OSD for remote track changes
+                cur_playback = self.sp.current_playback()
+                if cur_playback["device"]["id"] != self.kodiplayer.playerid: # ignore our local connect player
+                    if cur_playback["is_playing"]:
+                        player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
+                        if player_title and player_title != cur_playback["item"]["name"]:
+                            log_msg("Next track requested by Spotify Connect")
+                            trackdetails = cur_playback["item"]
+                            url, li = parse_spotify_track( cur_playback["item"], is_connect=True)
+                            self.kodiplayer.playlist.clear()
+                            self.kodiplayer.playlist.add(url, li)
+                            self.kodiplayer.play()
+                    elif not xbmc.getCondVisibility("Player.Paused"):
+                        log_msg("Stop requested by Spotify Connect")
+                        self.kodiplayer.stop()
+                    
         # end of loop: we should exit
         self.close()
 
@@ -102,22 +129,16 @@ class MainService:
     def get_auth_token(self):
         '''check for valid credentials and grab token'''
         auth_token = None
-        # loop untill we have a valid token
-        while not self.kodimonitor.abortRequested():
-            username = self.addon.getSetting("username").decode("utf-8")
-            password = self.addon.getSetting("password").decode("utf-8")
-            if username and password:
-                self.spotty.username = username
-                self.spotty.password = password
-                auth_token = get_token(self.spotty)
-            if auth_token:
-                log_msg("Retrieved auth token")
-                break
-            else:
-                log_msg("waiting for credentials...", xbmc.LOGDEBUG)
-                self.kodimonitor.waitForAbort(2)
-        # store authtoken as window prop for easy access by plugin entry
-        self.win.setProperty("spotify-token", auth_token['access_token'])
+        username = self.addon.getSetting("username").decode("utf-8")
+        password = self.addon.getSetting("password").decode("utf-8")
+        if username and password:
+            self.spotty.username = username
+            self.spotty.password = password
+            auth_token = get_token(self.spotty)
+        if auth_token:
+            log_msg("Retrieved auth token")
+            # store authtoken as window prop for easy access by plugin entry
+            self.win.setProperty("spotify-token", auth_token['access_token'])
         return auth_token
 
     def switch_user(self):
@@ -151,7 +172,7 @@ class MainService:
         playerid = ""
         count = 0
         while not playerid and not self.kodimonitor.abortRequested():
-            xbmc.sleep(1000)
+            xbmc.sleep(500)
             count += 1
             if count == 10:
                 break
@@ -162,6 +183,7 @@ class MainService:
                     if device["name"] == playername:
                         playerid = device["id"]
         log_msg("Playerid: %s" % playerid, xbmc.LOGDEBUG)
+        self.win.setProperty("spotify-connectid", playerid)
         return playerid
 
 

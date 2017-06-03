@@ -6,7 +6,7 @@ import BaseHTTPServer
 import SocketServer
 import httplib
 import threading
-from utils import log_msg, log_exception, create_wave_header, kill_spotty, PROXY_PORT
+from utils import log_msg, log_exception, create_wave_header, kill_spotty, PROXY_PORT, parse_spotify_track
 import xbmc
 import xbmcvfs
 import urlparse
@@ -117,12 +117,12 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_headers()
         if "callback" in self.path:
             self.auth_callback()
-        elif "loadtrack" in self.path:
-            self.load_connect_track()
-        elif "track" in self.path:
-            self.single_track()
         elif "playercmd" in self.path:
             self.player_control()
+        elif "connect" in self.path:
+            self.connect_track()
+        elif "track" in self.path:
+            self.single_track()
         return
 
     def single_track(self):
@@ -143,10 +143,12 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             bytes_written += len(line)
             self.wfile.write(line)
 
-    def load_connect_track(self):
-        # tell connect player to move to the next track
-        self.server.sp.next_track()
-        duration = 10
+    def connect_track(self):
+        # we're asked to play a track by spotify connect
+        # the target is another machine so we play silence
+        track_id = self.path.split("/")[-1]
+        track_info = self.server.sp.track(track_id)
+        duration = track_info["duration_ms"] / 1000
         self.wfile._sock.settimeout(duration)
         wave_header, filesize = create_wave_header(duration)
         self.wfile.write(wave_header)
@@ -155,18 +157,25 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         while bytes_written < filesize and not self.server.exit:
             bytes_written += 65536
             self.wfile.write('\0' * 65536)
+        
 
     def player_control(self):
-        if "start" in self.path or "change" in self.path:
+        if "start" in self.path:
+            # connect wants us to play a track
             log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
-            self.server.kodiplayer.update_playlist()
-            self.wfile.write("OK")
+            self.server.kodiplayer.playlist.clear()
+            trackdetails = self.server.sp.current_playback()["item"]
+            is_connect = "connect" in self.path
+            url, li = parse_spotify_track(trackdetails, is_connect=is_connect)
+            self.server.kodiplayer.playlist.add(url, li)
+            self.server.kodiplayer.play()
+        elif "change" in self.path:
+            log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
+            self.server.kodiplayer.playnext()
         elif "stop" in self.path:
             log_msg("Stop playback requested by Spotify Connect", xbmc.LOGNOTICE)
             if not xbmc.getCondVisibility("Player.Paused"):
-                xbmc.executebuiltin("PlayerControl(stop)")
-            self.wfile.write("OK")
-        self.wfile.close()
+                self.server.kodiplayer.stop()
         return
 
     def auth_callback(self):

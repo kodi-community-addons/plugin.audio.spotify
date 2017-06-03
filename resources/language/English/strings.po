@@ -205,7 +205,7 @@ msgid "Select user"
 msgstr ""
 
 msgctxt "#11049"
-msgid "The default browser should now be opened, follow the directions to authorize this app on Spotify"
+msgid "The default browser should now be opened,\nfollow the directions to authorize this app on Spotify"
 msgstr ""
 
 msgctxt "#11050"
