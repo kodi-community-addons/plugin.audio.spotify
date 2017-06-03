@@ -390,13 +390,14 @@ class Spotty(object):
             if architecture.startswith('i686') or architecture.startswith('i386'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                #sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
                 # always use 32 bits binary because the 64 bits is somehow failing to play audio
                 sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
             else:
                 # for arm cpu's we just try it out
                 for item in ["spotty-muslhf", "spotty-hf"]:
                     bin_path = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm", item)
+                    st = os.stat(bin_path)
+                    os.chmod(bin_path, st.st_mode | stat.S_IEXEC)
                     try:
                         args = [bin_path, "-n", "test", "--check"]
                         sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
