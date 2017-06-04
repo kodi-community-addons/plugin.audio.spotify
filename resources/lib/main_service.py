@@ -196,6 +196,8 @@ class ConnectDaemon(threading.Thread):
     '''
 
     def __init__(self, *args, **kwargs):
+        log_msg("Start Spotify Connect Daemon")
+        self.__stop = False
         spotty_args = ["--onstart", "curl http://localhost:%s/playercmd/start" % PROXY_PORT,
                        "--onstop", "curl http://localhost:%s/playercmd/stop" % PROXY_PORT,
                        "--onchange", "curl http://localhost:%s/playercmd/change" % PROXY_PORT]
@@ -204,9 +206,7 @@ class ConnectDaemon(threading.Thread):
         threading.Thread.__init__(self, *args)
 
     def run(self):
-        log_msg("Start Spotify Connect Daemon")
-        self.__stop = False
-        while not self.__stop:
+        while not self.__stop and self.__spotty.poll() == None:
             line = self.__spotty.stdout.readline()
             xbmc.sleep(5)
         log_msg("Stopped Spotify Connect Daemon")

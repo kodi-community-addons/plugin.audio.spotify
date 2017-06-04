@@ -362,7 +362,7 @@ class Spotty(object):
             self.playback_supported = True
             xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
 
-    def run_spotty(self, arguments=None, discovery=False):
+    def run_spotty(self, arguments=None):
         '''On supported platforms we include spotty binary'''
         if self.playback_supported:
             try:
@@ -372,9 +372,8 @@ class Spotty(object):
                     "-u", self.username,
                     "-p", self.password
                 ]
-                if not discovery:
-                    # discovery is disabled by default for now because Kodi may already have launched Avahi
-                    args.append("--disable-discovery")
+                # discovery is disabled by default for now because Kodi may already have launched Avahi
+                args.append("--disable-discovery")
                 if arguments:
                     args += arguments
                 startupinfo = None
@@ -406,7 +405,6 @@ class Spotty(object):
                 sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
             else:
                 # for arm cpu's we just try it out
-                import xbmcvfs
                 arm_dir = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm")
                 for item in xbmcvfs.listdir(arm_dir)[1]:
                     bin_path = os.path.join(arm_dir, item)
@@ -418,7 +416,7 @@ class Spotty(object):
                         stdout, stderr = sp_exec.communicate()
                         if "ok" in stdout:
                             sp_binary = bin_path
-                            log_exc("Architecture detected. Using Spotty binary %s" % item)
+                            log_msg("Architecture detected. Using Spotty binary %s" % item)
                             break
                     except Exception as exc:
                         log_exception(__name__, exc)
