@@ -373,7 +373,7 @@ class Spotty(object):
                     "-p", self.password
                 ]
                 if not discovery:
-                    # discovery is disabled for now untill we work around grabbing the stream directly
+                    # discovery is disabled by default for now because Kodi may already have launched Avahi
                     args.append("--disable-discovery")
                 if arguments:
                     args += arguments
@@ -403,21 +403,22 @@ class Spotty(object):
             if architecture.startswith('i686') or architecture.startswith('i386'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                # always use 32 bits binary because the 64 bits is somehow failing to play audio
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
             else:
                 # for arm cpu's we just try it out
-                for item in ["spotty-muslhf", "spotty-hf"]:
-                    bin_path = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm", item)
-                    st = os.stat(bin_path)
-                    os.chmod(bin_path, st.st_mode | stat.S_IEXEC)
+                import xbmcvfs
+                arm_dir = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm")
+                for item in xbmcvfs.listdir(arm_dir)[1]:
+                    bin_path = os.path.join(arm_dir, item)
                     try:
+                        st = os.stat(bin_path)
+                        os.chmod(bin_path, st.st_mode | stat.S_IEXEC)
                         args = [bin_path, "-n", "test", "--check"]
                         sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
                         stdout, stderr = sp_exec.communicate()
                         if "ok" in stdout:
                             sp_binary = bin_path
-                            log_exc("Architecture detected")
+                            log_exc("Architecture detected. Using Spotty binary %s" % item)
                             break
                     except Exception as exc:
                         log_exception(__name__, exc)
