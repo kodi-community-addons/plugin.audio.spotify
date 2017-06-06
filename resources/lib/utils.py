@@ -400,9 +400,9 @@ class Spotty(object):
             import platform
             architecture = platform.machine()
             if architecture.startswith('i686') or architecture.startswith('i386'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty")
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-i686-musl")
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64")
+                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64-musl")
             else:
                 # for arm cpu's we just try it out
                 arm_dir = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm")

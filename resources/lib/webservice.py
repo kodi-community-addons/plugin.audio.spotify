@@ -103,18 +103,19 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         '''called on HEAD requests'''
         self.send_headers()
 
-    def send_headers(self):
+    def send_headers(self, filesize=None):
         self.send_response(200)
         if "playercmd" in self.path or "callback" in self.path:
             self.send_header("Content-type", "text/html")
         else:
             self.send_header('Content-type', 'audio/wave')
             self.send_header('Connection', 'Keep-Alive')
+            if filesize:
+                self.send_header('Content-Length', '%s' %filesize)
         self.end_headers()
 
     def do_GET(self):
         '''send headers and reponse'''
-        self.send_headers()
         if "callback" in self.path:
             self.auth_callback()
         elif "playercmd" in self.path:
@@ -131,6 +132,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         track_info = self.server.sp.track(track_id)
         duration = track_info["duration_ms"] / 1000
         wave_header, filesize = create_wave_header(duration)
+        self.send_headers(filesize)
         self.wfile.write(wave_header)
         self.wfile._sock.settimeout(duration)
         args = ["--single-track", track_id]
@@ -151,6 +153,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         duration = track_info["duration_ms"] / 1000
         self.wfile._sock.settimeout(duration)
         wave_header, filesize = create_wave_header(duration)
+        self.send_headers(filesize)
         self.wfile.write(wave_header)
         # stream silence untill the next track is received
         bytes_written = 0
@@ -158,8 +161,8 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             bytes_written += 65536
             self.wfile.write('\0' * 65536)
         
-
     def player_control(self):
+        self.send_headers()
         if "start" in self.path:
             # connect wants us to play a track
             log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
@@ -171,6 +174,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.server.kodiplayer.play()
         elif "change" in self.path:
             log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
+            xbmc.executebuiltin("SetProperty(spotify-trackchanging, true, home)")
             self.server.kodiplayer.playnext()
         elif "stop" in self.path:
             log_msg("Stop playback requested by Spotify Connect", xbmc.LOGNOTICE)
@@ -181,7 +185,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def auth_callback(self):
         '''callback for spotify authentication request'''
         log_msg("auth_callback called")
-        self.send_response(200)
+        self.send_headers()
         self.send_header("Content-type", "text/html")
         self.end_headers()
         self.wfile.write("<html><head><title>Authentication succesfull</title></head>")

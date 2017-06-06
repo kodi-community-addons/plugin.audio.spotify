@@ -73,3 +73,4 @@ class KodiPlayer(xbmc.Player):
         li.setMimeType("audio/wave")
         url = "plugin://plugin.audio.spotify/?action=next_track"
         self.playlist.add(url, li)
+        self.playlist.add(url, li)
