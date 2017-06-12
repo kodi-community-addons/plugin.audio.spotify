@@ -3,7 +3,7 @@
 
 '''
     plugin.audio.squeezebox
-    spotty Player for Kodi
+    librespot Player for Kodi
     utils.py
     Various helper methods
 '''
@@ -83,25 +83,25 @@ def log_exception(modulename, exceptiondetails):
     log_msg("Exception in %s ! --> %s" % (modulename, exceptiondetails), xbmc.LOGWARNING)
 
 
-def kill_spotty():
-    '''make sure we don't have any (remaining) spotty processes running before we start one'''
+def kill_librespot():
+    '''make sure we don't have any (remaining) librespot processes running before we start one'''
     if xbmc.getCondVisibility("System.Platform.Windows"):
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-        subprocess.Popen(["taskkill", "/IM", "spotty.exe"], startupinfo=startupinfo, shell=True)
+        subprocess.Popen(["taskkill", "/IM", "librespot.exe"], startupinfo=startupinfo, shell=True)
     else:
-        os.system("killall spotty")
+        os.system("killall librespot")
 
 
-def get_token(spotty):
+def get_token(librespot):
     # get authentication token for api - prefer cached version
     token_info = None
     try:
-        # try to get a token with spotty
-        token_info = request_token_spotty(spotty)
+        # try to get a token with librespot
+        token_info = request_token_librespot(librespot)
         # request new token with web flow
         if not token_info:
-            token_info = request_token_web(spotty.username)
+            token_info = request_token_web(librespot.username)
     except Exception as exc:
         log_msg("Couldn't request authentication token. Username/password error ?")
         log_exception("utils.get_token", exc)
@@ -109,24 +109,29 @@ def get_token(spotty):
     return token_info
 
 
-def request_token_spotty(spotty):
-    '''request token by using the spotty binary'''
+def request_token_librespot(librespot):
+    '''request token by using the librespot binary'''
     token_info = None
-    if spotty.playback_supported:
+    if librespot.playback_supported:
         try:
-            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE)]
-            spotty = spotty.run_spotty(arguments=args)
-            stdout, stderr = spotty.communicate()
-            result = eval(stdout)
+            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", "temp"]
+            librespot = librespot.run_librespot(arguments=args)
+            stdout, stderr = librespot.communicate()
+            result = None
+            for line in stdout.split():
+                line = line.strip()
+                if line.startswith("{\"accessToken\""):
+                    result = eval(line)
             # transform token info to spotipy compatible format
-            token_info = {}
-            token_info["access_token"] = result["accessToken"]
-            token_info["expires_in"] = result["expiresIn"]
-            token_info["token_type"] = result["tokenType"]
-            token_info["scope"] = ' '.join(result["scope"])
-            token_info['expires_at'] = int(time.time()) + token_info['expires_in']
-            token_info['refresh_token'] = result["accessToken"]
-            log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
+            if result:
+                token_info = {}
+                token_info["access_token"] = result["accessToken"]
+                token_info["expires_in"] = result["expiresIn"]
+                token_info["token_type"] = result["tokenType"]
+                token_info["scope"] = ' '.join(result["scope"])
+                token_info['expires_at'] = int(time.time()) + token_info['expires_in']
+                token_info['refresh_token'] = result["accessToken"]
+                log_msg("Token from librespot: %s" % token_info, xbmc.LOGDEBUG)
         except Exception as exc:
             log_exception(__name__, exc)
     return token_info
@@ -262,15 +267,18 @@ def get_track_rating(popularity):
 
 
 def parse_spotify_track(track, is_album_track=True, is_connect=False):
+    if "track" in track:
+        track = track['track']
     if track.get("images"):
         thumb = track["images"][0]['url']
     elif track['album'].get("images"):
         thumb = track['album']["images"][0]['url']
     else:
         thumb = ""
+    duration = track['duration_ms']/1000
     
     if is_connect:
-        url = "http://localhost:%s/connect/%s" % (PROXY_PORT, track['id'])
+        url = "http://localhost:%s/connect/%s" % (PROXY_PORT, duration)
     else:
         url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
 
@@ -287,7 +295,7 @@ def parse_spotify_track(track, is_album_track=True, is_connect=False):
         "album": track['album']["name"],
         "artist": " / ".join([artist["name"] for artist in track["artists"]]),
         "rating": str(get_track_rating(track["popularity"])),
-        "duration": track["duration_ms"] / 1000
+        "duration": duration
     }
     if is_album_track:
         infolabels["tracknumber"] = track["track_number"]
@@ -337,18 +345,18 @@ def normalize_string(text):
     return text
 
 
-class Spotty(object):
+class LibreSpot(object):
     '''
-        spotty is wrapped into a seperate class to store common properties
+        librespot is wrapped into a seperate class to store common properties
         this is done to prevent hitting a kodi issue where calling one of the infolabel methods
-        causes a crash of the playback
+        at playback time causes a crash of the playback
     '''
     username = None
     password = None
     playback_supported = False
     playername = None
     supports_discovery = True
-    __spotty_binary = None
+    __librespot_binary = None
 
     def __init__(self):
         '''initialize with default values'''
@@ -357,42 +365,49 @@ class Spotty(object):
         self.password = addon.getSetting("password").decode("utf-8")
         del addon
         self.playername = self.get_playername()
-        self.__spotty_binary = self.get_spotty_binary()
-        if self.__spotty_binary:
+        self.__librespot_binary = self.get_librespot_binary()
+        if self.__librespot_binary:
             self.playback_supported = True
             xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
 
-    def run_spotty(self, arguments=None):
-        '''On supported platforms we include spotty binary'''
+    def run_librespot(self, arguments=None):
+        '''On supported platforms we include librespot binary'''
         if self.playback_supported:
             try:
                 args = [
-                    self.__spotty_binary,
-                    "-n", self.playername,
+                    self.__librespot_binary,
                     "-u", self.username,
                     "-p", self.password
                 ]
                 # discovery is disabled by default for now because Kodi may already have launched Avahi
-                args.append("--disable-discovery")
+                # args.append("--disable-discovery")
                 if arguments:
                     args += arguments
+                if not "-n" in args:
+                    args += ["-n", self.playername]
                 startupinfo = None
                 if os.name == 'nt':
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-                return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, bufsize=0)
+                if "--single-track" in args:
+                    devnull = open(os.devnull, 'w')
+                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=devnull, bufsize=0)
+                else:
+                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
             except Exception as exc:
                 log_exception(__name__, exc)
         return None
 
-    def get_spotty_binary(self):
-        '''find the correct spotty binary belonging to the platform'''
+    def get_librespot_binary(self):
+        '''find the correct librespot binary belonging to the platform'''
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
-            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
+            # for windows I've only built a x64 binary
+            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows", "librespot_x64.exe")
             self.supports_discovery = False
         elif xbmc.getCondVisibility("System.Platform.OSX"):
-            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "macos", "spotty")
+            # macos binary is x86_64 intel
+            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "macos", "librespot")
             st = os.stat(sp_binary)
             os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
         elif xbmc.getCondVisibility("System.Platform.Linux"):
@@ -400,12 +415,12 @@ class Spotty(object):
             import platform
             architecture = platform.machine()
             if architecture.startswith('i686') or architecture.startswith('i386'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-i686-musl")
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86", "librespot-i686-musl")
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "linux_x86", "spotty-x86_64-musl")
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86", "librespot-x86_64-musl")
             else:
                 # for arm cpu's we just try it out
-                arm_dir = os.path.join(os.path.dirname(__file__), "spotty", "linux_arm")
+                arm_dir = os.path.join(os.path.dirname(__file__), "librespot", "linux_arm")
                 for item in xbmcvfs.listdir(arm_dir)[1]:
                     bin_path = os.path.join(arm_dir, item)
                     try:
@@ -416,7 +431,7 @@ class Spotty(object):
                         stdout, stderr = sp_exec.communicate()
                         if "ok" in stdout:
                             sp_binary = bin_path
-                            log_msg("Architecture detected. Using Spotty binary %s" % item)
+                            log_msg("Architecture detected. Using librespot binary %s" % item)
                             break
                     except Exception as exc:
                         log_exception(__name__, exc)

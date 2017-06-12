@@ -217,7 +217,7 @@ class Spotify(object):
     def _warn(self, msg, *args):
         print('warning:' + msg.format(*args), file=sys.stderr)
 
-    def track(self, track_id):
+    def track(self, track_id, market = None):
         ''' returns a single track given the track's ID, URI or URL
 
             Parameters:
@@ -225,7 +225,7 @@ class Spotify(object):
         '''
 
         trid = self._get_id('track', track_id)
-        return self._get('tracks/' + trid)
+        return self._get('tracks/' + trid, market = market)
 
     def tracks(self, tracks, market = None):
         ''' returns a list of tracks given a list of track IDs, URIs, or URLs

@@ -71,6 +71,9 @@ class KodiPlayer(xbmc.Player):
         '''Update the playlist: add fake item at the end which allows us to skip'''
         li = xbmcgui.ListItem("Spotify Connect")
         li.setMimeType("audio/wave")
-        url = "plugin://plugin.audio.spotify/?action=next_track"
+        if self.connect_local:
+            url = "http://localhost:%s/nexttrack" % PROXY_PORT
+        else:
+            url = "plugin://plugin.audio.spotify/?action=next_track"
         self.playlist.add(url, li)
         self.playlist.add(url, li)

@@ -6,7 +6,7 @@ import BaseHTTPServer
 import SocketServer
 import httplib
 import threading
-from utils import log_msg, log_exception, create_wave_header, kill_spotty, PROXY_PORT, parse_spotify_track
+from utils import log_msg, log_exception, create_wave_header, kill_librespot, PROXY_PORT, parse_spotify_track
 import xbmc
 import xbmcvfs
 import urlparse
@@ -24,7 +24,8 @@ class WebService(threading.Thread):
     def __init__(self, *args, **kwargs):
         self.sp = kwargs.get("sp")
         self.kodiplayer = kwargs.get("kodiplayer")
-        self.spotty = kwargs.get("spotty")
+        self.librespot = kwargs.get("librespot")
+        self.connect_daemon = kwargs.get("connect_daemon")
         threading.Thread.__init__(self, *args)
 
     @staticmethod
@@ -54,8 +55,10 @@ class WebService(threading.Thread):
             self.server = StoppableHttpServer(('127.0.0.1', PROXY_PORT), StoppableHttpRequestHandler)
             self.server.sp = self.sp
             self.server.kodiplayer = self.kodiplayer
-            self.server.spotty = self.spotty
+            self.server.librespot = self.librespot
+            self.server.connect_daemon = self.connect_daemon
             self.server.exit = False
+            self.server.cur_singletrack = None
             self.server.serve_forever()
         except Exception as exc:
             log_exception(__name__, exc)
@@ -64,7 +67,7 @@ class WebService(threading.Thread):
 class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     '''http request handler with QUIT stopping the server'''
     raw_requestline = ""
-    spotty_bin = None
+    librespot_bin = None
 
     def __init__(self, request, client_address, server):
         BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, request, client_address, server)
@@ -73,18 +76,22 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.handle(self)
         except Exception as exc:
-            log_exception(__name__, exc)
+            #log_exception(__name__, exc)
+            pass
         except SystemExit:
             pass
 
     def finish(self, *args, **kw):
-        if self.spotty_bin:
-            self.spotty_bin.terminate()
+        if self.librespot_bin:
+            self.librespot_bin.terminate()
         try:
             if not self.wfile.closed:
                 self.wfile.flush()
                 self.wfile.close()
-        except:
+        except Exception as exc:
+            #log_exception(__name__, exc)
+            pass
+        except SystemExit:
             pass
         self.rfile.close()
 
@@ -98,10 +105,10 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def log_message(self, logformat, *args):
         ''' log message to kodi log'''
         log_msg("Webservice --> [%s] %s\n" % (self.log_date_time_string(), logformat % args), xbmc.LOGDEBUG)
-
-    def do_HEAD(self):
-        '''called on HEAD requests'''
-        self.send_headers()
+        
+    def write_chunk(self, chunk):
+        tosend = '%X\r\n%s\r\n'%(len(chunk), chunk)
+        self.wfile.write(tosend)
 
     def send_headers(self, filesize=None):
         self.send_response(200)
@@ -109,7 +116,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_header("Content-type", "text/html")
         else:
             self.send_header('Content-type', 'audio/wave')
-            self.send_header('Connection', 'Keep-Alive')
+            self.send_header('Connection', 'Close')
             if filesize:
                 self.send_header('Content-Length', '%s' %filesize)
         self.end_headers()
@@ -122,6 +129,9 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.player_control()
         elif "connect" in self.path:
             self.connect_track()
+        elif "nexttrack" in self.path:
+            self.connect_track(10)
+            self.server.sp.next_track()
         elif "track" in self.path:
             self.single_track()
         return
@@ -129,53 +139,50 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def single_track(self):
         track_id = self.path.split("/")[-1]
         log_msg("Playback requested for track %s" % track_id)
+        self.server.cur_singletrack = track_id
         track_info = self.server.sp.track(track_id)
         duration = track_info["duration_ms"] / 1000
         wave_header, filesize = create_wave_header(duration)
+        self.wfile._sock.settimeout(duration)
         self.send_headers(filesize)
         self.wfile.write(wave_header)
-        self.wfile._sock.settimeout(duration)
-        args = ["--single-track", track_id]
-        self.spotty_bin = self.server.spotty.run_spotty(arguments=args)
-        bytes_written = 0
-        while bytes_written < filesize:
-            line = self.spotty_bin.stdout.readline()
-            if self.server.exit or not line:
-                break
-            bytes_written += len(line)
+        args = ["-n", "temp", "--single-track", track_id, "--backend", "pipe"]
+        self.librespot_bin = self.server.librespot.run_librespot(args)
+        # chunked transfer of data
+        line = self.librespot_bin.stdout.readline()
+        while line and self.server.cur_singletrack == track_id:
             self.wfile.write(line)
+            line = self.librespot_bin.stdout.readline()
 
-    def connect_track(self):
+    def connect_track(self, duration=0):
         # we're asked to play a track by spotify connect
-        # the target is another machine so we play silence
-        track_id = self.path.split("/")[-1]
-        track_info = self.server.sp.track(track_id)
-        duration = track_info["duration_ms"] / 1000
-        self.wfile._sock.settimeout(duration)
+        # the connect player is playing audio itself so we just stream silence to fake playback to kodi
+        if not duration:
+            duration = int(self.path.split("/")[-1])
         wave_header, filesize = create_wave_header(duration)
         self.send_headers(filesize)
         self.wfile.write(wave_header)
         # stream silence untill the next track is received
-        bytes_written = 0
-        while bytes_written < filesize and not self.server.exit:
-            bytes_written += 65536
-            self.wfile.write('\0' * 65536)
+        self.wfile.write('\0' * filesize)
         
     def player_control(self):
+        '''special entrypoint which can be used to control the kodiplayer by the librespot daemon'''
         self.send_headers()
-        if "start" in self.path:
+        if "start" in self.path or "change" in self.path:
             # connect wants us to play a track
-            log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
+            if "start" in self.path and self.server.kodiplayer.connect_playing:
+                log_msg("Resume playback requested by Spotify Connect", xbmc.LOGNOTICE)
+                self.server.kodiplayer.play()
+                return
+            elif "start" in self.path:
+                log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
+            else:
+                log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
             self.server.kodiplayer.playlist.clear()
-            trackdetails = self.server.sp.current_playback()["item"]
-            is_connect = "connect" in self.path
-            url, li = parse_spotify_track(trackdetails, is_connect=is_connect)
+            trackdetails = self.server.sp.track(self.server.connect_daemon.cur_track)
+            url, li = parse_spotify_track(trackdetails, is_connect=True)
             self.server.kodiplayer.playlist.add(url, li)
             self.server.kodiplayer.play()
-        elif "change" in self.path:
-            log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
-            xbmc.executebuiltin("SetProperty(spotify-trackchanging, true, home)")
-            self.server.kodiplayer.playnext()
         elif "stop" in self.path:
             log_msg("Stop playback requested by Spotify Connect", xbmc.LOGNOTICE)
             if not xbmc.getCondVisibility("Player.Paused"):

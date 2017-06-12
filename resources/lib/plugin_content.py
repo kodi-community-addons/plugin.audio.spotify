@@ -163,20 +163,16 @@ class PluginContent():
             self.addon.setSetting("password", new_pass)
 
     def next_track(self):
-        '''special entry which tells our connect player to move to the next track'''
-        if self.win.getProperty("spotify-trackchanging"):
-            self.win.clearProperty("spotify-trackchanging")
-        else:
-            # move to next track
-            self.sp.next_track()
+        '''special entry which tells our (non-local) connect player to move to the next track'''
+        # move to next track
+        self.sp.next_track()
         # play next track
         xbmc.sleep(100)
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
-        is_connect = cur_playback["device"]["id"] != self.win.getProperty("spotify-connectid").decode("utf-8")
-        url, li = parse_spotify_track(trackdetails, is_connect=is_connect)
+        url, li = parse_spotify_track(trackdetails, is_connect=True)
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
-
+        
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
         if self.addon.getSetting("playback_device") == "squeezebox":
