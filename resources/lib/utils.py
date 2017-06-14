@@ -386,8 +386,6 @@ class LibreSpot(object):
                     "-u", self.username,
                     "-p", self.password
                 ]
-                # discovery is disabled by default for now because Kodi may already have launched Avahi
-                # args.append("--disable-discovery")
                 if arguments:
                     args += arguments
                 if not "-n" in args:
@@ -416,43 +414,30 @@ class LibreSpot(object):
         if xbmc.getCondVisibility("System.Platform.Windows"):
             # for windows I've only built a x64 binary
             sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows_x86_64", "librespot.exe")
-            self.supports_discovery = False
+            self.supports_discovery = False # The current MDNS implementation cannot be built on Windows
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
             sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "darwin_x86_64", "librespot")
-            st = os.stat(sp_binary)
-            os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
         elif xbmc.getCondVisibility("System.Platform.Linux"):
             # try to find out the correct architecture by trial and error
             import platform
             architecture = platform.machine()
             if architecture.startswith('i686') or architecture.startswith('i386'):
-                None
+                sp_binary = None # only a x86_64 binary is built
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86_64", "librespot")
-            else:
-                # for arm cpu's we just try it out
-                for item in ["linux_armhf", "linux_arm", "linux_arch64"]:
-                    bin_path = os.path.join(os.path.dirname(__file__), "librespot", item, "librespot")
-                    try:
-                        st = os.stat(bin_path)
-                        os.chmod(bin_path, st.st_mode | stat.S_IEXEC)
-                        args = [bin_path, "-n", "test", "--check"]
-                        sp_exec = subprocess.Popen(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-                        stdout, stderr = sp_exec.communicate()
-                        if "ok" in stdout:
-                            sp_binary = bin_path
-                            log_msg("Architecture detected. Using librespot binary %s" % item)
-                            break
-                    except Exception as exc:
-                        log_exception(__name__, exc)
-            if sp_binary:
-                st = os.stat(sp_binary)
-                os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
-            else:
-                log_msg("Failed to detect architecture or platform not supported !")
+            elif architecture.startswith('aarch64'):
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_aarch64", "librespot")
+            elif os.path.isdir("/lib/arm-linux-gnueabihf"): # I didn't know any other valid way of detecting armhf support
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armhf", "librespot")
+            elif architecture.startswith('arm'):
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_arm", "librespot")
+        if sp_binary:
+            st = os.stat(sp_binary)
+            os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
+            log_msg("Architecture detected. Using librespot binary %s" % sp_binary)
         else:
-            log_msg("Unsupported platform! - for iOS and Android you need to install a spotify app yourself and make sure it's running in the background.")
+            log_msg("Failed to detect architecture or platform not supported ! Local playback will not be available.")
         return sp_binary
 
     @staticmethod
