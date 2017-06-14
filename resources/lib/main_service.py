@@ -40,7 +40,7 @@ class MainService:
         self.win = xbmcgui.Window(10000)
         self.kodimonitor = xbmc.Monitor()
         self.librespot = LibreSpot()
-        self.connect_daemon = ConnectDaemon()
+        self.connect_daemon = ConnectDaemon(librespot=self.librespot)
         
         # spotipy and the webservice are always prestarted in the background
         # the auth key for spotipy will be set afterwards
@@ -197,21 +197,26 @@ class ConnectDaemon(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         self.__stop = False
+        self.librespot = kwargs.get("librespot")
         threading.Thread.__init__(self, *args)
 
     def run(self):
-        log_msg("Start Spotify Connect Daemon")
-        librespot = LibreSpot()
-        librespot_args = ["--onstart", "curl -s -f -m 1 http://localhost:%s/playercmd/start" % PROXY_PORT,
-                       "--onstop", "curl -s -f -m 1  http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                       "--onchange", "curl -s -f -m 1  http://localhost:%s/playercmd/change" % PROXY_PORT]
-        self.librespot_proc = librespot.run_librespot(arguments=librespot_args)
         while not self.__stop:
-            line = self.librespot_proc.stdout.readline().strip()
-            if line:
-                if "track" in line and "[" in line and "]" in line:
-                    self.cur_track = line.split("[")[-1].split("]")[0]
-                log_msg(line, xbmc.LOGDEBUG)
+            log_msg("Start Spotify Connect Daemon")
+            librespot_args = ["--onstart", "curl -s -f -m 2 http://localhost:%s/playercmd/start" % PROXY_PORT,
+                           "--onstop", "curl -s -f -m 2  http://localhost:%s/playercmd/stop" % PROXY_PORT,
+                           "--onchange", "curl -s -f -m 2  http://localhost:%s/playercmd/change" % PROXY_PORT]
+            self.librespot_proc = self.librespot.run_librespot(arguments=librespot_args)
+            while not self.__stop:
+                line = self.librespot_proc.stdout.readline().strip()
+                if line:
+                    if "track" in line and "[" in line and "]" in line:
+                        self.cur_track = line.split("[")[-1].split("]")[0]
+                    log_msg(line, xbmc.LOGDEBUG)
+                if self.librespot_proc.returncode and self.librespot_proc.returncode > 0 and not self.__stop:
+                    # daemon crashed ? restart
+                    break
+                    
         log_msg("Stopped Spotify Connect Daemon")
 
     def stop(self):

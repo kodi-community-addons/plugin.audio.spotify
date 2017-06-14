@@ -105,10 +105,6 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def log_message(self, logformat, *args):
         ''' log message to kodi log'''
         log_msg("Webservice --> [%s] %s\n" % (self.log_date_time_string(), logformat % args), xbmc.LOGDEBUG)
-        
-    def write_chunk(self, chunk):
-        tosend = '%X\r\n%s\r\n'%(len(chunk), chunk)
-        self.wfile.write(tosend)
 
     def send_headers(self, filesize=None):
         self.send_response(200)
@@ -137,6 +133,11 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.single_track()
         return
 
+    def do_HEAD():
+        self.send_header('Content-type', 'audio/wave')
+        self.send_header('Connection', 'Close')
+        self.send_header('Accept-Ranges', 'None')
+    
     def single_track(self):
         track_id = self.path.split("/")[-1]
         log_msg("Playback requested for track %s" % track_id)
@@ -151,14 +152,18 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.librespot_bin = self.server.librespot.run_librespot(args)
         if self.server.librespot.buffer_track:
             # send entire trackdata at once
-            stdout, stderr = librespot.communicate()
+            stdout, stderr = self.librespot_bin.communicate()
             self.wfile.write(stdout)
         else:
             # (semi)chunked transfer of data
-            line = self.librespot_bin.stdout.readline()
-            while line and self.server.cur_singletrack == track_id:
-                self.wfile.write(line)
-                line = self.librespot_bin.stdout.readline()
+            bufsize = filesize / 5
+            log_msg("start chunked transfer of track")
+            while True:
+                chunk = self.librespot_bin.stdout.read(bufsize)
+                self.wfile.write(chunk)
+                if len(chunk) < bufsize:
+                    log_msg("end of stream")
+                    break
 
     def connect_track(self, duration=0):
         # we're asked to play a track by spotify connect
@@ -174,6 +179,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
     def player_control(self):
         '''special entrypoint which can be used to control the kodiplayer by the librespot daemon'''
         self.send_headers()
+        self.wfile.write("OK")
         if "start" in self.path or "change" in self.path:
             # connect wants us to play a track
             if "start" in self.path and self.server.kodiplayer.connect_playing:
@@ -181,7 +187,9 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
                 self.server.kodiplayer.play()
                 return
             elif "start" in self.path:
+                self.server.kodiplayer.stop()
                 log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
+                xbmc.sleep(500)
             else:
                 log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
             self.server.kodiplayer.playlist.clear()

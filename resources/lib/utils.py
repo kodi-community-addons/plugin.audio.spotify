@@ -97,10 +97,11 @@ def get_token(librespot):
     # get authentication token for api - prefer cached version
     token_info = None
     try:
-        # try to get a token with librespot
-        token_info = request_token_librespot(librespot)
-        # request new token with web flow
-        if not token_info:
+        if librespot.playback_supported:
+            # try to get a token with librespot
+            token_info = request_token_librespot(librespot)
+        else:
+            # request new token with web flow
             token_info = request_token_web(librespot.username)
     except Exception as exc:
         log_msg("Couldn't request authentication token. Username/password error ?")
@@ -118,6 +119,7 @@ def request_token_librespot(librespot):
             librespot = librespot.run_librespot(arguments=args)
             stdout, stderr = librespot.communicate()
             result = None
+            log_msg(stdout, xbmc.LOGDEBUG)
             for line in stdout.split():
                 line = line.strip()
                 if line.startswith("{\"accessToken\""):
@@ -374,17 +376,26 @@ class LibreSpot(object):
         self.playername = self.get_playername()
         self.__librespot_binary = self.get_librespot_binary()
         if self.__librespot_binary:
-            self.playback_supported = True
-            xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
+            # perform self check
+            args = ["--backend", "?"]
+            librespot = self.run_librespot(arguments=args, self_check=True)
+            stdout, stderr = librespot.communicate()
+            log_msg(stdout)
+            if "Available Backends" in stdout:
+                self.playback_supported = True
+                xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
+            else:
+                log_msg("Error while verifying librespot. Local playback is disabled.")
 
-    def run_librespot(self, arguments=None):
+    def run_librespot(self, arguments=None, self_check=False):
         '''On supported platforms we include librespot binary'''
-        if self.playback_supported:
+        if self.playback_supported or self_check:
             try:
                 args = [
                     self.__librespot_binary,
                     "-u", self.username,
-                    "-p", self.password
+                    "-p", self.password,
+                    "-b", "320" # force bitrate to highest quality
                 ]
                 if arguments:
                     args += arguments
@@ -400,8 +411,7 @@ class LibreSpot(object):
                 my_env["DYLD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
                 my_env["LD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
                 if "--single-track" in args:
-                    devnull = open(os.devnull, 'w')
-                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=devnull, bufsize=0, env=my_env)
+                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, env=my_env)
                 else:
                     return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, env=my_env)
             except Exception as exc:
@@ -412,8 +422,10 @@ class LibreSpot(object):
         '''find the correct librespot binary belonging to the platform'''
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
-            # for windows I've only built a x64 binary
-            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows_x86_64", "librespot.exe")
+            if os.path.isdir("c:\\Program Files (x86)"):
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows_x86_64", "librespot.exe")
+            else:
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows_i686", "librespot.exe")
             self.supports_discovery = False # The current MDNS implementation cannot be built on Windows
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
@@ -422,11 +434,9 @@ class LibreSpot(object):
             # try to find out the correct architecture by trial and error
             import platform
             architecture = platform.machine()
-            if architecture.startswith('i686') or architecture.startswith('i386'):
-                sp_binary = None # only a x86_64 binary is built
-            elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
+            if architecture.startswith('AMD64') or architecture.startswith('x86_64'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86_64", "librespot")
-            elif architecture.startswith('aarch64'):
+            elif architecture.startswith('aarch64'): # todo: what if we're running 32bit OS on aarch64 ?
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_aarch64", "librespot")
             elif os.path.isdir("/lib/arm-linux-gnueabihf"): # I didn't know any other valid way of detecting armhf support
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armhf", "librespot")
