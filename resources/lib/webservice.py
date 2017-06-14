@@ -117,6 +117,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         else:
             self.send_header('Content-type', 'audio/wave')
             self.send_header('Connection', 'Close')
+            self.send_header('Accept-Ranges', 'None')
             if filesize:
                 self.send_header('Content-Length', '%s' %filesize)
         self.end_headers()
@@ -148,11 +149,16 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(wave_header)
         args = ["-n", "temp", "--single-track", track_id, "--backend", "pipe"]
         self.librespot_bin = self.server.librespot.run_librespot(args)
-        # chunked transfer of data
-        line = self.librespot_bin.stdout.readline()
-        while line and self.server.cur_singletrack == track_id:
-            self.wfile.write(line)
+        if self.server.librespot.buffer_track:
+            # send entire trackdata at once
+            stdout, stderr = librespot.communicate()
+            self.wfile.write(stdout)
+        else:
+            # (semi)chunked transfer of data
             line = self.librespot_bin.stdout.readline()
+            while line and self.server.cur_singletrack == track_id:
+                self.wfile.write(line)
+                line = self.librespot_bin.stdout.readline()
 
     def connect_track(self, duration=0):
         # we're asked to play a track by spotify connect

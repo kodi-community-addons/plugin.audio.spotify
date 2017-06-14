@@ -22,6 +22,9 @@
     
     <category label="11029">
         <setting id="connect_player" type="bool" label="11036" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
+        <setting id="enable_cache" type="bool" label="11051" default="false" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
+        <setting id="cache_path" label="11052" type="folder" source="auto" visible="eq(-1,true)" default="special://profile/addon_data/plugin.audio.spotify/" />
+        <setting id="buffer_track" type="bool" label="11053" default="false" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
         <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>
         <setting id="playlistDefaultView" type="text" label="11031" default=""/>
         <setting id="artistDefaultView" type="text" label="11032" default=""/>

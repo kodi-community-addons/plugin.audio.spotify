@@ -356,13 +356,20 @@ class LibreSpot(object):
     playback_supported = False
     playername = None
     supports_discovery = True
+    buffer_track = False
     __librespot_binary = None
+    __cache_path = None
 
     def __init__(self):
         '''initialize with default values'''
         addon = xbmcaddon.Addon(id=ADDON_ID)
         self.username = addon.getSetting("username").decode("utf-8")
         self.password = addon.getSetting("password").decode("utf-8")
+        self.buffer_track = addon.getSetting("buffer_track").decode("utf-8") == "true"
+        if addon.getSetting("cache_path").decode("utf-8") == "true":
+            cache_path = xbmc.translatePath(addon.getSetting("cache_path")).decode("utf-8")
+            if os.path.isdir(cache_path):
+                self.__cache_path = cache_path
         del addon
         self.playername = self.get_playername()
         self.__librespot_binary = self.get_librespot_binary()
@@ -385,15 +392,20 @@ class LibreSpot(object):
                     args += arguments
                 if not "-n" in args:
                     args += ["-n", self.playername]
+                if self.__cache_path:
+                    args += ["-c", self.__cache_path]
                 startupinfo = None
                 if os.name == 'nt':
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+                my_env = os.environ.copy()
+                my_env["DYLD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
+                my_env["LD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
                 if "--single-track" in args:
                     devnull = open(os.devnull, 'w')
-                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=devnull, bufsize=0)
+                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=devnull, bufsize=0, env=my_env)
                 else:
-                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, env=my_env)
             except Exception as exc:
                 log_exception(__name__, exc)
         return None
@@ -403,11 +415,11 @@ class LibreSpot(object):
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
             # for windows I've only built a x64 binary
-            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows", "librespot_x64.exe")
+            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "windows_x86_64", "librespot.exe")
             self.supports_discovery = False
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
-            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "macos", "librespot")
+            sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "darwin_x86_64", "librespot")
             st = os.stat(sp_binary)
             os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)
         elif xbmc.getCondVisibility("System.Platform.Linux"):
@@ -415,14 +427,13 @@ class LibreSpot(object):
             import platform
             architecture = platform.machine()
             if architecture.startswith('i686') or architecture.startswith('i386'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86", "librespot-i686-musl")
+                None
             elif architecture.startswith('AMD64') or architecture.startswith('x86_64'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86", "librespot-x86_64-musl")
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86_64", "librespot")
             else:
                 # for arm cpu's we just try it out
-                arm_dir = os.path.join(os.path.dirname(__file__), "librespot", "linux_arm")
-                for item in xbmcvfs.listdir(arm_dir)[1]:
-                    bin_path = os.path.join(arm_dir, item)
+                for item in ["linux_armhf", "linux_arm", "linux_arch64"]:
+                    bin_path = os.path.join(os.path.dirname(__file__), "librespot", item, "librespot")
                     try:
                         st = os.stat(bin_path)
                         os.chmod(bin_path, st.st_mode | stat.S_IEXEC)

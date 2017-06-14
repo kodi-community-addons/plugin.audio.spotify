@@ -211,3 +211,15 @@ msgstr ""
 msgctxt "#11050"
 msgid "No credentials have been set or the login failed.\nPlease enter your credentials in the next settings dialog."
 msgstr ""
+
+msgctxt "#11051"
+msgid "Enable audio cache"
+msgstr ""
+
+msgctxt "#11052"
+msgid "Location to store the audio cache"
+msgstr ""
+
+msgctxt "#11053"
+msgid "Buffer entire track (might fix playback issues)"
+msgstr ""
