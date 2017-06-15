@@ -438,7 +438,7 @@ class LibreSpot(object):
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86_64", "librespot")
             elif architecture.startswith('aarch64'): # todo: what if we're running 32bit OS on aarch64 ?
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_aarch64", "librespot")
-            elif os.path.isdir("/lib/arm-linux-gnueabihf"): # I didn't know any other valid way of detecting armhf support
+            elif os.path.isdir("/lib/arm-linux-gnueabihf/") or xbmc.getCondVisibility("System.Platform.Linux.RaspberryPi"): # I didn't know any other valid way of detecting armhf support
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armhf", "librespot")
             elif architecture.startswith('arm'):
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_arm", "librespot")

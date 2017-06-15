@@ -221,5 +221,6 @@ class ConnectDaemon(threading.Thread):
 
     def stop(self):
         self.__stop = True
-        self.librespot_proc.terminate()
+        if self.librespot_proc:
+            self.librespot_proc.terminate()
         self.join(0.5)
