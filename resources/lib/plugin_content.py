@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
-from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track
+from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track, get_playername
 import urlparse
 import urllib
 import threading
@@ -170,7 +170,7 @@ class PluginContent():
         xbmc.sleep(100)
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
-        url, li = parse_spotify_track(trackdetails, is_connect=True)
+        url, li = parse_spotify_track(trackdetails, is_remote=True)
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
         
     def connect_playback(self):
@@ -215,10 +215,10 @@ class PluginContent():
             # determine if we're controlling a remote connect device
             xbmc.sleep(100)
             cur_playback = self.sp.current_playback()
-            if cur_playback["device"]["id"] != self.win.getProperty("spotify-connectid"):
+            if cur_playback["device"]["name"] != get_playername():
                 import httplib
                 conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
-                conn.request("GET", "/playercmd/startconnect")
+                conn.request("GET", "/playercmd/start?remote=true")
                 conn.getresponse()
 
     def play_track_radio(self):

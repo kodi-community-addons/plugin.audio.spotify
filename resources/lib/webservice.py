@@ -60,6 +60,7 @@ class WebService(threading.Thread):
             self.server.connect_daemon = self.connect_daemon
             self.server.exit = False
             self.server.cur_singletrack = None
+            self.server.transaction = False
             self.server.serve_forever()
         except Exception as exc:
             log_exception(__name__, exc)
@@ -77,21 +78,22 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.handle(self)
         except Exception as exc:
-            #log_exception(__name__, exc)
-            pass
+            if not "10053" in str(exc):
+                log_exception(__name__, exc)
         except SystemExit:
             pass
 
     def finish(self, *args, **kw):
         if self.librespot_bin:
+            log_msg(self.librespot_bin.stderr.read())
             self.librespot_bin.terminate()
         try:
             if not self.wfile.closed:
                 self.wfile.flush()
                 self.wfile.close()
         except Exception as exc:
-            #log_exception(__name__, exc)
-            pass
+            if not "10053" in str(exc):
+                log_exception(__name__, exc)
         except SystemExit:
             pass
         self.rfile.close()
@@ -125,16 +127,16 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             self.auth_callback()
         elif "playercmd" in self.path:
             self.player_control()
-        elif "connect" in self.path:
-            self.connect_track()
+        elif "silence" in self.path:
+            self.stream_silence()
         elif "nexttrack" in self.path:
-            self.connect_track(10)
+            self.stream_silence(10)
             self.server.sp.next_track()
         elif "track" in self.path:
             self.single_track()
         return
 
-    def do_HEAD():
+    def do_HEAD(self):
         self.send_header('Content-type', 'audio/wave')
         self.send_header('Connection', 'Close')
         self.send_header('Accept-Ranges', 'None')
@@ -155,6 +157,7 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             # send entire trackdata at once
             stdout, stderr = self.librespot_bin.communicate()
             self.wfile.write(stdout)
+            log_msg(stderr)
         else:
             # (semi)chunked transfer of data
             bufsize = filesize / 5
@@ -165,9 +168,9 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
                 if len(chunk) < bufsize:
                     log_msg("end of stream")
                     break
+        self.wfile._sock.settimeout(1)
 
-    def connect_track(self, duration=0):
-        # we're asked to play a track by spotify connect
+    def stream_silence(self, duration=0):
         # the connect player is playing audio itself so we just stream silence to fake playback to kodi
         if not duration:
             duration = int(self.path.split("/")[-1])
@@ -181,7 +184,11 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         '''special entrypoint which can be used to control the kodiplayer by the librespot daemon'''
         self.send_headers()
         self.wfile.write("OK")
-        if "start" in self.path or "change" in self.path:
+        if self.server.transaction:
+            # ignore if we did a transaction ourselves
+            self.server.transaction = False
+        elif "start" in self.path or "change" in self.path:
+            self.server.kodiplayer.connect_local = True
             # connect wants us to play a track
             if "start" in self.path and self.server.kodiplayer.connect_playing:
                 log_msg("Resume playback requested by Spotify Connect", xbmc.LOGNOTICE)
@@ -193,16 +200,19 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
             self.server.kodiplayer.playlist.clear()
+            is_remote = "remote=true" in self.path
             try:
                 trackdetails = self.server.sp.track(self.server.connect_daemon.cur_track)
-                url, li = parse_spotify_track(trackdetails, is_connect=False)
+                url, li = parse_spotify_track(trackdetails, is_remote=is_remote)
             except Exception as exc:
-                # I've seen a few times that a track ID couldn't be recognized somehow.
-                log_exception(__name__, exc)
-                url = "http://localhost:%s/connect/520" % (PROXY_PORT)
-                li = xbmcgui.ListItem("Failed to load track info")
+                # I've seen a few times that a track ID couldn't be recognized because the leading zero was stripped of
+                track_id = "0%s" % self.server.connect_daemon.cur_track
+                trackdetails = self.server.sp.track(track_id)
+                url, li = parse_spotify_track(trackdetails, is_remote=is_remote)
             self.server.kodiplayer.playlist.add(url, li)
             self.server.kodiplayer.play()
+            self.server.transaction = True
+            self.server.sp.seek_track(0) # for now we always start a track at the beginning
         elif "stop" in self.path:
             log_msg("Stop playback requested by Spotify Connect", xbmc.LOGNOTICE)
             if not xbmc.getCondVisibility("Player.Paused"):

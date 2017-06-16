@@ -268,7 +268,7 @@ def get_track_rating(popularity):
         return int(math.ceil(popularity * 6 / 100.0)) - 1
 
 
-def parse_spotify_track(track, is_album_track=True, is_connect=False):
+def parse_spotify_track(track, is_album_track=True, is_remote=False):
     if "track" in track:
         track = track['track']
     if track.get("images"):
@@ -279,8 +279,8 @@ def parse_spotify_track(track, is_album_track=True, is_connect=False):
         thumb = ""
     duration = track['duration_ms']/1000
     
-    if is_connect:
-        url = "http://localhost:%s/connect/%s" % (PROXY_PORT, duration)
+    if is_remote:
+        url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
     else:
         url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
 
@@ -345,6 +345,14 @@ def normalize_string(text):
     text = text.rstrip('.')
     text = unicodedata.normalize('NFKD', try_decode(text))
     return text
+    
+
+def get_playername():
+    playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
+    if playername == "Kodi":
+        import socket
+        playername = "Kodi (%s)" % socket.gethostname()
+    return playername
 
 
 class LibreSpot(object):
@@ -373,7 +381,7 @@ class LibreSpot(object):
             if os.path.isdir(cache_path):
                 self.__cache_path = cache_path
         del addon
-        self.playername = self.get_playername()
+        self.playername = get_playername()
         self.__librespot_binary = self.get_librespot_binary()
         if self.__librespot_binary:
             # perform self check
@@ -446,11 +454,3 @@ class LibreSpot(object):
         else:
             log_msg("Failed to detect architecture or platform not supported ! Local playback will not be available.")
         return sp_binary
-
-    @staticmethod
-    def get_playername():
-        playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
-        if playername == "Kodi":
-            import socket
-            playername = "Kodi (%s)" % socket.gethostname()
-        return playername

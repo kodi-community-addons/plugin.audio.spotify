@@ -64,7 +64,6 @@ class MainService:
             # start experimental spotify connect daemon
             if self.addon.getSetting("connect_player") == "true" and self.librespot.playback_supported:
                 self.connect_daemon.start()
-                self.kodiplayer.playerid = self.get_playerid()
 
         # start mainloop
         self.main_loop()
@@ -101,7 +100,7 @@ class MainService:
                     if player_title and player_title != cur_playback["item"]["name"]:
                         log_msg("Next track requested by Spotify Connect")
                         trackdetails = cur_playback["item"]
-                        url, li = parse_spotify_track( cur_playback["item"], is_connect=True)
+                        url, li = parse_spotify_track( cur_playback["item"], is_remote=True)
                         self.kodiplayer.playlist.clear()
                         self.kodiplayer.playlist.add(url, li)
                         self.kodiplayer.play()
@@ -152,8 +151,6 @@ class MainService:
             if self.connect_daemon:
                 self.connect_daemon.stop()
                 self.connect_daemon.start()
-                playerid = self.get_playerid()
-                self.kodiplayer.playerid = playerid
 
     def renew_token(self):
         '''refresh the token'''
@@ -164,27 +161,6 @@ class MainService:
             self.sp._auth = self.token_info['access_token']
             return True
         return False
-
-    def get_playerid(self):
-        '''get the ID which is assigned to our virtual connect device'''
-        playername = self.librespot.playername
-        playerid = ""
-        count = 0
-        while not playerid and not self.kodimonitor.abortRequested():
-            xbmc.sleep(500)
-            count += 1
-            if count == 10:
-                break
-            log_msg("waiting for playerid", xbmc.LOGNOTICE)
-            devices = self.sp.devices()
-            if devices and devices.get("devices"):
-                for device in devices["devices"]:
-                    if device["name"] == playername:
-                        playerid = device["id"]
-        log_msg("Playerid: %s" % playerid, xbmc.LOGDEBUG)
-        self.win.setProperty("spotify-connectid", playerid)
-        return playerid
-
 
 class ConnectDaemon(threading.Thread):
     '''
@@ -213,20 +189,24 @@ class ConnectDaemon(threading.Thread):
             while not self.__stop:
                 line = self.librespot_proc.stderr.readline().strip()
                 if line:
+                    # grab the track id from the stderr so our player knows which track is being played by the connect daemon
+                    # Usefull in the scenario that another user connected to the connect daemon by using discovery
                     if "track" in line and "[" in line and "]" in line:
                         self.cur_track = line.split("[")[-1].split("]")[0]
                     log_msg(line, xbmc.LOGDEBUG)
                 if self.librespot_proc.returncode and self.librespot_proc.returncode > 0 and not self.__stop:
-                    # daemon crashed ? restart
+                    # daemon crashed ? restart ?
                     break
                     
         log_msg("Stopped Spotify Connect Daemon")
         
     def fill_fake_buffer(self):
-        '''emulate playback just slowly reading the stdout'''
+        '''emulate playback by just slowly reading the stdout'''
+        # We could pick up this data in a buffer but it is almost impossible to keep it all in sync.
+        # So instead we ignore the audio from the connect daemon completely and we just launch a standalone instanc eto play the track
         while not self.__stop:
             line = self.librespot_proc.stdout.readline()
-            xbmc.sleep(150)
+            xbmc.sleep(100)
 
     def stop(self):
         self.__stop = True

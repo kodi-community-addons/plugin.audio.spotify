@@ -18,7 +18,6 @@ class KodiPlayer(xbmc.Player):
 
     def __init__(self, **kwargs):
         self.sp = kwargs.get("sp")
-        self.playerid = kwargs.get("playerid")
         self.playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         xbmc.Player.__init__(self)
 
@@ -46,7 +45,6 @@ class KodiPlayer(xbmc.Player):
         '''Kodi event fired when playback is started (including next tracks)'''
         # set the connect_playing bool to indicate we are playing spotify connect content
         current_playback = self.sp.current_playback()
-        self.connect_local = current_playback["device"]["id"] == self.playerid
         self.connect_playing = current_playback["is_playing"]
         if self.connect_playing:
             self.update_playlist()
@@ -71,9 +69,10 @@ class KodiPlayer(xbmc.Player):
         '''Update the playlist: add fake item at the end which allows us to skip'''
         li = xbmcgui.ListItem("Spotify Connect")
         li.setMimeType("audio/wave")
-        if self.connect_local:
-            url = "http://localhost:%s/nexttrack" % PROXY_PORT
-        else:
-            url = "plugin://plugin.audio.spotify/?action=next_track"
+        li.setInfo(type="Music", infoLabels={"title": "Spotify Connect"})
+        li.setContentLookup(False)
+        li.setProperty('do_not_analyze', 'true')
+        url = "http://localhost:%s/nexttrack" % PROXY_PORT
+        #url = "plugin://plugin.audio.spotify/?action=next_track"
         self.playlist.add(url, li)
         self.playlist.add(url, li)
