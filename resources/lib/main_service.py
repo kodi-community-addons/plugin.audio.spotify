@@ -22,7 +22,8 @@ import stat
 import spotipy
 import time
 import threading
-
+import thread
+import StringIO
 
 class MainService:
     '''our main background service running the various threads'''
@@ -205,10 +206,12 @@ class ConnectDaemon(threading.Thread):
             log_msg("Start Spotify Connect Daemon")
             librespot_args = ["--onstart", "curl -s -f -m 2 http://localhost:%s/playercmd/start" % PROXY_PORT,
                            "--onstop", "curl -s -f -m 2  http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                           "--onchange", "curl -s -f -m 2  http://localhost:%s/playercmd/change" % PROXY_PORT]
+                           "--onchange", "curl -s -f -m 2  http://localhost:%s/playercmd/change" % PROXY_PORT,
+                           "--backend", "pipe"]
             self.librespot_proc = self.librespot.run_librespot(arguments=librespot_args)
+            thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__stop:
-                line = self.librespot_proc.stdout.readline().strip()
+                line = self.librespot_proc.stderr.readline().strip()
                 if line:
                     if "track" in line and "[" in line and "]" in line:
                         self.cur_track = line.split("[")[-1].split("]")[0]
@@ -218,6 +221,12 @@ class ConnectDaemon(threading.Thread):
                     break
                     
         log_msg("Stopped Spotify Connect Daemon")
+        
+    def fill_fake_buffer(self):
+        '''emulate playback just slowly reading the stdout'''
+        while not self.__stop:
+            line = self.librespot_proc.stdout.readline()
+            xbmc.sleep(150)
 
     def stop(self):
         self.__stop = True

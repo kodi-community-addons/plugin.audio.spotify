@@ -12,6 +12,7 @@ import xbmcvfs
 import urlparse
 import urllib
 import socket
+import xbmcgui
 
 quit_event = threading.Event()
 
@@ -189,12 +190,17 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             elif "start" in self.path:
                 self.server.kodiplayer.stop()
                 log_msg("Start playback requested by Spotify Connect", xbmc.LOGNOTICE)
-                xbmc.sleep(500)
             else:
                 log_msg("Next track requested by Spotify Connect", xbmc.LOGNOTICE)
             self.server.kodiplayer.playlist.clear()
-            trackdetails = self.server.sp.track(self.server.connect_daemon.cur_track)
-            url, li = parse_spotify_track(trackdetails, is_connect=True)
+            try:
+                trackdetails = self.server.sp.track(self.server.connect_daemon.cur_track)
+                url, li = parse_spotify_track(trackdetails, is_connect=False)
+            except Exception as exc:
+                # I've seen a few times that a track ID couldn't be recognized somehow.
+                log_exception(__name__, exc)
+                url = "http://localhost:%s/connect/520" % (PROXY_PORT)
+                li = xbmcgui.ListItem("Failed to load track info")
             self.server.kodiplayer.playlist.add(url, li)
             self.server.kodiplayer.play()
         elif "stop" in self.path:

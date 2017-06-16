@@ -410,10 +410,7 @@ class LibreSpot(object):
                 my_env = os.environ.copy()
                 my_env["DYLD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
                 my_env["LD_LIBRARY_PATH"] = os.path.dirname(self.__librespot_binary)
-                if "--single-track" in args:
-                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, env=my_env)
-                else:
-                    return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, env=my_env)
+                return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, env=my_env)
             except Exception as exc:
                 log_exception(__name__, exc)
         return None
