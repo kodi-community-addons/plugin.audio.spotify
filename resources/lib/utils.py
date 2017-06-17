@@ -435,18 +435,30 @@ class LibreSpot(object):
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
             sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "darwin_x86_64", "librespot")
-        elif xbmc.getCondVisibility("System.Platform.Linux"):
+        elif xbmc.getCondVisibility("System.Platform.Linux + !System.Platform.Android"):
             # try to find out the correct architecture by trial and error
             import platform
             architecture = platform.machine()
+            log_msg("reported architecture: %s" % architecture)
             if architecture.startswith('AMD64') or architecture.startswith('x86_64'):
+                # generic linux x86_64 binary
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_x86_64", "librespot")
-            elif architecture.startswith('aarch64'): # todo: what if we're running 32bit OS on aarch64 ?
+            elif 'aarch64' in architecture.lower(): 
+                # arm64 binary
+                # todo: what if we're running 32bit OS on aarch64 ?
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_aarch64", "librespot")
-            elif os.path.isdir("/lib/arm-linux-gnueabihf/") or xbmc.getCondVisibility("System.Platform.Linux.RaspberryPi"): # I didn't know any other valid way of detecting armhf support
+            elif os.path.isdir("/lib/arm-linux-gnueabihf/") or "armv7" in architecture.lower():
+                # generic armhf support
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armhf", "librespot")
+            elif "armv6" in architecture and xbmc.getCondVisibility("System.Platform.Linux.RaspberryPi"):
+                # special raspberry pi build
+                #sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_pi", "librespot")
+                #self.supports_discovery = False
+                log_msg("The Raspberry Pi 1 is not (yet) supported - local playback unavailable")
+                sp_binary = None
             elif architecture.startswith('arm'):
-                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_arm", "librespot")
+                # armel binary non hardfloat
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armel", "librespot")
         if sp_binary:
             st = os.stat(sp_binary)
             os.chmod(sp_binary, st.st_mode | stat.S_IEXEC)

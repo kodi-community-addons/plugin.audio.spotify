@@ -84,8 +84,8 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
             pass
 
     def finish(self, *args, **kw):
-        if self.librespot_bin:
-            log_msg(self.librespot_bin.stderr.read())
+        if self.librespot_bin and self.librespot_bin.poll() == None:
+            log_msg(self.librespot_bin.stderr.read(), xbmc.LOGDEBUG)
             self.librespot_bin.terminate()
         try:
             if not self.wfile.closed:
@@ -137,9 +137,11 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         return
 
     def do_HEAD(self):
+        self.send_response(200)
         self.send_header('Content-type', 'audio/wave')
         self.send_header('Connection', 'Close')
         self.send_header('Accept-Ranges', 'None')
+        self.end_headers()
     
     def single_track(self):
         track_id = self.path.split("/")[-1]
@@ -155,18 +157,20 @@ class StoppableHttpRequestHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.librespot_bin = self.server.librespot.run_librespot(args)
         if self.server.librespot.buffer_track:
             # send entire trackdata at once
+            log_msg("Buffer entire track requested for track id %s" % track_id)
             stdout, stderr = self.librespot_bin.communicate()
             self.wfile.write(stdout)
-            log_msg(stderr)
+            log_msg("Send entire buffer done for track id %s" % track_id)
+            log_msg(stderr, xbmc.LOGDEBUG)
         else:
             # (semi)chunked transfer of data
             bufsize = filesize / 5
-            log_msg("start chunked transfer of track")
+            log_msg("start chunked transfer of track %s" % track_id)
             while True:
                 chunk = self.librespot_bin.stdout.read(bufsize)
                 self.wfile.write(chunk)
                 if len(chunk) < bufsize:
-                    log_msg("end of stream")
+                    log_msg("end of stream reached for track %s" % track_id)
                     break
         self.wfile._sock.settimeout(1)
 
