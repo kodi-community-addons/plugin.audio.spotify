@@ -9,5 +9,6 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "resources", "lib"))
 
-from main_service import MainService
-MainService()
+if __name__ == '__main__':
+    from main_service import MainService
+    MainService()

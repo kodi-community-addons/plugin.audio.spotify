@@ -26,6 +26,7 @@ import math
 
 
 PROXY_PORT = 52308
+DEBUG = False
 
 try:
     import simplejson as json
@@ -33,9 +34,9 @@ except Exception:
     import json
 
 try:
-    import cStringIO as StringIO
+    from cStringIO import StringIO
 except ImportError:
-    import StringIO
+    from StringIO import StringIO
 
 
 ADDON_ID = "plugin.audio.spotify"
@@ -74,6 +75,8 @@ def log_msg(msg, loglevel=xbmc.LOGNOTICE):
     '''log message to kodi log'''
     if isinstance(msg, unicode):
         msg = msg.encode('utf-8')
+    if DEBUG and loglevel == xbmc.LOGDEBUG:
+        loglevel = xbmc.LOGWARNING
     xbmc.log("%s --> %s" % (ADDON_ID, msg), level=loglevel)
 
 
@@ -190,7 +193,7 @@ def request_token_web(username):
 
 def create_wave_header(duration):
     '''generate a wave header for the stream'''
-    file = StringIO.StringIO()
+    file = StringIO()
     numsamples = 44100 * duration
     channels = 2
     samplerate = 44100
@@ -268,7 +271,7 @@ def get_track_rating(popularity):
         return int(math.ceil(popularity * 6 / 100.0)) - 1
 
 
-def parse_spotify_track(track, is_album_track=True, is_remote=False):
+def parse_spotify_track(track, is_album_track=True, silenced=False):
     if "track" in track:
         track = track['track']
     if track.get("images"):
@@ -279,10 +282,10 @@ def parse_spotify_track(track, is_album_track=True, is_remote=False):
         thumb = ""
     duration = track['duration_ms']/1000
     
-    if is_remote:
-        url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
+    if silenced:
+        url = "http://127.0.0.1:%s/track/silence/%s" % (PROXY_PORT, duration)
     else:
-        url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
+        url = "http://127.0.0.1:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
 
     li = xbmcgui.ListItem(
         track['name'],

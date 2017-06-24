@@ -11,6 +11,7 @@
 from utils import log_msg, ADDON_ID, log_exception, get_token, LibreSpot, PROXY_PORT, kill_librespot, parse_spotify_track
 from player_monitor import KodiPlayer
 from webservice import WebService
+from httpproxy import ProxyRunner
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -29,7 +30,6 @@ class MainService:
     '''our main background service running the various threads'''
     sp = None
     addon = None
-    win = None
     kodiplayer = None
     webservice = None
     librespot = None
@@ -38,18 +38,21 @@ class MainService:
 
     def __init__(self):
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
-        self.win = xbmcgui.Window(10000)
         self.kodimonitor = xbmc.Monitor()
         self.librespot = LibreSpot()
-        self.connect_daemon = ConnectDaemon(librespot=self.librespot)
         
         # spotipy and the webservice are always prestarted in the background
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
         self.sp = spotipy.Spotify()
-        self.kodiplayer = KodiPlayer(sp=self.sp)
-        self.webservice = WebService(sp=self.sp, kodiplayer=self.kodiplayer, librespot=self.librespot, connect_daemon=self.connect_daemon)
-        self.webservice.start()
+        direct_playback = self.addon.getSetting("direct_playback") == "true"
+        self.kodiplayer = KodiPlayer(sp=self.sp, direct_playback=direct_playback)
+        self.connect_daemon = ConnectDaemon(self.librespot, self.kodiplayer, direct_playback)
+        
+        self.proxy_runner = ProxyRunner(self.librespot)
+        self.proxy_runner.start()
+        webport = self.proxy_runner.get_port()
+        log_msg('started webproxy at port {0}'.format(webport))
 
         # authenticate
         self.token_info = self.get_auth_token()
@@ -98,12 +101,9 @@ class MainService:
                 if cur_playback["is_playing"]:
                     player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
                     if player_title and player_title != cur_playback["item"]["name"]:
-                        log_msg("Next track requested by Spotify Connect")
+                        log_msg("Next track requested by remote Spotify Connect player")
                         trackdetails = cur_playback["item"]
-                        url, li = parse_spotify_track( cur_playback["item"], is_remote=True)
-                        self.kodiplayer.playlist.clear()
-                        self.kodiplayer.playlist.add(url, li)
-                        self.kodiplayer.play()
+                        self.kodiplayer.start_playback(trackdetails["id"])
                 elif not xbmc.getCondVisibility("Player.Paused"):
                     log_msg("Stop requested by Spotify Connect")
                     self.kodiplayer.stop()
@@ -115,12 +115,12 @@ class MainService:
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGNOTICE)
         kill_librespot()
-        self.webservice.stop()
+        #self.webservice.stop()
+        self.proxy_runner.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
         self.kodiplayer.close()
         del self.kodiplayer
-        del self.win
         del self.addon
         del self.kodimonitor
         log_msg('stopped', xbmc.LOGNOTICE)
@@ -137,7 +137,7 @@ class MainService:
         if auth_token:
             log_msg("Retrieved auth token")
             # store authtoken as window prop for easy access by plugin entry
-            self.win.setProperty("spotify-token", auth_token['access_token'])
+            xbmc.executebuiltin("SetProperty(spotify-token, %s, Home)" % auth_token['access_token'])
         return auth_token
 
     def switch_user(self):
@@ -169,32 +169,69 @@ class ConnectDaemon(threading.Thread):
         note: the stdout of librespot can return the whole audio within a few seconds so that's why we need to simulate
         that it's outputted as stream
     '''
-    cur_track = ""
-    librespot_proc = None
+    __cur_track = None
+    __librespot_proc = None
+    __ignore_seek = False
+    __sp = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, librespot, kodiplayer, direct_playback):
         self.__stop = False
-        self.librespot = kwargs.get("librespot")
-        threading.Thread.__init__(self, *args)
+        self.__librespot = librespot
+        self.__kodiplayer = kodiplayer
+        self.__direct_playback = direct_playback
+        threading.Thread.__init__(self)
+        self.setDaemon(True)
 
     def run(self):
         while not self.__stop:
             log_msg("Start Spotify Connect Daemon")
-            librespot_args = ["--onstart", "curl -s -f -m 2 http://localhost:%s/playercmd/start" % PROXY_PORT,
-                           "--onstop", "curl -s -f -m 2  http://localhost:%s/playercmd/stop" % PROXY_PORT,
-                           "--onchange", "curl -s -f -m 2  http://localhost:%s/playercmd/change" % PROXY_PORT,
-                           "--backend", "pipe"]
-            self.librespot_proc = self.librespot.run_librespot(arguments=librespot_args)
-            thread.start_new_thread(self.fill_fake_buffer, ())
+            librespot_args = ["-v"]
+            if not self.__direct_playback:
+                librespot_args += ["--backend", "pipe"]
+            self.__librespot_proc = self.__librespot.run_librespot(arguments=librespot_args)
+            if not self.__direct_playback:
+                thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__stop:
-                line = self.librespot_proc.stderr.readline().strip()
+                line = self.__librespot_proc.stderr.readline().strip()
                 if line:
                     # grab the track id from the stderr so our player knows which track is being played by the connect daemon
                     # Usefull in the scenario that another user connected to the connect daemon by using discovery
-                    if "track" in line and "[" in line and "]" in line:
-                        self.cur_track = line.split("[")[-1].split("]")[0]
-                    log_msg(line, xbmc.LOGDEBUG)
-                if self.librespot_proc.returncode and self.librespot_proc.returncode > 0 and not self.__stop:
+                    if "Loading track" in line and "[" in line and "]" in line:
+                        # player is loading a new track !
+                        track_id = line.split("[")[-1].split("]")[0]
+                        if track_id != self.__cur_track:
+                            self.__cur_track = track_id
+                            if self.__kodiplayer.connect_playing:
+                                self.__kodiplayer.connect_local = True
+                                self.__kodiplayer.start_playback(track_id)
+                                log_msg("Connect player requested playback of track %s" % track_id)
+                            else:
+                                log_msg("Connect player preloaded track %s" % track_id)
+                    elif "command=Pause" in line and not self.__kodiplayer.is_paused:
+                        log_msg("Pause requested by connect player")
+                        self.__kodiplayer.pause()
+                    elif "command=Stop" in line:
+                        log_msg("Stop requested by connect player")
+                        self.__kodiplayer.stop()
+                    elif "command=Play" in line and self.__kodiplayer.is_paused:
+                        log_msg("Resume requested by connect player")
+                        self.__kodiplayer.pause()
+                    elif "command=Play" in line and self.__cur_track and not self.__kodiplayer.connect_playing:
+                        log_msg("Play requested by connect player")
+                        self.__kodiplayer.connect_local = True
+                        self.__kodiplayer.start_playback(self.__cur_track)
+                    elif "command=Seek" in line:
+                        if self.__kodiplayer.ignore_seek:
+                            self.__kodiplayer.ignore_seek = False
+                        else:
+                            seekstr = line.split("command=Seek(")[1].replace(")","")
+                            seek_sec = int(seekstr) / 1000
+                            log_msg("Seek to %s seconds requested by connect player" % seek_sec)
+                            self.__kodiplayer.seekTime(seek_sec)
+                    
+                    if not "TRACE:" in line:
+                        log_msg(line, xbmc.LOGDEBUG)
+                if self.__librespot_proc.returncode and self.__librespot_proc.returncode > 0 and not self.__stop:
                     # daemon crashed ? restart ?
                     break
                     
@@ -205,11 +242,12 @@ class ConnectDaemon(threading.Thread):
         # We could pick up this data in a buffer but it is almost impossible to keep it all in sync.
         # So instead we ignore the audio from the connect daemon completely and we just launch a standalone instanc eto play the track
         while not self.__stop:
-            line = self.librespot_proc.stdout.readline()
-            xbmc.sleep(100)
+            line = self.__librespot_proc.stdout.readline()
+            xbmc.sleep(1)
+            
 
     def stop(self):
         self.__stop = True
-        if self.librespot_proc:
-            self.librespot_proc.terminate()
-        self.join(0.5)
+        if self.__librespot_proc:
+            self.__librespot_proc.terminate()
+        self.join(2)

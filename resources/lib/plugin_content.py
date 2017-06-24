@@ -163,15 +163,16 @@ class PluginContent():
             self.addon.setSetting("password", new_pass)
 
     def next_track(self):
-        '''special entry which tells our (non-local) connect player to move to the next track'''
+        '''special entry which tells the remote connect player to move to the next track'''
         # move to next track
         self.sp.next_track()
         # play next track
         xbmc.sleep(100)
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
-        url, li = parse_spotify_track(trackdetails, is_remote=True)
+        url, li = parse_spotify_track(trackdetails, silenced=True)
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+
         
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
@@ -216,10 +217,9 @@ class PluginContent():
             xbmc.sleep(100)
             cur_playback = self.sp.current_playback()
             if cur_playback["device"]["name"] != get_playername():
-                import httplib
-                conn = httplib.HTTPConnection("127.0.0.1:%d" % PROXY_PORT)
-                conn.request("GET", "/playercmd/start?remote=true")
-                conn.getresponse()
+                trackdetails = cur_playback["item"]
+                url, li = parse_spotify_track(trackdetails, silenced=True)
+                xbmc.Player().play(url, li)
 
     def play_track_radio(self):
         player = SpotifyRadioPlayer()
@@ -908,6 +908,7 @@ class PluginContent():
                 label = "%s - %s" % (track["artist"], track['name'])
             else:
                 label = track['name']
+            duration = track["duration_ms"] / 1000
 
             li = xbmcgui.ListItem(
                 label,
@@ -915,7 +916,7 @@ class PluginContent():
                 thumbnailImage=track['thumb']
             )
             if self.local_playback:
-                url = "http://localhost:%s/track/%s" % (PROXY_PORT, track['id'])
+                url = "http://127.0.0.1:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
                 li.setProperty("isPlayable", "true")
             else:
                 # connect controlled playback
@@ -942,7 +943,7 @@ class PluginContent():
                 "album": track['album']["name"],
                 "artist": track["artist"],
                 "rating": track["rating"],
-                "duration": track["duration_ms"] / 1000
+                "duration": duration
             })
             li.setProperty("spotifytrackid", track['id'])
             li.setContentLookup(False)
@@ -1204,8 +1205,8 @@ class PluginContent():
             albumids.append(album["id"])
         albums = self.prepare_album_listitems(albumids)
         self.add_album_listitems(albums)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_ALBUM_IGNORE_THE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_SONG_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=self.addon_handle)

@@ -221,5 +221,13 @@ msgid "Location to store the audio cache"
 msgstr ""
 
 msgctxt "#11053"
-msgid "Buffer entire track (might fix playback issues)"
+msgid "Directly output from Connect player to default sound device (bypass Kodi player)"
+msgstr ""
+
+msgctxt "#11054"
+msgid "Audio"
+msgstr ""
+
+msgctxt "#11055"
+msgid "Views"
 msgstr ""
