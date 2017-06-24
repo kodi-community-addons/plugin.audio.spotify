@@ -455,10 +455,8 @@ class LibreSpot(object):
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armhf", "librespot")
             elif "armv6" in architecture and xbmc.getCondVisibility("System.Platform.Linux.RaspberryPi"):
                 # special raspberry pi build
-                #sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_pi", "librespot")
-                #self.supports_discovery = False
-                log_msg("The Raspberry Pi 1 is not (yet) supported - local playback unavailable")
-                sp_binary = None
+                sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_pi", "librespot")
+                self.supports_discovery = False
             elif architecture.startswith('arm'):
                 # armel binary non hardfloat
                 sp_binary = os.path.join(os.path.dirname(__file__), "librespot", "linux_armel", "librespot")

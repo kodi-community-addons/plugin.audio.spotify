@@ -81,11 +81,13 @@ class AuthCallback:
     @cherrypy.expose
     def default(self, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'text/html'
+        code = kwargs.get("code")
+        url = "http://localhost:%s/callback?code=%s" %(PROXY_PORT, code)
         if cherrypy.request.method.upper() in ['GET', 'POST']:
-            html = "<html><head><title>Authentication succesfull</title></head>"
+            html = "<html><body><h1>Authentication succesfull</h1>"
             html += "<p>You can now close this browser window.</p>"
             html += "</body></html>"
-            xbmc.executebuiltin("SetProperty(spotify-token-info,%s,Home)" % cherrypy.request.path)
+            xbmc.executebuiltin("SetProperty(spotify-token-info,%s,Home)" % url)
             log_msg("authkey sent")
             return html
             
