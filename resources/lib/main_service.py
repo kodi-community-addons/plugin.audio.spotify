@@ -10,7 +10,6 @@
 
 from utils import log_msg, ADDON_ID, log_exception, get_token, LibreSpot, PROXY_PORT, kill_librespot, parse_spotify_track
 from player_monitor import KodiPlayer
-from webservice import WebService
 from httpproxy import ProxyRunner
 import xbmc
 import xbmcaddon
@@ -115,7 +114,6 @@ class MainService:
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGNOTICE)
         kill_librespot()
-        #self.webservice.stop()
         self.proxy_runner.stop()
         if self.connect_daemon:
             self.connect_daemon.stop()
