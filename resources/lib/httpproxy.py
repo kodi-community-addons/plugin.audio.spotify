@@ -55,7 +55,7 @@ class Track:
             stdout, stderr = librespot_bin.communicate()
             output_buffer.write(stdout)
             output_buffer.seek(0)
-            log_msg(stderr)
+            log_msg(stderr, xbmc.LOGDEBUG)
             self.__cur_buffer = (track_id, output_buffer, filesize)
         return cherrypy.lib.static.serve_fileobj(output_buffer, content_type="audio/wav", 
                 name="%s.wav" % track_id, filesize=filesize)

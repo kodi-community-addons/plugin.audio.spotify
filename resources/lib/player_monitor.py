@@ -191,4 +191,4 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.__exit = True
         if self.__librespot_proc:
             self.__librespot_proc.terminate()
-        self.join(2)
+            self.join(2)
