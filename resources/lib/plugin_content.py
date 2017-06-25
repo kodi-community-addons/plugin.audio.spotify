@@ -916,7 +916,7 @@ class PluginContent():
                 thumbnailImage=track['thumb']
             )
             if self.local_playback:
-                url = "http://127.0.0.1:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+                url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
                 li.setProperty("isPlayable", "true")
             else:
                 # connect controlled playback

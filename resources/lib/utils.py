@@ -283,9 +283,9 @@ def parse_spotify_track(track, is_album_track=True, silenced=False):
     duration = track['duration_ms']/1000
     
     if silenced:
-        url = "http://127.0.0.1:%s/track/silence/%s" % (PROXY_PORT, duration)
+        url = "http://localhost:%s/track/silence/%s" % (PROXY_PORT, duration)
     else:
-        url = "http://127.0.0.1:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+        url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
 
     li = xbmcgui.ListItem(
         track['name'],
@@ -379,7 +379,7 @@ class LibreSpot(object):
         self.username = addon.getSetting("username").decode("utf-8")
         self.password = addon.getSetting("password").decode("utf-8")
         self.buffer_track = addon.getSetting("buffer_track").decode("utf-8") == "true"
-        if addon.getSetting("cache_path").decode("utf-8") == "true":
+        if addon.getSetting("enable_cache").decode("utf-8") == "true":
             cache_path = xbmc.translatePath(addon.getSetting("cache_path")).decode("utf-8")
             if os.path.isdir(cache_path):
                 self.__cache_path = cache_path

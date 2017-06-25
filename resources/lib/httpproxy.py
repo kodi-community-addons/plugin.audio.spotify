@@ -55,6 +55,7 @@ class Track:
             stdout, stderr = librespot_bin.communicate()
             output_buffer.write(stdout)
             output_buffer.seek(0)
+            log_msg(stderr)
             self.__cur_buffer = (track_id, output_buffer, filesize)
         return cherrypy.lib.static.serve_fileobj(output_buffer, content_type="audio/wav", 
                 name="%s.wav" % track_id, filesize=filesize)
@@ -97,7 +98,7 @@ class Root:
     cur_buffer = None
 
     def __init__(self, librespot):
-        allowed_ips = ['127.0.0.1']
+        allowed_ips = ['localhost', '::1', '127.0.0.1']
         self.track = Track( librespot, allowed_ips, self.cur_buffer )
         self.callback = AuthCallback()
 
@@ -111,7 +112,7 @@ class ProxyRunner(threading.Thread):
     __root = None
 
     def __init__(self, librespot):
-        host='127.0.0.1'
+        host='0.0.0.0'
         port = PROXY_PORT
         self.__root = Root( librespot )
         app = cherrypy.tree.mount(self.__root, '/')
