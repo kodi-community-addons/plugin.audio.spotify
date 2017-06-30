@@ -143,12 +143,9 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
                         track_id = line.split("[")[-1].split("]")[0]
                         if track_id != self.__cur_track:
                             self.__cur_track = track_id
-                            if self.connect_playing:
-                                self.connect_local = True
-                                self.start_playback(track_id)
-                                log_msg("Connect player requested playback of track %s" % track_id)
-                            else:
-                                log_msg("Connect player preloaded track %s" % track_id)
+                            self.connect_local = True
+                            self.start_playback(track_id)
+                            log_msg("Connect player requested playback of track %s" % track_id)
                     elif "command=Pause" in line and not self.__is_paused:
                         log_msg("Pause requested by connect player")
                         self.pause()
@@ -192,3 +189,46 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         if self.__librespot_proc:
             self.__librespot_proc.terminate()
             self.join(2)
+
+            
+CANCEL_DIALOG = (9, 10, 92, 216, 247, 257, 275, 61467, 61448, )
+ACTION_SHOW_INFO = (11, )
+
+
+class ConnectOSD(xbmcgui.WindowXMLDialog):
+    '''
+        fake OSD for our connect player
+        we use this if we can't stream silence to the soundcard while librespot is playing
+        e.g. Android has the issue that this isn't possible.
+    '''
+    result = None
+
+    def __init__(self, *args, **kwargs):
+        xbmcgui.WindowXMLDialog.__init__(self)
+        self.listitem = kwargs.get("listitem")
+
+    def onInit(self):
+        '''triggered when the dialog is drawn'''
+        self.addItem(self.listitem)
+
+    def onClick(self, controlid):
+        '''triggers if one of the controls is clicked'''
+        if controlid == 8:
+            # play button
+            self.result = True
+            self.close()
+            if "videodb:" in self.listitem.getfilename():
+                xbmc.executebuiltin('ReplaceWindow(Videos,"%s")' % self.listitem.getfilename())
+            else:
+                xbmc.executebuiltin('PlayMedia("%s")' % self.listitem.getfilename())
+        if controlid == 103:
+            # trailer button
+            pass
+
+    def onAction(self, action):
+        '''triggers on certain actions like user navigating'''
+        if action.getId() in CANCEL_DIALOG:
+            self.close()
+        if action.getId() in ACTION_SHOW_INFO:
+            self.close()
+
