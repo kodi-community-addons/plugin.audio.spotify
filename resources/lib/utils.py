@@ -26,7 +26,7 @@ import math
 
 
 PROXY_PORT = 52308
-DEBUG = True
+DEBUG = False
 
 try:
     import simplejson as json

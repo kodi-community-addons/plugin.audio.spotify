@@ -22,10 +22,12 @@
     
     <category label="11054" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))">
         <setting id="connect_player" type="bool" label="11036" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
-        <setting id="direct_playback" type="bool" label="11053" default="false" visible="eq(-1,true)"/>
+        <setting id="audio_device" type="enum" label="11053" default="0" lvalues="11056|11057" visible="eq(-1,true)"/>
         <setting id="enable_cache" type="bool" label="11051" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
         <setting id="cache_path" label="11052" type="folder" source="auto" visible="eq(-1,true)" default="special://profile/addon_data/plugin.audio.spotify/" />
-	</category>
+        <setting type="sep" />
+        <setting type="lsep" label="11059" />
+    </category>
     
     <category label="11055">
         <setting id="appendArtistToTitle" type="bool" label="11030" default="false"/>

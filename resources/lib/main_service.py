@@ -43,8 +43,8 @@ class MainService:
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
         self.sp = spotipy.Spotify()
-        direct_playback = self.addon.getSetting("direct_playback") == "true"
-        self.connect_player = ConnectPlayer(sp=self.sp, direct_playback=direct_playback, librespot=self.librespot)
+        audio_device = self.addon.getSetting("audio_device") == "true"
+        self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, librespot=self.librespot)
 
         self.proxy_runner = ProxyRunner(self.librespot)
         self.proxy_runner.start()
@@ -143,8 +143,11 @@ class MainService:
             me = self.sp.me()
             log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
             # restart daemon
-            if self.connect_player:
+            if self.connect_player.daemon_active:
                 self.connect_player.stop_thread()
+                audio_device = self.addon.getSetting("audio_device") == "true"
+                self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, librespot=self.librespot)
+
                 self.connect_player.start()
 
     def renew_token(self):

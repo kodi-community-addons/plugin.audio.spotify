@@ -14,6 +14,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
     '''Simulate a Spotify Connect player with the Kodi player'''
     connect_playing = False  # spotify connect is playing
     connect_local = False  # connect player is this device
+    daemon_active = False
     __playlist = None
     __exit = False
     __is_paused = False
@@ -24,7 +25,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
 
     def __init__(self, **kwargs):
         self.__sp = kwargs.get("sp")
-        self.__direct_playback = kwargs.get("direct_playback")
+        self.audio_device = kwargs.get("audio_device")
         self.__librespot = kwargs.get("librespot")
         self.__playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         xbmc.Player.__init__(self, **kwargs)
@@ -108,7 +109,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.connect_playing = True
         self.__playlist.clear()
         silenced = False
-        if self.__direct_playback or not self.connect_local:
+        if self.audio_device == "0" or not self.connect_local:
             silenced = True
         try:
             trackdetails = self.__sp.track(track_id)
@@ -121,17 +122,18 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.__playlist.add(url, li)
         self.play()
         self.__ignore_seek = True
-        if self.connect_local and not self.__direct_playback:
+        if self.connect_local and not self.audio_device == "0":
             self.__sp.seek_track(0)  # for now we always start a track at the beginning
 
     def run(self):
+        self.daemon_active = True
         while not self.__exit:
             log_msg("Start Spotify Connect Daemon")
             librespot_args = ["-v"]
-            if not self.__direct_playback:
+            if not self.audio_device == "0":
                 librespot_args += ["--backend", "pipe"]
             self.__librespot_proc = self.__librespot.run_librespot(arguments=librespot_args)
-            if not self.__direct_playback:
+            if not self.audio_device == "0":
                 thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__exit:
                 line = self.__librespot_proc.stderr.readline().strip()
@@ -172,14 +174,14 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
                 if self.__librespot_proc.returncode and self.__librespot_proc.returncode > 0 and not self.__exit:
                     # daemon crashed ? restart ?
                     break
-
+        self.daemon_active = False
         log_msg("Stopped Spotify Connect Daemon")
 
     def fill_fake_buffer(self):
         '''emulate playback by just slowly reading the stdout'''
         # We could pick up this data in a buffer but it is almost impossible to keep it all in sync.
         # So instead we ignore the audio from the connect daemon completely and we
-        # just launch a standalone instanc eto play the track
+        # just launch a standalone instance to play the track
         while not self.__exit:
             line = self.__librespot_proc.stdout.readline()
             xbmc.sleep(1)
