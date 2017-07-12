@@ -48,7 +48,7 @@ class PluginContent():
                 me = self.sp.me()
                 self.userid = me["id"]
                 self.usercountry = me["country"]
-                self.playername = self.active_playback_device()
+                self.local_playback, self.playername = self.active_playback_device()
                 if self.action:
                     action = "self." + self.action
                     eval(action)()
@@ -173,7 +173,13 @@ class PluginContent():
         url, li = parse_spotify_track(trackdetails, silenced=True)
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
-        
+    def play_connect(self):
+        '''start connect playback'''
+        cur_playback = self.sp.current_playback()
+        trackdetails = cur_playback["item"]
+        url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
+        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+    
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
         if self.addon.getSetting("playback_device") == "squeezebox":
@@ -289,6 +295,17 @@ class PluginContent():
         '''set the active playback device'''
         xbmcplugin.setContent(self.addon_handle, "files")
         items = []
+        if self.win.getProperty("spotify.supportsplayback"):
+            # local playback
+            label = self.addon.getLocalizedString(11037)
+            if self.local_playback:
+                label += " [%s]" % self.addon.getLocalizedString(11040)
+            url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=local"
+            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li.setProperty("isPlayable", "false")
+            li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
+            li.addContextMenuItems([], True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=url, listitem=li, isFolder=False)
         # connect devices
         for device in self.sp.devices()["devices"]:
             label = "Spotify Connect: %s" % device["name"]
@@ -319,17 +336,25 @@ class PluginContent():
         playback = self.addon.getSetting("playback_device")
         if not playback:
             # set default to local playback if supported
-            playback = "connect"
+            if self.win.getProperty("spotify.supportsplayback"):
+                playback = "local"
+            else:
+                playback = "connect"
             self.addon.setSetting("playback_device", playback)
         # set device name
-        if playback == "squeezebox":
+        if playback == "local":
+            is_local = True
+            devicename = self.addon.getLocalizedString(11037)
+        elif playback == "squeezebox":
+            is_local = False
             devicename = xbmc.getInfoLabel("System.AddonTitle(plugin.audio.squeezebox)")
         else:
+            is_local = False
             devicename = "Spotify Connect"  # placeholder value
             for device in self.sp.devices()["devices"]:
                 if device["is_active"]:
                     devicename = device["name"]
-        return devicename
+        return is_local, devicename
 
     def browse_main_library(self):
         # library nodes
@@ -564,7 +589,21 @@ class PluginContent():
 
     def play_playlist(self):
         '''play entire playlist'''
-        self.connect_playback()
+        if not self.local_playback:
+            self.connect_playback()
+        else:
+            playlistdetails = self.get_playlist_details(self.ownerid, self.playlistid)
+            kodi_playlist = xbmc.PlayList(0)
+            kodi_playlist.clear()
+            kodi_player = xbmc.Player()
+            # add first track and start playing
+            url, li = parse_spotify_track(playlistdetails["tracks"]["items"][0])
+            kodi_playlist.add(url, li)
+            kodi_player.play(kodi_playlist)
+            # add remaining tracks to the playlist while already playing
+            for track in playlistdetails["tracks"]["items"][1:]:
+                url, li = parse_spotify_track(track)
+                kodi_playlist.add(url, li)
 
     def get_category(self, categoryid):
         category = self.sp.category(categoryid, country=self.usercountry, locale=self.usercountry)
@@ -816,6 +855,12 @@ class PluginContent():
                      "RunPlugin(plugin://plugin.audio.spotify/?action=save_track&trackid=%s)" %
                      (real_trackid)))
 
+            if self.local_playback:
+                contextitems.append(
+                    (self.addon.getLocalizedString(11035),
+                     "RunPlugin(plugin://plugin.audio.spotify/?action=play_track_radio&trackid=%s)" %
+                     (real_trackid)))
+
             if playlistdetails and playlistdetails["owner"]["id"] == self.userid:
                 contextitems.append(
                     (self.addon.getLocalizedString(11017),
@@ -876,15 +921,20 @@ class PluginContent():
                 iconImage="DefaultMusicSongs.png",
                 thumbnailImage=track['thumb']
             )
-            li.setProperty("isPlayable", "false")
-            if self.playlistid:
-                url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s&playlistid=%s&ownerid=%s&offset=%s" % (
-                    track['id'], self.playlistid, self.ownerid, count)
-            elif self.albumid:
-                url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s&albumid=%s&offset=%s" % (track[
-                                                                                                                  'id'], self.albumid, count)
+            if self.local_playback:
+                url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+                li.setProperty("isPlayable", "true")
             else:
-                url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s" % (track['id'])
+                # connect controlled playback
+                li.setProperty("isPlayable", "false")
+                if self.playlistid:
+                    url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s&playlistid=%s&ownerid=%s&offset=%s" % (
+                        track['id'], self.playlistid, self.ownerid, count)
+                elif self.albumid:
+                    url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s&albumid=%s&offset=%s" % (track[
+                                                                                                                      'id'], self.albumid, count)
+                else:
+                    url = "plugin://plugin.audio.spotify/?action=connect_playback&trackid=%s" % (track['id'])
 
             if self.append_artist_to_title:
                 title = label
@@ -902,7 +952,10 @@ class PluginContent():
                 "duration": duration
             })
             li.setProperty("spotifytrackid", track['id'])
+            li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"], True)
+            li.setProperty('do_not_analyze', 'true')
+            li.setMimeType("audio/wave")
             list_items.append((url, li, False))
         xbmcplugin.addDirectoryItems(self.addon_handle, list_items)
 

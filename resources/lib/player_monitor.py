@@ -19,14 +19,13 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
     __exit = False
     __is_paused = False
     __cur_track = None
-    __librespot_proc = None
+    __spotty_proc = None
     __ignore_seek = False
     __sp = None
 
     def __init__(self, **kwargs):
         self.__sp = kwargs.get("sp")
-        self.audio_device = kwargs.get("audio_device")
-        self.__librespot = kwargs.get("librespot")
+        self.__spotty = kwargs.get("spotty")
         self.__playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         xbmc.Player.__init__(self, **kwargs)
         threading.Thread.__init__(self)
@@ -65,9 +64,13 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
             except:
                 xbmc.sleep(500)
         if "localhost:%s" % PROXY_PORT in filename:
-            if not self.connect_playing and not self.connect_local and "silence" in filename:
-                # we started playback with remote connect player
+            if not self.connect_playing and "connect=true" in filename:
+                # we started playback with (remote) connect player
                 self.connect_playing = True
+                if "silence" in filename:
+                    self.connect_local = False
+                else:
+                    self.connect_local = True
             if "nexttrack" in filename:
                 # next track requested for kodi player
                 self.__sp.next_track()
@@ -109,69 +112,30 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.connect_playing = True
         self.__playlist.clear()
         silenced = False
-        if self.audio_device == "0" or not self.connect_local:
+        if not self.connect_local:
             silenced = True
-        try:
-            trackdetails = self.__sp.track(track_id)
-            url, li = parse_spotify_track(trackdetails, silenced=silenced)
-        except Exception as exc:
-            # I've seen a few times that a track ID couldn't be recognized because the leading zero was stripped of
-            track_id = "0%s" % track_id
-            trackdetails = self.__sp.track(track_id)
-            url, li = parse_spotify_track(trackdetails, silenced=silenced)
+        trackdetails = self.__sp.track(track_id)
+        url, li = parse_spotify_track(trackdetails, silenced=silenced)
         self.__playlist.add(url, li)
         self.play()
         self.__ignore_seek = True
-        if self.connect_local and not self.audio_device == "0":
+        if self.connect_local:
             self.__sp.seek_track(0)  # for now we always start a track at the beginning
 
     def run(self):
         self.daemon_active = True
         while not self.__exit:
             log_msg("Start Spotify Connect Daemon")
-            librespot_args = ["-v"]
-            if not self.audio_device == "0":
-                librespot_args += ["--backend", "pipe"]
-            self.__librespot_proc = self.__librespot.run_librespot(arguments=librespot_args)
-            if not self.audio_device == "0":
-                thread.start_new_thread(self.fill_fake_buffer, ())
+            #spotty_args = ["-v"]
+            spotty_args = ["--onstart", "curl -s -f -m 2 http://localhost:%s/playercmd/start" % PROXY_PORT,
+                       "--onstop", "curl -s -f -m 2 http://localhost:%s/playercmd/stop" % PROXY_PORT]
+            self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args)
+            thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__exit:
-                line = self.__librespot_proc.stderr.readline().strip()
+                line = self.__spotty_proc.stderr.readline().strip()
                 if line:
-                    # grab the track id from the stderr so our player knows which track is being played by the connect daemon
-                    # Usefull in the scenario that another user connected to the connect daemon by using discovery
-                    if "Loading track" in line and "[" in line and "]" in line:
-                        # player is loading a new track !
-                        track_id = line.split("[")[-1].split("]")[0]
-                        if track_id != self.__cur_track:
-                            self.__cur_track = track_id
-                            self.connect_local = True
-                            self.start_playback(track_id)
-                            log_msg("Connect player requested playback of track %s" % track_id)
-                    elif "command=Pause" in line and not self.__is_paused:
-                        log_msg("Pause requested by connect player")
-                        self.pause()
-                    elif "command=Stop" in line:
-                        log_msg("Stop requested by connect player")
-                        self.stop()
-                    elif "command=Play" in line and self.__is_paused:
-                        log_msg("Resume requested by connect player")
-                        self.pause()
-                    elif "command=Play" in line and self.__cur_track and not self.connect_playing:
-                        log_msg("Play requested by connect player")
-                        self.connect_local = True
-                        self.start_playback(self.__cur_track)
-                    elif "command=Seek" in line and self.connect_playing:
-                        if self.__ignore_seek:
-                            self.__ignore_seek = False
-                        else:
-                            seekstr = line.split("command=Seek(")[1].replace(")", "")
-                            seek_sec = int(seekstr) / 1000
-                            log_msg("Seek to %s seconds requested by connect player" % seek_sec)
-                            self.seekTime(seek_sec)
-                    if not "TRACE:" in line:
-                        log_msg(line, xbmc.LOGDEBUG)
-                if self.__librespot_proc.returncode and self.__librespot_proc.returncode > 0 and not self.__exit:
+                    log_msg(line, xbmc.LOGDEBUG)
+                if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
                     # daemon crashed ? restart ?
                     break
         self.daemon_active = False
@@ -183,54 +147,11 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         # So instead we ignore the audio from the connect daemon completely and we
         # just launch a standalone instance to play the track
         while not self.__exit:
-            line = self.__librespot_proc.stdout.readline()
+            line = self.__spotty_proc.stdout.readline()
             xbmc.sleep(1)
 
     def stop_thread(self):
         self.__exit = True
-        if self.__librespot_proc:
-            self.__librespot_proc.terminate()
+        if self.__spotty_proc:
+            self.__spotty_proc.terminate()
             self.join(2)
-
-            
-CANCEL_DIALOG = (9, 10, 92, 216, 247, 257, 275, 61467, 61448, )
-ACTION_SHOW_INFO = (11, )
-
-
-class ConnectOSD(xbmcgui.WindowXMLDialog):
-    '''
-        fake OSD for our connect player
-        we use this if we can't stream silence to the soundcard while librespot is playing
-        e.g. Android has the issue that this isn't possible.
-    '''
-    result = None
-
-    def __init__(self, *args, **kwargs):
-        xbmcgui.WindowXMLDialog.__init__(self)
-        self.listitem = kwargs.get("listitem")
-
-    def onInit(self):
-        '''triggered when the dialog is drawn'''
-        self.addItem(self.listitem)
-
-    def onClick(self, controlid):
-        '''triggers if one of the controls is clicked'''
-        if controlid == 8:
-            # play button
-            self.result = True
-            self.close()
-            if "videodb:" in self.listitem.getfilename():
-                xbmc.executebuiltin('ReplaceWindow(Videos,"%s")' % self.listitem.getfilename())
-            else:
-                xbmc.executebuiltin('PlayMedia("%s")' % self.listitem.getfilename())
-        if controlid == 103:
-            # trailer button
-            pass
-
-    def onAction(self, action):
-        '''triggers on certain actions like user navigating'''
-        if action.getId() in CANCEL_DIALOG:
-            self.close()
-        if action.getId() in ACTION_SHOW_INFO:
-            self.close()
-

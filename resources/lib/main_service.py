@@ -5,10 +5,10 @@
     plugin.audio.spotify
     Spotify Player for Kodi
     main_service.py
-    Background service which launches the librespot binary and monitors the player
+    Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, LibreSpot, PROXY_PORT, kill_librespot, parse_spotify_track
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty, parse_spotify_track
 from player_monitor import ConnectPlayer
 from httpproxy import ProxyRunner
 import xbmc
@@ -31,22 +31,21 @@ class MainService:
     addon = None
     connect_player = None
     webservice = None
-    librespot = None
+    spotty = None
     token_info = None
 
     def __init__(self):
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
         self.kodimonitor = xbmc.Monitor()
-        self.librespot = LibreSpot()
+        self.spotty = Spotty()
         
         # spotipy and the webservice are always prestarted in the background
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
         self.sp = spotipy.Spotify()
-        audio_device = self.addon.getSetting("audio_device") == "true"
-        self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, librespot=self.librespot)
+        self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty)
 
-        self.proxy_runner = ProxyRunner(self.librespot)
+        self.proxy_runner = ProxyRunner(self.spotty)
         self.proxy_runner.start()
         webport = self.proxy_runner.get_port()
         log_msg('started webproxy at port {0}'.format(webport))
@@ -62,7 +61,7 @@ class MainService:
             log_msg("Userdetails: %s" % me, xbmc.LOGDEBUG)
 
             # start experimental spotify connect daemon
-            if self.addon.getSetting("connect_player") == "true" and self.librespot.playback_supported:
+            if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
                 self.connect_player.start()
 
         # start mainloop
@@ -70,14 +69,15 @@ class MainService:
 
     def main_loop(self):
         '''main loop which keeps our threads alive and refreshes the token'''
-        while not self.kodimonitor.waitForAbort(5):
+        loop_timer = 5
+        while not self.kodimonitor.waitForAbort(loop_timer):
             # monitor logged in user
             username = self.addon.getSetting("username").decode("utf-8")
-            if username and self.librespot.username != username:
+            if username and self.spotty.username != username:
                 # username and/or password changed !
                 self.switch_user()
             # monitor auth token expiration
-            elif self.librespot.username and not self.token_info:
+            elif self.spotty.username and not self.token_info:
                 # we do not yet have a token
                 self.renew_token()
             elif self.token_info and self.token_info['expires_at'] - 60 <= (int(time.time())):
@@ -92,19 +92,21 @@ class MainService:
                     self.addon.setSetting("username", username1)
                     self.addon.setSetting("password", password1)
                     self.switch_user()
-            elif self.connect_player.connect_playing and not self.connect_player.connect_local:
-                if self.addon.getSetting("playback_device") == "connect":
-                    # monitor fake connect OSD for remote track changes
-                    cur_playback = self.sp.current_playback()
-                    if cur_playback["is_playing"]:
-                        player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
-                        if player_title and player_title != cur_playback["item"]["name"]:
-                            log_msg("Next track requested by remote Spotify Connect player")
-                            trackdetails = cur_playback["item"]
-                            self.connect_player.start_playback(trackdetails["id"])
-                    elif not xbmc.getCondVisibility("Player.Paused"):
-                        log_msg("Stop requested by Spotify Connect")
-                        self.connect_player.stop()
+            elif self.connect_player.connect_playing:
+                # monitor fake connect OSD for remote track changes
+                loop_timer = 2
+                cur_playback = self.sp.current_playback()
+                if cur_playback["is_playing"]:
+                    player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
+                    if player_title and player_title != cur_playback["item"]["name"]:
+                        log_msg("Next track requested by Spotify Connect player")
+                        trackdetails = cur_playback["item"]
+                        self.connect_player.start_playback(trackdetails["id"])
+                elif not xbmc.getCondVisibility("Player.Paused"):
+                    log_msg("Stop requested by Spotify Connect")
+                    self.connect_player.stop()
+            else:
+                loop_timer = 5
                     
         # end of loop: we should exit
         self.close()
@@ -112,7 +114,7 @@ class MainService:
     def close(self):
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGNOTICE)
-        kill_librespot()
+        kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
         del self.connect_player
@@ -126,9 +128,9 @@ class MainService:
         username = self.addon.getSetting("username").decode("utf-8")
         password = self.addon.getSetting("password").decode("utf-8")
         if username and password:
-            self.librespot.username = username
-            self.librespot.password = password
-            auth_token = get_token(self.librespot)
+            self.spotty.username = username
+            self.spotty.password = password
+            auth_token = get_token(self.spotty)
         if auth_token:
             log_msg("Retrieved auth token")
             # store authtoken as window prop for easy access by plugin entry
@@ -146,8 +148,7 @@ class MainService:
             if self.connect_player.daemon_active:
                 self.connect_player.stop_thread()
                 audio_device = self.addon.getSetting("audio_device") == "true"
-                self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, librespot=self.librespot)
-
+                self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, spotty=self.spotty)
                 self.connect_player.start()
 
     def renew_token(self):
