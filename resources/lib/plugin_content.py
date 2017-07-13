@@ -174,7 +174,7 @@ class PluginContent():
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
     def play_connect(self):
-        '''start connect playback'''
+        '''start local connect playback'''
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
         url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
@@ -223,6 +223,12 @@ class PluginContent():
             xbmc.sleep(100)
             cur_playback = self.sp.current_playback()
             if cur_playback["device"]["name"] != get_playername():
+                # launch Kodi player with a silent audio stream just for OSD controls
+                # except on Android because the audio device will be locked
+                if xbmc.getCondVisibility("Platform.Android"):
+                    import socket
+                    if cur_playback["device"]["name"].lower() == socket.gethostname().lower():
+                        return
                 trackdetails = cur_playback["item"]
                 url, li = parse_spotify_track(trackdetails, silenced=True)
                 xbmc.Player().play(url, li)

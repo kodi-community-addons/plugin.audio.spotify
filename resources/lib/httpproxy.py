@@ -12,7 +12,7 @@ import sys
 import platform
 import logging
 import os
-from utils import log_msg, log_exception, create_wave_header, kill_spotty, PROXY_PORT, parse_spotify_track, StringIO
+from utils import log_msg, log_exception, create_wave_header, PROXY_PORT, StringIO
 from utils import NonBlockingStreamReader as NBSR
 import xbmc
 
@@ -60,20 +60,19 @@ class Track:
             args = ["-n", "temp", "--single-track", track_id]
             spotty_bin = self.__spotty.run_spotty(args)
             nbsr = NBSR(spotty_bin.stdout)
-            log_msg("start streaming of track %s" % track_id)
+            log_msg("start streaming of track %s" % track_id, xbmc.LOGDEBUG)
             output = nbsr.readline(2)
             while output:
                 output_buffer.write(output)
                 yield output
                 output = nbsr.readline(0.1)
-            log_msg("end of stream for track %s" % track_id)
+            log_msg("end of stream for track %s" % track_id, xbmc.LOGDEBUG)
             self.__cur_buffer = (track_id, output_buffer, filesize)
-            log_msg(spotty_bin.stderr.readlines())
     default._cp_config = {'response.stream': True}
         
     @cherrypy.expose
     def silence(self, duration, **kwargs):
-        '''stream silence audio for the given duration, used by fake connect player'''
+        '''stream silence audio for the given duration, used by spotify connect player'''
         duration = int(duration)
         wave_header, filesize = create_wave_header(duration)
         output_buffer = StringIO()
@@ -84,7 +83,7 @@ class Track:
             
     @cherrypy.expose
     def nexttrack(self, **kwargs):
-        '''tell spotify connect to move to the next track and play silence while waiting'''
+        '''play silence while spotify connect player is waiting for the next track'''
         return self.silence(20)
              
     
