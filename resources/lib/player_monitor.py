@@ -85,7 +85,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         '''Kodi event fired when the user is seeking'''
         if self.__ignore_seek:
             self.__ignore_seek = False
-        else:
+        elif self.connect_playing:
             log_msg("Kodiplayer seekto: %s" % seekTime)
             if self.connect_local:
                 self.__ignore_seek = True

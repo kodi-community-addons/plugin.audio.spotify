@@ -58,7 +58,6 @@ class MainService:
             self.sp._auth = self.token_info["access_token"]
             me = self.sp.me()
             log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
-            log_msg("Userdetails: %s" % me, xbmc.LOGDEBUG)
 
             # start experimental spotify connect daemon
             if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
