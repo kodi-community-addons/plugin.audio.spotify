@@ -23,12 +23,10 @@ import struct
 import random
 import time
 import math
-from threading import Thread
-from Queue import Queue, Empty
 
 
 PROXY_PORT = 52308
-DEBUG = True
+DEBUG = False
 
 try:
     import simplejson as json
@@ -44,7 +42,6 @@ except ImportError:
 ADDON_ID = "plugin.audio.spotify"
 KODI_VERSION = int(xbmc.getInfoLabel("System.BuildVersion").split(".")[0])
 KODILANGUAGE = xbmc.getLanguage(xbmc.ISO_639_1)
-CHMOD_DONE = False
 requests.packages.urllib3.disable_warnings()  # disable ssl warnings
 SCOPE = [
     "user-read-playback-state",
@@ -285,10 +282,10 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
     duration = track['duration_ms'] / 1000
 
     if silenced:
-        url = "http://localhost:%s/track/silence/%s" % (PROXY_PORT, duration)
+        url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
     else:
         url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
-        
+
     if is_connect or silenced:
         url += "/?connect=true"
 
@@ -482,43 +479,3 @@ class Spotty(object):
         else:
             log_msg("Failed to detect architecture or platform not supported ! Local playback will not be available.")
         return sp_binary
-
-
-class NonBlockingStreamReader:
-
-    def __init__(self, stream):
-        '''
-        stream: the stream to read from.
-                Usually a process' stdout or stderr.
-        '''
-
-        self._s = stream
-        self._q = Queue()
-
-        def _populateQueue(stream, queue):
-            '''
-            Collect lines from 'stream' and put them in 'quque'.
-            '''
-
-            while True:
-                line = stream.readline()
-                if line:
-                    queue.put(line)
-                else:
-                    pass
-
-        self._t = Thread(target=_populateQueue,
-                         args=(self._s, self._q))
-        self._t.daemon = True
-        self._t.start()  # start collecting lines from the stream
-
-    def readline(self, timeout=None):
-        try:
-            return self._q.get(block=timeout is not None,
-                               timeout=timeout)
-        except Empty:
-            return None
-
-
-class UnexpectedEndOfStream(Exception):
-    pass

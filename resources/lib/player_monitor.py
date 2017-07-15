@@ -102,7 +102,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
         if self.connect_local:
-            url = "http://localhost:%s/track/nexttrack" % PROXY_PORT
+            url = "http://localhost:%s/nexttrack" % PROXY_PORT
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
         self.__playlist.add(url)

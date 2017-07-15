@@ -48,7 +48,7 @@ class PluginContent():
                 me = self.sp.me()
                 self.userid = me["id"]
                 self.usercountry = me["country"]
-                self.local_playback, self.playername = self.active_playback_device()
+                self.local_playback, self.playername, self.connect_id = self.active_playback_device()
                 if self.action:
                     action = "self." + self.action
                     eval(action)()
@@ -179,7 +179,7 @@ class PluginContent():
         trackdetails = cur_playback["item"]
         url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
-    
+
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
         if self.addon.getSetting("playback_device") == "squeezebox":
@@ -289,6 +289,16 @@ class PluginContent():
         deviceid = self.params["deviceid"][0]
         if deviceid == "local":
             self.addon.setSetting("playback_device", "local")
+        elif deviceid == "remote":
+            headertxt = self.addon.getLocalizedString(11039)
+            bodytxt = self.addon.getLocalizedString(11061)
+            dialog = xbmcgui.Dialog()
+            dialog.textviewer(headertxt, bodytxt)
+            result = dialog.input(self.addon.getLocalizedString(11062))
+            if result:
+                self.addon.setSetting("playback_device", "remote")
+                self.addon.setSetting("connect_id", result)
+            del dialog
         elif deviceid == "squeezebox":
             self.addon.setSetting("playback_device", "squeezebox")
         else:
@@ -307,6 +317,17 @@ class PluginContent():
             if self.local_playback:
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=local"
+            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li.setProperty("isPlayable", "false")
+            li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
+            li.addContextMenuItems([], True)
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=url, listitem=li, isFolder=False)
+        else:
+            # local playback using a remote service
+            label = self.addon.getLocalizedString(11060)
+            if self.addon.getSetting("playback_device") == "remote":
+                label += " [%s]" % self.addon.getLocalizedString(11040)
+            url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=remote"
             li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
@@ -340,6 +361,7 @@ class PluginContent():
     def active_playback_device(self):
         '''determine if we should use local playback or connect playback'''
         playback = self.addon.getSetting("playback_device")
+        connect_id = ""
         if not playback:
             # set default to local playback if supported
             if self.win.getProperty("spotify.supportsplayback"):
@@ -351,6 +373,10 @@ class PluginContent():
         if playback == "local":
             is_local = True
             devicename = self.addon.getLocalizedString(11037)
+        elif playback == "remote":
+            is_local = True
+            connect_id = self.addon.getSetting("connect_id")
+            devicename = self.addon.getLocalizedString(11063) % connect_id
         elif playback == "squeezebox":
             is_local = False
             devicename = xbmc.getInfoLabel("System.AddonTitle(plugin.audio.squeezebox)")
@@ -360,7 +386,7 @@ class PluginContent():
             for device in self.sp.devices()["devices"]:
                 if device["is_active"]:
                     devicename = device["name"]
-        return is_local, devicename
+        return is_local, devicename, connect_id
 
     def browse_main_library(self):
         # library nodes
@@ -927,7 +953,12 @@ class PluginContent():
                 iconImage="DefaultMusicSongs.png",
                 thumbnailImage=track['thumb']
             )
-            if self.local_playback:
+            if self.local_playback and self.connect_id:
+                # local playback by using proxy on a remote machine
+                url = "http://%s:%s/track/%s/%s" % (self.connect_id, PROXY_PORT, track['id'], duration)
+                li.setProperty("isPlayable", "true")
+            elif self.local_playback:
+                # local playback by using proxy on this machine
                 url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
                 li.setProperty("isPlayable", "true")
             else:

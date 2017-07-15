@@ -247,3 +247,19 @@ msgstr ""
 msgctxt "#11059"
 msgid "Changes on this page require a restart of Kodi"
 msgstr ""
+
+msgctxt "#11060"
+msgid "Local playback - using remote machine"
+msgstr ""
+
+msgctxt "#11061"
+msgid "This will allow you to enable local, direct playback from Spotify tracks in Kodi on unsupported platforms (e.g. Android) by using the remote service on another host. Make sure that you have the Spotify addon installed on another Kodi machine in your network that does support local playback. In the next dialog, please select the remote machine's hostname or ip-address."
+msgstr ""
+
+msgctxt "#11062"
+msgid "Hostname or IP"
+msgstr ""
+
+msgctxt "#11063"
+msgid "Local playback using remote host %s"
+msgstr ""

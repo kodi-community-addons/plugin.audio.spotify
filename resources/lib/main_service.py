@@ -25,6 +25,7 @@ import threading
 import thread
 import StringIO
 
+
 class MainService:
     '''our main background service running the various threads'''
     sp = None
@@ -38,7 +39,7 @@ class MainService:
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
         self.kodimonitor = xbmc.Monitor()
         self.spotty = Spotty()
-        
+
         # spotipy and the webservice are always prestarted in the background
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
@@ -106,7 +107,7 @@ class MainService:
                     self.connect_player.stop()
             else:
                 loop_timer = 5
-                    
+
         # end of loop: we should exit
         self.close()
 
