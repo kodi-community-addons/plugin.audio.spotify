@@ -225,7 +225,7 @@ class PluginContent():
             if cur_playback["device"]["name"] != get_playername():
                 # launch Kodi player with a silent audio stream just for OSD controls
                 # except on Android because the audio device will be locked
-                if xbmc.getCondVisibility("Platform.Android"):
+                if xbmc.getCondVisibility("System.Platform.Android"):
                     import socket
                     if cur_playback["device"]["name"].lower() == socket.gethostname().lower():
                         return

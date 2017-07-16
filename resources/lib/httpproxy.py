@@ -86,7 +86,7 @@ class Root:
         spotty_bin = None
         try:
             # Initialize some loop vars
-            max_buffer_size = filesize / 10
+            max_buffer_size = 1024000
             output_buffer = StringIO()
             bytes_written = 0
             has_frames = True
