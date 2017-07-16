@@ -32,7 +32,8 @@ class Root:
             raise cherrypy.HTTPError(405)
         # Error if the requester is not allowed
         # for now this is a simple check just checking if the useragent matches Kodi
-        if not headers['User-Agent'].startswith('Kodi/'):
+        user_agent = headers['User-Agent'].lower()
+        if not ("kodi" in user_agent or "osmc" in user_agent):
             raise cherrypy.HTTPError(403)
         return method
 
