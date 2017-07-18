@@ -263,3 +263,7 @@ msgstr ""
 msgctxt "#11063"
 msgid "Local playback using remote host %s"
 msgstr ""
+
+msgctxt "#11064"
+msgid "Use Kodi OSD for playback on (remote) Spotify Connect device"
+msgstr ""

@@ -219,19 +219,23 @@ class PluginContent():
             elif self.trackid:
                 uris = ["spotify:track:%s" % self.trackid]
                 self.sp.start_playback(uris=uris)
-            # determine if we're controlling a remote connect device
-            xbmc.sleep(100)
+            # Show OSD Controls for Remote Connect player
+            xbmc.sleep(250)
             cur_playback = self.sp.current_playback()
             if cur_playback["device"]["name"] != get_playername():
-                # launch Kodi player with a silent audio stream just for OSD controls
-                # except on Android because the audio device will be locked
-                if xbmc.getCondVisibility("System.Platform.Android"):
-                    import socket
-                    if cur_playback["device"]["name"].lower() == socket.gethostname().lower():
-                        return
-                trackdetails = cur_playback["item"]
-                url, li = parse_spotify_track(trackdetails, silenced=True)
-                xbmc.Player().play(url, li)
+                if self.addon.getSetting("prefer_kodi_osd") == "true":
+                    # launch Kodi player with a silent audio stream just for OSD controls
+                    trackdetails = cur_playback["item"]
+                    url, li = parse_spotify_track(trackdetails, silenced=True)
+                    xbmc.Player().play(url, li)
+                else:
+                    # launch our special OSD dialog
+                    from osd import SpotifyOSD
+                    osd = SpotifyOSD("plugin-audio-spotify-OSD.xml",
+                                                 self.addon.getAddonInfo('path').decode("utf-8"), "Default", "1080i")
+                    osd.sp = self.sp
+                    osd.doModal()
+                    del osd
 
     def play_track_radio(self):
         player = SpotifyRadioPlayer()

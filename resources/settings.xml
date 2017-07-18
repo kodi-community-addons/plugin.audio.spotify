@@ -34,6 +34,8 @@
         <setting id="artistDefaultView" type="text" label="11032" default=""/>
         <setting id="albumDefaultView" type="text" label="11033" default=""/>
         <setting id="songDefaultView" type="text" label="11034" default=""/>
+        <setting type="sep" />
+        <setting id="prefer_kodi_osd" type="bool" label="11064" default="false"/>
 	</category>
     
 </settings>

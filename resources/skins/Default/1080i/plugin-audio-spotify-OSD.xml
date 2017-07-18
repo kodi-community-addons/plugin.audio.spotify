@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+	<defaultcontrol always="true">3203</defaultcontrol>
+	<controls>
+        
+        <control type="image" id="3300">
+            <description>fanart image</description>
+            <aspectratio>scale</aspectratio>
+            <fadetime>500</fadetime>
+            <texture>special://home/addons/plugin.audio.spotify/fanart.jpg</texture>
+        </control>
+        <control type="label" id="3301">
+            <description>hidden label which contains the extrafanart path if exists</description>
+            <visible>false</visible>
+        </control>
+        <control type="multiimage" id="3302">
+            <description>(extra)fanart image</description>
+            <aspectratio>scale</aspectratio>
+            <fadetime>500</fadetime>
+            <timeperimage>5000</timeperimage>
+            <imagepath background="true">$INFO[Control.GetLabel(3301)]</imagepath>
+            <visible>!String.IsEmpty(Control.GetLabel(3301))</visible>
+        </control>
+        <control type="image" id="3303">
+            <description>clearlogo image (if existing)</description>
+            <aspectratio>keep</aspectratio>
+            <height>15%</height>
+        </control>
+        <control type="image" id="3304">
+            <description>banner image (if existing)</description>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="3305">
+            <description>albumthumb image provided by skinhelper (if existing)</description>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="3306">
+            <description>artistthumb image provided by skinhelper (if existing)</description>
+            <visible>false</visible>
+        </control>
+        
+        
+        <control type="group" id="3400">
+            <description>OSD panel - visibility is controlled by code</description>
+            <left>30%</left>
+            <right>30%</right>
+            <top>20%</top>
+            <bottom>20%</bottom>
+        
+            <control type="image">
+                <description>Background panel</description>
+                <texture border="5">panel.png</texture>
+                <animation effect="fade" reversible="false" end="80" time="0" condition="true">Conditional</animation>
+                <colordiffuse>FF1b1b1b</colordiffuse>
+            </control>
+            <control type="image">
+                <description>Background panel inner</description>
+                <texture border="5">panel.png</texture>
+                <animation effect="fade" reversible="false" end="95" time="0" condition="true">Conditional</animation>
+                <colordiffuse>FF1b1b1b</colordiffuse>
+                <bordersize>20</bordersize>
+            </control>
+            
+            <control type="image" id="3307">
+                <top>5%</top>
+                <right>13%</right>
+                <width>50%</width>
+                <description>discart image</description>
+                <texture>Disc.png</texture>
+                <aspectratio align="right" aligny="center">keep</aspectratio>
+                <animation effect="rotate" end="-360" center="auto" time="4800" loop="true" reversible="false" condition="Control.IsEnabled(3202)">Conditional</animation>
+                <height>60%</height>
+            </control>
+            <control type="image" id="3110">
+                <top>5%</top>
+                <left>13%</left>
+                <width>50%</width>
+                <description>Cover image</description>
+                <texture>special://home/addons/plugin.audio.spotify/icon.png</texture>
+                <texture border="5">panel.png</texture>
+                <aspectratio align="left" aligny="center">keep</aspectratio>
+                <height>60%</height>
+            </control>
+            
+            <control type="label" id="3111">
+                <description>track title</description>
+                <top>68%</top>
+                <left>5%</left>
+                <width>90%</width>
+                <height>5%</height>
+                <font>font16</font>
+                <align>center</align>
+                <textcolor>white</textcolor>
+                <shadowcolor>black</shadowcolor>
+            </control>
+            <control type="label" id="3112">
+                <description>track artist</description>
+                <top>75%</top>
+                <left>5%</left>
+                <width>90%</width>
+                <height>5%</height>
+                <font>font14</font>
+                <align>center</align>
+                <textcolor>white</textcolor>
+                <shadowcolor>black</shadowcolor>
+            </control>
+            <control type="label" id="3113">
+                <description>track album</description>
+                <visible>false</visible>
+            </control>
+            <control type="label" id="3114">
+                <description>track genre</description>
+                <visible>false</visible>
+            </control>
+            <control type="label" id="3115">
+                <description>track rating</description>
+                <visible>false</visible>
+            </control>
+            
+            <control type="grouplist" id="3200">
+                <description>OSD buttons</description>
+                <left>28%</left>
+                <top>85%</top>
+                <width>420</width>
+                <height>20%</height>
+                <itemgap>0</itemgap>
+                <orientation>horizontal</orientation>
+                
+                <control type="button" id="3205">
+                    <description>hidden button to reflect the status of shuffle</description>
+                    <visible>false</visible>
+                </control>
+                <control type="togglebutton" id="3206">
+                    <description>Shuffle button</description>
+                    <width>70</width>
+                    <height>70</height>
+                    <texturefocus colordiffuse="green">RandomOff.png</texturefocus>
+                    <texturenofocus>RandomOff.png</texturenofocus>
+                    <alttexturefocus colordiffuse="green">RandomOff.png</alttexturefocus>
+                    <alttexturenofocus>RandomOn.png</alttexturenofocus>
+                    <usealttexture>Control.IsEnabled(3205)</usealttexture>
+                </control>
+                
+                <control type="button" id="3201">
+                    <description>Previous track</description>
+                    <width>70</width>
+                    <height>70</height>
+                    <texturefocus colordiffuse="green">PrevTrack.png</texturefocus>
+                    <texturenofocus>PrevTrack.png</texturenofocus>
+                </control>
+                <control type="button" id="3202">
+                    <description>hidden button to reflect the status of play/pause (enabled is playing)</description>
+                    <visible>false</visible>
+                </control>
+                <control type="togglebutton" id="3203">
+                    <description>Play/pause button</description>
+                    <width>70</width>
+                    <height>70</height>
+                    <texturefocus colordiffuse="green">Pause.png</texturefocus>
+                    <texturenofocus>Pause.png</texturenofocus>
+                    <alttexturefocus colordiffuse="green">Play.png</alttexturefocus>
+                    <alttexturenofocus>Play.png</alttexturenofocus>
+                    <usealttexture>!Control.IsEnabled(3202)</usealttexture>
+                </control>
+                <control type="button" id="3204">
+                    <description>Next track</description>
+                    <width>70</width>
+                    <height>70</height>
+                    <texturefocus colordiffuse="green">NextTrack.png</texturefocus>
+                    <texturenofocus>NextTrack.png</texturenofocus>
+                </control>
+                
+                <control type="label" id="3207">
+                    <description>hidden label to reflect the status of repeat (off, track or context)</description>
+                    <label>off</label>
+                    <visible>false</visible>
+                </control>
+                <control type="togglebutton" id="3208">
+                    <description>Repeat button</description>
+                    <width>70</width>
+                    <height>70</height>
+                    <texturefocus colordiffuse="green">Repeat.png</texturefocus>
+                    <texturenofocus>Repeat.png</texturenofocus>
+                    <alttexturefocus colordiffuse="green">Repeat.png</alttexturefocus>
+                    <alttexturenofocus>RepeatAll.png</alttexturenofocus>
+                    <usealttexture>String.IsEqual(Control.GetLabel(3207),context) | String.IsEqual(Control.GetLabel(3207),track)</usealttexture>
+                </control>
+
+            </control>
+
+        </control>
+	</controls>
+</window>

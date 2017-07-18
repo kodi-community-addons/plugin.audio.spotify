@@ -267,7 +267,7 @@ def process_method_on_list(method_to_run, items):
 
 
 def get_track_rating(popularity):
-    if popularity == 0:
+    if not popularity:
         return 0
     else:
         return int(math.ceil(popularity * 6 / 100.0)) - 1
