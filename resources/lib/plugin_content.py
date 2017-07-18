@@ -1461,12 +1461,12 @@ class PluginContent():
     def search_playlists(self):
         xbmcplugin.setContent(self.addon_handle, "files")
         result = self.sp.search(
-            q="playlist:%s" %
-            self.playlistid,
+            q=self.playlistid,
             type='playlist',
             limit=self.limit,
             offset=self.offset,
             market=self.usercountry)
+        log_msg(result)
         xbmcplugin.setProperty(self.addon_handle, 'FolderName', xbmc.getLocalizedString(136))
         playlists = self.prepare_playlist_listitems(result['playlists']['items'])
         self.add_playlist_listitems(playlists)
@@ -1528,25 +1528,24 @@ class PluginContent():
     def add_next_button(self, listtotal):
         # adds a next button if needed
         params = self.params
-        if xbmc.getCondVisibility("Window.IsActive(MusicLibrary)"):
-            if listtotal > self.offset + self.limit:
-                params["offset"] = self.offset + self.limit
-                url = "plugin://plugin.audio.spotify/"
-                for key, value in params.iteritems():
-                    if key == "action":
-                        url += "?%s=%s" % (key, value[0])
-                    elif key == "offset":
-                        url += "&%s=%s" % (key, value)
-                    else:
-                        url += "&%s=%s" % (key, value[0])
-                li = xbmcgui.ListItem(
-                    xbmc.getLocalizedString(33078),
-                    path=url,
-                    iconImage="DefaultMusicAlbums.png"
-                )
-                li.setProperty('do_not_analyze', 'true')
-                li.setProperty('IsPlayable', 'false')
-                xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=url, listitem=li, isFolder=True)
+        if listtotal > self.offset + self.limit:
+            params["offset"] = self.offset + self.limit
+            url = "plugin://plugin.audio.spotify/"
+            for key, value in params.iteritems():
+                if key == "action":
+                    url += "?%s=%s" % (key, value[0])
+                elif key == "offset":
+                    url += "&%s=%s" % (key, value)
+                else:
+                    url += "&%s=%s" % (key, value[0])
+            li = xbmcgui.ListItem(
+                xbmc.getLocalizedString(33078),
+                path=url,
+                iconImage="DefaultMusicAlbums.png"
+            )
+            li.setProperty('do_not_analyze', 'true')
+            li.setProperty('IsPlayable', 'false')
+            xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=url, listitem=li, isFolder=True)
 
     def precache_library(self):
         if not self.win.getProperty("Spotify.PreCachedItems"):

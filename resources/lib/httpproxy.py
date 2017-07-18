@@ -159,10 +159,8 @@ class Root:
         spotty_bin = self.__spotty.run_spotty(args)
         stdout, stderr = spotty_bin.communicate()
         output_buffer.write(stdout)
-        # truncate or add silence padding if needed
-        if output_buffer.tell() > filesize:
-            output_buffer.truncate(filesize)
-        elif output_buffer.tell() < filesize:
+        # add silence padding if needed
+        if output_buffer.tell() < filesize:
             frame = '\0' * (filesize - output_buffer.tell())
             output_buffer.write(frame)
         # finally send the requested range

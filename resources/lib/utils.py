@@ -106,9 +106,12 @@ def get_token(spotty):
             # request new token with web flow
             token_info = request_token_web(spotty.username)
     except Exception as exc:
-        log_msg("Couldn't request authentication token. Username/password error ?")
         log_exception("utils.get_token", exc)
         token_info = None
+    if not token_info:
+        log_msg("Couldn't request authentication token. Username/password error ? "
+                "If you're using a facebook account with Spotify, "
+                "make sure to generate a device account/password in the Spotify accountdetails.")
     return token_info
 
 
@@ -416,6 +419,9 @@ class Spotty(object):
             log_msg(stdout)
             if "ok spotty" in stdout:
                 return True
+            elif xbmc.getCondVisibility("System.Platform.Windows"):
+                log_msg("Unable to initialize spotty binary for playback."
+                        "Make sure you have the VC++ 2015 runtime installed.", xbmc.LOGERROR)
         except Exception as exc:
             log_exception(__name__, exc)
         return False
