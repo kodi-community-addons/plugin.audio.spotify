@@ -20,7 +20,6 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
     update_thread = None
     sp = None
     is_playing = True
-    osd_visible = True
     shuffle_state = False
     repeat_state = "off"
 
@@ -35,13 +34,15 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
 
     def onAction(self, action):
         '''triggers on kodi navigation events'''
-        if action.getId() in (9, 10, 92, 216, 247, 257, 275, 61467, 61448, ):
-            if self.osd_visible:
-                self.toggle_osd(False)
-            else:
-                self.close_dialog()
-        else:
-            self.toggle_osd(True)
+        action_id = action.getId()
+        if action_id in (9, 10, 92, 216, 247, 257, 275, 61467, 61448, ):
+            self.close_dialog()
+        elif action_id in (12, 68, 79, 229):
+            self.toggle_playback()
+        elif action_id in (184, 14, 97):
+            self.sp.next_track()
+        elif action_id in (185, 15, 98):
+            self.sp.previous_track()
 
     def close_dialog(self):
         '''stop background thread and close the dialog'''
@@ -53,10 +54,8 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
         '''Kodi builtin: triggers if window is clicked'''
         if control_id == 3201:
             self.sp.previous_track()
-        elif control_id == 3203 and self.is_playing:
-            self.sp.pause_playback()
-        elif control_id == 3203 and not self.is_playing:
-            self.sp.start_playback()
+        elif control_id == 3203:
+            self.toggle_playback()
         elif control_id == 3204:
             self.sp.next_track()
         elif control_id == 3206 and self.shuffle_state:
@@ -70,12 +69,17 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
         elif control_id == 3208 and self.repeat_state == "context":
             self.sp.repeat("off")
 
-    def toggle_osd(self, visible):
-        '''toggle visibility of OSD panel'''
-        self.osd_visible = visible
-        self.getControl(3400).setVisible(visible)
-
-
+    def toggle_playback(self):
+        '''toggle play/pause'''
+        if self.is_playing:
+            self.is_playing = False
+            self.getControl(3202).setEnabled(False)
+            self.sp.pause_playback()
+        else:
+            self.is_playing = True
+            self.getControl(3202).setEnabled(True)
+            self.sp.start_playback()
+    
 class SpotifyOSDUpdateThread(threading.Thread):
     '''Background thread to complement our OSD dialog,
     fills the listing while UI keeps responsive'''
@@ -102,7 +106,7 @@ class SpotifyOSDUpdateThread(threading.Thread):
         monitor = xbmc.Monitor()
         while not monitor.abortRequested() and self.active:
             cur_playback = self.get_curplayback()
-            if cur_playback:
+            if cur_playback and cur_playback.get("item"):
                 if cur_playback["shuffle_state"] != self.dialog.shuffle_state:
                     self.toggle_shuffle(cur_playback["shuffle_state"])
                 if cur_playback["repeat_state"] != self.dialog.repeat_state:

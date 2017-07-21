@@ -5,8 +5,7 @@ import time
 import re
 import struct
 import cherrypy
-from cherrypy import wsgiserver
-from cherrypy.process import servers
+#from cherrypy.process import servers
 from cherrypy._cpnative_server import CPHTTPServer
 from datetime import datetime
 import random
@@ -72,18 +71,12 @@ class Root:
 
         # If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
-            if range_l:
-                # range requested - only send the requested range data
-                log_msg("send requested range for track %s - range: %s" % (track_id, range_l), xbmc.LOGDEBUG)
-                return self.partial_audio_stream(track_id, filesize, wave_header, range_l, range_r)
-            else:
-                # chunked transfer of full track
-                return self.chunked_audio_stream(track_id, filesize, wave_header)
+            return self.send_audio_stream(track_id, filesize, wave_header, range_l)
     track._cp_config = {'response.stream': True}
 
-    def chunked_audio_stream(self, track_id, filesize, wave_header):
+    def send_audio_stream(self, track_id, filesize, wave_header, range_l):
         '''chunked transfer of audio data from spotty binary'''
-        log_msg("start chunked transfer for full track %s" % track_id, xbmc.LOGDEBUG)
+        log_msg("start transfer for track %s - range: %s" % (track_id, range_l), xbmc.LOGDEBUG)
         spotty_bin = None
         try:
             # Initialize some loop vars
@@ -95,12 +88,17 @@ class Root:
             # Write wave header
             output_buffer.write(wave_header)
             bytes_written = output_buffer.tell()
-            yield wave_header
+            if not range_l:
+                yield wave_header
             output_buffer.truncate(0)
 
             # get pcm data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
             spotty_bin = self.__spotty.run_spotty(args)
+            
+            # ignore the first x bytes to match the range request
+            if range_l:
+                spotty_bin.stdout.read(range_l - bytes_written)
 
             # Loop as long as there's something to output
             frame = spotty_bin.stdout.read(max_buffer_size)
@@ -147,25 +145,7 @@ class Root:
             # make sure spotty always gets terminated
             if spotty_bin:
                 spotty_bin.terminate()
-            log_msg("FINISH chunked transfer for full track %s" % track_id, xbmc.LOGDEBUG)
-
-    def partial_audio_stream(self, track_id, filesize, wave_header, range_l, range_r):
-        '''send partial data from track'''
-        output_buffer = StringIO()
-        # Write wave header
-        output_buffer.write(wave_header)
-        # get pcm data from spotty stdout and append to our buffer
-        args = ["-n", "temp", "--single-track", track_id]
-        spotty_bin = self.__spotty.run_spotty(args)
-        stdout, stderr = spotty_bin.communicate()
-        output_buffer.write(stdout)
-        # add silence padding if needed
-        if output_buffer.tell() < filesize:
-            frame = '\0' * (filesize - output_buffer.tell())
-            output_buffer.write(frame)
-        # finally send the requested range
-        yield output_buffer.getvalue()[range_l:range_r]
-        del output_buffer
+            log_msg("FINISH transfer for track %s - range %s" % (track_id, range_l), xbmc.LOGDEBUG)
 
     @cherrypy.expose
     def silence(self, duration, **kwargs):
