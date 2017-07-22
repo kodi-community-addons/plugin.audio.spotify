@@ -70,12 +70,12 @@ except Exception:
     SUPPORTS_POOL = False
 
 
-def log_msg(msg, loglevel=xbmc.LOGNOTICE):
+def log_msg(msg, loglevel=xbmc.LOGDEBUG):
     '''log message to kodi log'''
     if isinstance(msg, unicode):
         msg = msg.encode('utf-8')
     if DEBUG and loglevel == xbmc.LOGDEBUG:
-        loglevel = xbmc.LOGWARNING
+        loglevel = xbmc.LOGNOTICE
     xbmc.log("%s --> %s" % (ADDON_ID, msg), level=loglevel)
 
 

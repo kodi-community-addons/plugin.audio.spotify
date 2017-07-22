@@ -5,7 +5,6 @@ import time
 import re
 import struct
 import cherrypy
-#from cherrypy.process import servers
 from cherrypy._cpnative_server import CPHTTPServer
 from datetime import datetime
 import random
@@ -209,7 +208,8 @@ class ProxyRunner(threading.Thread):
         self.setDaemon(True)
 
     def run(self):
-        cherrypy.quickstart(self.__root, '/')
+        conf = { '/': {}}
+        cherrypy.quickstart(self.__root, '/', conf)
 
     def get_port(self):
         return self.__server.bind_addr[1]
@@ -219,4 +219,4 @@ class ProxyRunner(threading.Thread):
 
     def stop(self):
         cherrypy.engine.exit()
-        self.join(2)
+        self.join(0.5)
