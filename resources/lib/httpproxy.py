@@ -201,11 +201,11 @@ class ProxyRunner(threading.Thread):
         cherrypy.config.update({
             'server.socket_host': '0.0.0.0',
             'server.socket_port': PROXY_PORT,
-            'engine.timeout_monitor.frequency': 5
+            'engine.timeout_monitor.frequency': 5,
+            'server.shutdown_timeout': 1
         })
         self.__server = cherrypy.server.httpserver = CPHTTPServer(cherrypy.server)
         threading.Thread.__init__(self)
-        self.setDaemon(True)
 
     def run(self):
         conf = { '/': {}}
@@ -219,4 +219,6 @@ class ProxyRunner(threading.Thread):
 
     def stop(self):
         cherrypy.engine.exit()
-        self.join(0.5)
+        self.join(1)
+        del self.__root
+        del self.__server

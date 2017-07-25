@@ -281,7 +281,7 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
     elif track['album'].get("images"):
         thumb = track['album']["images"][0]['url']
     else:
-        thumb = ""
+        thumb = "DefaultMusicSongs"
     duration = track['duration_ms'] / 1000
 
     if silenced:
@@ -292,12 +292,10 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
     if is_connect or silenced:
         url += "/?connect=true"
 
-    li = xbmcgui.ListItem(
-        track['name'],
-        path=url,
-        iconImage="DefaultMusicSongs.png",
-        thumbnailImage=thumb
-    )
+    if KODI_VERSION > 17:
+        li = xbmcgui.ListItem(track['name'], path=url, offscreen=True)
+    else:
+        li = xbmcgui.ListItem(track['name'], path=url)
     infolabels = {
         "title": track['name'],
         "genre": " / ".join(track["album"].get("genres", [])),
@@ -310,6 +308,7 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
     if is_album_track:
         infolabels["tracknumber"] = track["track_number"]
         infolabels["discnumber"] = track["disc_number"]
+    li.setArt({"thumb": thumb})
     li.setInfo(type="Music", infoLabels=infolabels)
     li.setProperty("spotifytrackid", track['id'])
     li.setContentLookup(False)

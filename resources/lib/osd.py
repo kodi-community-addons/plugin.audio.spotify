@@ -24,6 +24,7 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
     repeat_state = "off"
 
     def __init__(self, *args, **kwargs):
+        self.metadatautils = MetadataUtils()
         xbmcgui.WindowXMLDialog.__init__(self, *args, **kwargs)
 
     def onInit(self):
@@ -48,6 +49,7 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
         '''stop background thread and close the dialog'''
         self.update_thread.stop_running()
         self.sp.pause_playback()
+        self.metadatautils.close()
         self.close()
 
     def onClick(self, control_id):
@@ -89,7 +91,6 @@ class SpotifyOSDUpdateThread(threading.Thread):
 
     def __init__(self, *args):
         log_msg("SpotifyOSDUpdateThread Init")
-        self.metadatautils = MetadataUtils()
         threading.Thread.__init__(self, *args)
 
     def stop_running(self):
@@ -192,7 +193,7 @@ class SpotifyOSDUpdateThread(threading.Thread):
         lbl_control.setLabel(rating)
 
         # get additional artwork
-        artwork = self.metadatautils.get_music_artwork(artist, album, title)
+        artwork = self.dialog.metadatautils.get_music_artwork(artist, album, title)
         fanart = artwork["art"].get("fanart", "special://home/addons/plugin.audio.spotify/fanart.jpg")
         self.dialog.getControl(3300).setImage(fanart)
         efa = artwork["art"].get("extrafanart", "")

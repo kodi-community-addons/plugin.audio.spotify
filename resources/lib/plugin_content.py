@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
-from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track, get_playername
+from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track, get_playername, KODI_VERSION
 import urlparse
 import urllib
 import threading
@@ -853,7 +853,7 @@ class PluginContent():
             elif track['album'].get("images"):
                 thumb = track['album']["images"][0]['url']
             else:
-                thumb = ""
+                thumb = "DefaultMusicSongs.png"
             track['thumb'] = thumb
 
             # skip local tracks in playlists
@@ -952,11 +952,10 @@ class PluginContent():
                 label = track['name']
             duration = track["duration_ms"] / 1000
 
-            li = xbmcgui.ListItem(
-                label,
-                iconImage="DefaultMusicSongs.png",
-                thumbnailImage=track['thumb']
-            )
+            if KODI_VERSION > 17:
+                li = xbmcgui.ListItem(label, offscreen=True)
+            else:
+                li = xbmcgui.ListItem(label)
             if self.local_playback and self.connect_id:
                 # local playback by using proxy on a remote machine
                 url = "http://%s:%s/track/%s/%s" % (self.connect_id, PROXY_PORT, track['id'], duration)
@@ -992,13 +991,14 @@ class PluginContent():
                 "rating": track["rating"],
                 "duration": duration
             })
+            li.setArt({"thumb": track['thumb']})
             li.setProperty("spotifytrackid", track['id'])
             li.setContentLookup(False)
             li.addContextMenuItems(track["contextitems"], True)
             li.setProperty('do_not_analyze', 'true')
             li.setMimeType("audio/wave")
             list_items.append((url, li, False))
-        xbmcplugin.addDirectoryItems(self.addon_handle, list_items)
+        xbmcplugin.addDirectoryItems(self.addon_handle, list_items, totalItems=len(list_items))
 
     def prepare_album_listitems(self, albumids=[], albums=[]):
 
@@ -1015,7 +1015,7 @@ class PluginContent():
             if item.get("images"):
                 item['thumb'] = item["images"][0]['url']
             else:
-                item['thumb'] = ""
+                item['thumb'] = "DefaultMusicAlbums.png"
 
             item['url'] = self.build_url({'action': 'browse_album', 'albumid': item['id']})
 
@@ -1072,12 +1072,10 @@ class PluginContent():
             else:
                 label = item['name']
 
-            li = xbmcgui.ListItem(
-                label,
-                path=item['url'],
-                iconImage="DefaultMusicAlbums.png",
-                thumbnailImage=item['thumb']
-            )
+            if KODI_VERSION > 17:
+                li = xbmcgui.ListItem(label, path=item['url'], offscreen=True)
+            else:
+                li = xbmcgui.ListItem(label, path=item['url'])
 
             infolabels = {
                 "title": item['name'],
@@ -1088,6 +1086,7 @@ class PluginContent():
                 "rating": item["rating"]
             }
             li.setInfo(type="Music", infoLabels=infolabels)
+            li.setArt({"thumb": item['thumb']})
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
             li.addContextMenuItems(item["contextitems"], True)
@@ -1108,7 +1107,7 @@ class PluginContent():
             if item.get("images"):
                 item["thumb"] = item["images"][0]['url']
             else:
-                item["thumb"] = ""
+                item["thumb"] = "DefaultMusicArtists.png"
 
             item['url'] = self.build_url({'action': 'browse_artistalbums', 'artistid': item['id']})
 
@@ -1147,12 +1146,10 @@ class PluginContent():
 
     def add_artist_listitems(self, artists):
         for item in artists:
-            li = xbmcgui.ListItem(
-                item['name'],
-                path=item["url"],
-                iconImage="DefaultMusicArtists.png",
-                thumbnailImage=item["thumb"]
-            )
+            if KODI_VERSION > 17:
+                li = xbmcgui.ListItem(label, path=item['url'], offscreen=True)
+            else:
+                li = xbmcgui.ListItem(label, path=item['url'])
             infolabels = {
                 "title": item["name"],
                 "genre": item["genre"],
@@ -1160,6 +1157,7 @@ class PluginContent():
                 "rating": item["rating"]
             }
             li.setInfo(type="Music", infoLabels=infolabels)
+            li.setArt({"thumb": item['thumb']})
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
             li.setLabel2(item["followerslabel"])
@@ -1179,7 +1177,7 @@ class PluginContent():
             if item.get("images"):
                 item["thumb"] = item["images"][0]['url']
             else:
-                item["thumb"] = ""
+                item["thumb"] = "DefaultMusicAlbums.png"
 
             item['url'] = self.build_url(
                 {'action': 'browse_playlist', 'playlistid': item['id'],
@@ -1216,17 +1214,15 @@ class PluginContent():
 
         for item in playlists:
 
-            li = xbmcgui.ListItem(
-                item['name'],
-                path=item["url"],
-                iconImage="DefaultMusicAlbums.png",
-                thumbnailImage=item["thumb"]
-            )
+            if KODI_VERSION > 17:
+                li = xbmcgui.ListItem(label, path=item['url'], offscreen=True)
+            else:
+                li = xbmcgui.ListItem(label, path=item['url'])
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
 
             li.addContextMenuItems(item["contextitems"], True)
-            li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
+            li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg", "thumb": item['thumb']})
             xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item["url"], listitem=li, isFolder=True)
 
     def browse_artistalbums(self):
