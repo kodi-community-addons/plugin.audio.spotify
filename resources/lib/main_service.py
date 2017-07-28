@@ -53,7 +53,7 @@ class MainService:
 
         # authenticate
         self.token_info = self.get_auth_token()
-        if self.token_info:
+        if self.token_info and not self.kodimonitor.abortRequested():
 
             # initialize spotipy
             self.sp._auth = self.token_info["access_token"]

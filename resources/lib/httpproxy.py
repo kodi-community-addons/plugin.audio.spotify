@@ -180,7 +180,7 @@ class Root:
         if cmd == "start":
             cherrypy.response.headers['Content-Type'] = 'text'
             log_msg("playback start requested by connect")
-            xbmc.executebuiltin("PlayMedia(plugin://plugin.audio.spotify/?action=play_connect)")
+            xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.spotify/?action=play_connect)")
             return "OK"
         elif cmd == "stop":
             cherrypy.response.headers['Content-Type'] = 'text'

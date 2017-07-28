@@ -66,6 +66,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         if "localhost:%s" % PROXY_PORT in filename:
             if not self.connect_playing and "connect=true" in filename:
                 # we started playback with (remote) connect player
+                log_msg("Playback started of Spotify Connect stream")
                 self.connect_playing = True
                 if "silence" in filename:
                     self.connect_local = False

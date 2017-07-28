@@ -174,11 +174,18 @@ class PluginContent():
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
     def play_connect(self):
-        '''start local connect playback'''
+        '''start local connect playback - called from webservice when local connect player starts playback'''
+        playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
         url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
-        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+        playlist.clear()
+        playlist.add(url, li)
+        playlist.add("http://localhost:%s/nexttrack" % PROXY_PORT)
+        player = xbmc.Player()
+        player.play(playlist)
+        del playlist
+        del player
 
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
@@ -1147,9 +1154,9 @@ class PluginContent():
     def add_artist_listitems(self, artists):
         for item in artists:
             if KODI_VERSION > 17:
-                li = xbmcgui.ListItem(label, path=item['url'], offscreen=True)
+                li = xbmcgui.ListItem(item["name"], path=item['url'], offscreen=True)
             else:
-                li = xbmcgui.ListItem(label, path=item['url'])
+                li = xbmcgui.ListItem(item["name"], path=item['url'])
             infolabels = {
                 "title": item["name"],
                 "genre": item["genre"],
@@ -1215,9 +1222,9 @@ class PluginContent():
         for item in playlists:
 
             if KODI_VERSION > 17:
-                li = xbmcgui.ListItem(label, path=item['url'], offscreen=True)
+                li = xbmcgui.ListItem(item["name"], path=item['url'], offscreen=True)
             else:
-                li = xbmcgui.ListItem(label, path=item['url'])
+                li = xbmcgui.ListItem(item["name"], path=item['url'])
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
 
