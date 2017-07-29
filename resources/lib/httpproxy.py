@@ -106,19 +106,11 @@ class Root:
                     log_msg("response timeout !", xbmc.LOGDEBUG)
                     break
                 try:
-                    # Check if this frame fits in the estimated calculation
-                    if bytes_written + len(frame) < filesize:
-                        output_buffer.write(frame)
-                        bytes_written += len(frame)
-                    else:
-                        # Does not fit, we need to truncate the frame data
-                        truncate_size = filesize - bytes_written
-                        output_buffer.write(frame[:truncate_size])
-                        bytes_written = filesize
+                    if not frame or len(frame) < max_buffer_size:
                         has_frames = False
+                    output_buffer.write(frame)
+                    bytes_written += len(frame)
                     frame = spotty_bin.stdout.read(max_buffer_size)
-                    if not frame:
-                        has_frames = False
                 except Exception as exc:
                     log_exception(__name__, exc)
                     has_frames = False
