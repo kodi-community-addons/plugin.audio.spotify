@@ -906,15 +906,15 @@ class PluginContent():
 
             if playlistdetails and playlistdetails["owner"]["id"] == self.userid:
                 contextitems.append(
-                    (self.addon.getLocalizedString(11017),
+                    ("%s %s" %(self.addon.getLocalizedString(11017), playlistdetails["name"]),
                      "RunPlugin(plugin://plugin.audio.spotify/?action=remove_track_from_playlist&trackid=%s&playlistid=%s)" %
                      (real_trackuri,
                       playlistdetails["id"])))
-            elif not playlistdetails:
-                contextitems.append(
-                    (xbmc.getLocalizedString(526),
-                     "RunPlugin(plugin://plugin.audio.spotify/?action=add_track_to_playlist&trackid=%s)" %
-                     real_trackuri))
+
+            contextitems.append(
+                (xbmc.getLocalizedString(526),
+                 "RunPlugin(plugin://plugin.audio.spotify/?action=add_track_to_playlist&trackid=%s)" %
+                 real_trackuri))
 
             contextitems.append(
                 (self.addon.getLocalizedString(11011),
