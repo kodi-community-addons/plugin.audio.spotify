@@ -454,10 +454,7 @@ class Spotty(object):
         '''find the correct spotty binary belonging to the platform'''
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
-            if xbmcvfs.exists("C:\\Program Files (x86)\\"):
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty_x64.exe")
-            else:
-                sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
+            sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
             self.supports_discovery = False  # The current MDNS implementation cannot be built on Windows
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
