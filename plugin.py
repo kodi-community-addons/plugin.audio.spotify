@@ -7,7 +7,7 @@
 '''
 
 import os, sys
-sys.path.append(os.path.join(os.path.dirname(__file__), "resources", "lib"))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), "resources", "lib"))
 from plugin_content import PluginContent
 #main entrypoint
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
     Main service entry point
 '''
 import os, sys
-sys.path.append(os.path.join(os.path.dirname(__file__), "resources", "lib"))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), "resources", "lib"))
 
 if __name__ == '__main__':
     from main_service import MainService
