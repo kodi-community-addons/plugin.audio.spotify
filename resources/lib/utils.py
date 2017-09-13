@@ -438,8 +438,8 @@ class Spotty(object):
                 args += arguments
             if not "-n" in args:
                 args += ["-n", self.playername]
-            if self.__cache_path:
-                args += ["-c", self.__cache_path, "--enable-audio-cache"]
+            # if self.__cache_path:
+            #     args += ["-c", self.__cache_path, "--enable-audio-cache"]
             startupinfo = None
             if os.name == 'nt':
                 startupinfo = subprocess.STARTUPINFO()

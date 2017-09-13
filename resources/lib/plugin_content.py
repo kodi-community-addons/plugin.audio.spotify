@@ -143,7 +143,7 @@ class PluginContent():
         usernames = []
         count = 1
         while True:
-            username = self.addon.getSetting("username%s" % count)
+            username = self.addon.getSetting("username%s" % count).decode("utf-8")
             count += 1
             if not username:
                 break
@@ -1271,14 +1271,16 @@ class PluginContent():
         if cache:
             return cache
         else:
-            count = len(albums["items"])
             albumids = []
-            while albums["total"] > count:
-                albums["items"] += self.sp.current_user_saved_albums(limit=50, offset=count)["items"]
-                count += 50
-            for album in albums["items"]:
-                albumids.append(album["album"]["id"])
-            self.cache.set(cachestr, albumids, checksum=checksum)
+            if albums and albums.get("items"):
+                count = len(albums["items"])
+                albumids = []
+                while albums["total"] > count:
+                    albums["items"] += self.sp.current_user_saved_albums(limit=50, offset=count)["items"]
+                    count += 50
+                for album in albums["items"]:
+                    albumids.append(album["album"]["id"])
+                self.cache.set(cachestr, albumids, checksum=checksum)
             return albumids
 
     def get_savedalbums(self):

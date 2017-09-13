@@ -22,8 +22,8 @@
     
     <category label="11054" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))">
         <setting id="connect_player" type="bool" label="11036" default="false" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
-        <setting id="enable_cache" type="bool" label="11051" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
-        <setting id="cache_path" label="11052" type="folder" source="auto" visible="eq(-1,true)" default="special://profile/addon_data/plugin.audio.spotify/" />
+       <!--  <setting id="enable_cache" type="bool" label="11051" default="true" visible="!IsEmpty(Window(Home).Property(spotify.supportsplayback))"/>
+        <setting id="cache_path" label="11052" type="folder" source="auto" visible="eq(-1,true)" default="special://profile/addon_data/plugin.audio.spotify/" /> -->
         <setting type="sep" />
         <setting type="lsep" label="11059" />
     </category>
