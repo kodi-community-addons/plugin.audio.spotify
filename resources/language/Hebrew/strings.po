@@ -1,0 +1,277 @@
+# Addon Name: Spotify
+# Addon id: plugin.audio.spotify
+# Addon Provider: marcelveldt
+msgid ""
+msgstr ""
+"Project-Id-Version: Kodi-Addons\n"
+"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"POT-Creation-Date: 2015-11-04 18:30+0100\n"
+"PO-Revision-Date: 2017-09-28 14:10+0300\n"
+"Last-Translator: A. Dambledore\n"
+"Language-Team: Eng2Heb\n"
+"Language: he_IL\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 2.0.4\n"
+
+msgctxt "#11000"
+msgid "General"
+msgstr "כללי"
+
+msgctxt "#11001"
+msgid "Username"
+msgstr "שם משתמש"
+
+msgctxt "#11002"
+msgid "Password"
+msgstr "ססמה"
+
+msgctxt "#11003"
+msgid "No valid browser was found on your system to perform the authorization request to Spotify."
+msgstr "לא נמצא דפדפן חוקי במערכת שלך כדי לבצע את בקשת ההרשאה ל-Spotify."
+
+msgctxt "#11004"
+msgid "This track is unavailable in your country."
+msgstr "השיר הזה אינו זמין במדינה שלך"
+
+msgctxt "#11005"
+msgid "New releases"
+msgstr "שיחרורים חדשים"
+
+msgctxt "#11006"
+msgid "Saved albums"
+msgstr "אלבומים שנשמרו"
+
+msgctxt "#11007"
+msgid "Save to My Music"
+msgstr "לשמור אל המוזיקה שלי"
+
+msgctxt "#11008"
+msgid "Remove from My Music"
+msgstr "הסר מהמוזיקה שלי"
+
+msgctxt "#11009"
+msgid "Follow"
+msgstr "עקוב"
+
+msgctxt "#11010"
+msgid "Unfollow"
+msgstr "ביטול מעקב"
+
+msgctxt "#11011"
+msgid "Artist top tracks"
+msgstr "השירים הכי טובים של האמן"
+
+msgctxt "#11012"
+msgid "Related artists"
+msgstr "אמנים קשורים"
+
+msgctxt "#11013"
+msgid "My Music"
+msgstr "המוזיקה שלי"
+
+msgctxt "#11014"
+msgid "Explore"
+msgstr "חקור"
+
+msgctxt "#11015"
+msgid "Featured playlists"
+msgstr "רשימות ניגון מומלצות"
+
+msgctxt "#11016"
+msgid "New releases"
+msgstr "שיחרורים חדשים"
+
+msgctxt "#11017"
+msgid "Remove from playlist"
+msgstr "הסר מרשימת ניגון"
+
+msgctxt "#11018"
+msgid "All albums for artist"
+msgstr "כל האלבומים עבור אמן"
+
+msgctxt "#11019"
+msgid "Login error"
+msgstr "שגיאת התחברות"
+
+msgctxt "#11021"
+msgid "You need a premium Spotify account to use this app"
+msgstr "אתה צריך חשבון פרימיום ב-Spotify כדי להשתמש ביישום זה"
+
+msgctxt "#11022"
+msgid "Recommendations"
+msgstr "המלצות"
+
+msgctxt "#11023"
+msgid "Most played artists"
+msgstr "האמנים הכי מושמעים"
+
+msgctxt "#11024"
+msgid "Most played tracks"
+msgstr "השירים הכי מושמעים"
+
+msgctxt "#11025"
+msgid "Follow artist"
+msgstr "עקוב אחר האמן"
+
+msgctxt "#11026"
+msgid "Unfollow artist"
+msgstr "בטל עקיבה אחר האמן"
+
+msgctxt "#11027"
+msgid "Refresh listing"
+msgstr "רענן את הרישום"
+
+msgctxt "#11028"
+msgid "Login details"
+msgstr "פרטי התחברות"
+
+msgctxt "#11029"
+msgid "Other settings"
+msgstr "הגדרות אחרות"
+
+msgctxt "#11030"
+msgid "Append artist name to song title"
+msgstr "הוסף שם אמן לכותרת השיר"
+
+msgctxt "#11031"
+msgid "Default view for playlists"
+msgstr "תצוגת ברירת המחדל עבור רשימות ניגון"
+
+msgctxt "#11032"
+msgid "Default view for artist list"
+msgstr "תצוגת ברירת המחדל עבור רשימת האמנים"
+
+msgctxt "#11033"
+msgid "Default view for album list"
+msgstr "תצוגת ברירת המחדל עבור רשימת אלבומים"
+
+msgctxt "#11034"
+msgid "Default view for song list"
+msgstr "תצוגת ברירת המחדל עבור רשימת השירים"
+
+msgctxt "#11035"
+msgid "Play song radio"
+msgstr "הפעל את השיר ברדיו"
+
+msgctxt "#11036"
+msgid "Enable this device as Spotify Connect target (experimental)"
+msgstr "אפשר התקן זה כמטרה של חיבור ל-Spotify (ניסיוני)"
+
+msgctxt "#11037"
+msgid "Local playback on this device"
+msgstr "ניגון מקומי על ההתקן הזה"
+
+msgctxt "#11039"
+msgid "Playback device"
+msgstr "מכשיר ניגון"
+
+msgctxt "#11040"
+msgid "Active"
+msgstr "פעיל"
+
+msgctxt "#11041"
+msgid "Enable support for multiple accounts"
+msgstr "אפשר תמיכה עבור חשבונות מרובים"
+
+msgctxt "#11042"
+msgid "Username 1"
+msgstr "שם משתמש 1"
+
+msgctxt "#11043"
+msgid "Username 2"
+msgstr "שם משתמש 2"
+
+msgctxt "#11044"
+msgid "Username 3"
+msgstr "שם משתמש 3"
+
+msgctxt "#11045"
+msgid "Username 4"
+msgstr "שם משתמש 4"
+
+msgctxt "#11046"
+msgid "Username 5"
+msgstr "שם משתמש 5"
+
+msgctxt "#11047"
+msgid "Current user"
+msgstr "משתמש נוכחי"
+
+msgctxt "#11048"
+msgid "Select user"
+msgstr "בחירת משתמש"
+
+msgctxt "#11049"
+msgid ""
+"The default browser should now be opened,\n"
+"follow the directions to authorize this app on Spotify"
+msgstr ""
+"כעת יש לפתוח את דפדפן ברירת המחדל,\n"
+"בצע את ההוראות כדי לאשר יישום זה ב- Spotify"
+
+msgctxt "#11050"
+msgid ""
+"No credentials have been set or the login failed.\n"
+"Please enter your credentials in the next settings dialog."
+msgstr ""
+"לא הוגדרו אישורי כניסה או שהחיבור נכשל.\n"
+"הזן את הפרטים שלך בתיבת הדו-שיח הגדרות."
+
+msgctxt "#11051"
+msgid "Enable audio cache"
+msgstr "אפשר מטמון שמע"
+
+msgctxt "#11052"
+msgid "Location to store the audio cache"
+msgstr "מיקום לאחסון מטמון שמע"
+
+msgctxt "#11053"
+msgid "Audio device to use"
+msgstr "התקן שמע לשימוש"
+
+msgctxt "#11054"
+msgid "Audio"
+msgstr "אודיו"
+
+msgctxt "#11055"
+msgid "Views"
+msgstr "צפיות"
+
+msgctxt "#11056"
+msgid "Directly output to default soundcard"
+msgstr "פלט ישיר לכרטיס הקול שמוגדר כברירת המחדל"
+
+msgctxt "#11057"
+msgid "Use Kodi player as output device"
+msgstr "תעביר את הפלט לקודי"
+
+msgctxt "#11058"
+msgid "Manual specify soundcard (advanced)"
+msgstr "הגדרה ידנית של כרטיס קול (מתקדם)"
+
+msgctxt "#11059"
+msgid "Changes on this page require a restart of Kodi"
+msgstr "שינויים בדף זה מחייבים הפעלה מחדש של קודי"
+
+msgctxt "#11060"
+msgid "Local playback - using remote machine"
+msgstr "מיגון מקומי - משתמש במכשיר מרוחק"
+
+msgctxt "#11061"
+msgid "This will allow you to enable local, direct playback from Spotify tracks in Kodi on unsupported platforms (e.g. Android) by using the remote service on another host. Make sure that you have the Spotify addon installed on another Kodi machine in your network that does support local playback. In the next dialog, please select the remote machine's hostname or ip-address."
+msgstr "פעולה זו תאפשר הפעלה מקומית ישירה של שירים מ-Spotify בקודי בפלטפורמות שאינן נתמכות (למשל, אנדרואיד) באמצעות השירות המרוחק במארח אחר. ודא שיש לך את הרחבת Spotify מותקנת על קודי שתומך בהשמעה מקומית ברשת שלך . בתיבת הדו-שיח הבאה, בחר את שם המארח או את כתובת IP של המכשיר המרוחק."
+
+msgctxt "#11062"
+msgid "Hostname or IP"
+msgstr "שם מארח או IP"
+
+msgctxt "#11063"
+msgid "Local playback using remote host %s"
+msgstr "ניגון מקומי באמצעות מארח מרוחק %s"
+
+msgctxt "#11064"
+msgid "Use Kodi OSD for playback on (remote) Spotify Connect device"
+msgstr "תשתמש בנגן של קודי כהתקן הפעלה (מרוחק) כאשר Spotify מתחברת"
