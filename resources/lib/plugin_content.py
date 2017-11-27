@@ -105,10 +105,11 @@ class PluginContent():
             self.filter = filter[0].decode("utf-8")
         # default settings
         self.append_artist_to_title = self.addon.getSetting("appendArtistToTitle") == "true"
-        self.defaultview_songs = self.addon.getSetting("self.defaultview_songs")
-        self.defaultview_artists = self.addon.getSetting("self.defaultview_artists")
-        self.defaultview_playlists = self.addon.getSetting("self.defaultview_playlists")
-        self.defaultview_albums = self.addon.getSetting("self.defaultview_albums")
+        self.defaultview_songs = self.addon.getSetting("songDefaultView")
+        self.defaultview_artists = self.addon.getSetting("artistDefaultView")
+        self.defaultview_playlists = self.addon.getSetting("playlistDefaultView")
+        self.defaultview_albums = self.addon.getSetting("albumDefaultView")
+        self.defaultview_category = self.addon.getSetting("categoryDefaultView")
 
     def cache_checksum(self, opt_value=None):
         '''simple cache checksum based on a few most important values'''
@@ -667,6 +668,8 @@ class PluginContent():
         xbmcplugin.setProperty(self.addon_handle, 'FolderName', playlists['category'])
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        if self.defaultview_category:
+            xbmc.executebuiltin('Container.SetViewMode(%s)' % self.defaultview_category)
 
     def follow_playlist(self):
         result = self.sp.follow_playlist(self.ownerid, self.playlistid)
