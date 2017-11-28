@@ -1,0 +1,269 @@
+﻿# Kodi Media Center language file
+# Addon Name: Spotify
+# Addon id: plugin.audio.spotify
+# Addon Provider: marcelveldt
+msgid ""
+msgstr ""
+"Project-Id-Version: Kodi-Addons\n"
+"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"POT-Creation-Date: 2015-11-04 18:30+0100\n"
+"PO-Revision-Date: 2015-11-04 18:30+0100\n"
+"Last-Translator: tobhor\n"
+"Language-Team: German\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgctxt "#11000"
+msgid "General"
+msgstr "Allgemein"
+
+msgctxt "#11001"
+msgid "Username"
+msgstr "Nutzername"
+
+msgctxt "#11002"
+msgid "Password"
+msgstr "Passwort"
+
+msgctxt "#11003"
+msgid "No valid browser was found on your system to perform the authorization request to Spotify."
+msgstr "Es wurde kein Browser auf diesem Gerät gefunden, um die Autorisierungsanfrage an Spotify auszuführen."
+
+msgctxt "#11004"
+msgid "This track is unavailable in your country."
+msgstr "Dieser Song ist in deinem Land nicht verfügbar."
+
+msgctxt "#11005"
+msgid "New releases"
+msgstr "Neuerscheinungen"
+
+msgctxt "#11006"
+msgid "Saved albums"
+msgstr "Gespeicherte Alben"
+
+msgctxt "#11007"
+msgid "Save to My Music"
+msgstr "Zu meiner Musik hinzufügen"
+
+msgctxt "#11008"
+msgid "Remove from My Music"
+msgstr "Aus meiner Musik entfernen"
+
+msgctxt "#11009"
+msgid "Follow"
+msgstr "Folgen"
+
+msgctxt "#11010"
+msgid "Unfollow"
+msgstr "Nicht mehr folgen"
+
+msgctxt "#11011"
+msgid "Artist top tracks"
+msgstr "Beliebteste Lieder des Künstlers"
+
+msgctxt "#11012"
+msgid "Related artists"
+msgstr "Ähnliche Künstler"
+
+msgctxt "#11013"
+msgid "My Music"
+msgstr "Meine Musik"
+
+msgctxt "#11014"
+msgid "Explore"
+msgstr "Entdecken"
+
+msgctxt "#11015"
+msgid "Featured playlists"
+msgstr "Empfohlene Wiedergabelisten"
+
+msgctxt "#11016"
+msgid "New releases"
+msgstr "Neuerscheinungen"
+
+msgctxt "#11017"
+msgid "Remove from playlist"
+msgstr "Aus Playlist entfernen"
+
+msgctxt "#11018"
+msgid "All albums for artist"
+msgstr "Alle Alben des Künstlers"
+
+msgctxt "#11019"
+msgid "Login error"
+msgstr "Anmeldefehler"
+
+msgctxt "#11021"
+msgid "You need a premium Spotify account to use this app"
+msgstr "Um diese App zu benutzen benötigst du ein Spotify Premium Konto"
+
+msgctxt "#11022"
+msgid "Recommendations"
+msgstr "Empfehlungen"
+
+msgctxt "#11023"
+msgid "Most played artists"
+msgstr "Meistgespielte Künstler"
+
+msgctxt "#11024"
+msgid "Most played tracks"
+msgstr "Meistgespielte Lieder"
+
+msgctxt "#11025"
+msgid "Follow artist"
+msgstr "Künstler folgen"
+
+msgctxt "#11026"
+msgid "Unfollow artist"
+msgstr "Künstler nicht mehr folgen"
+
+msgctxt "#11027"
+msgid "Refresh listing"
+msgstr "Eintrag aktualisieren"
+
+msgctxt "#11028"
+msgid "Login details"
+msgstr "Anmeldedetails"
+
+msgctxt "#11029"
+msgid "Other settings"
+msgstr "Weitere Einstellungen"
+
+msgctxt "#11030"
+msgid "Append artist name to song title"
+msgstr "Künstlername an Songtitel anhängen"
+
+msgctxt "#11031"
+msgid "Default view for playlists"
+msgstr "Standardansicht für Wiedergabeliste"
+
+msgctxt "#11032"
+msgid "Default view for artist list"
+msgstr "Standardansicht für Künstlerliste"
+
+msgctxt "#11033"
+msgid "Default view for album list"
+msgstr "Standardansicht für Albenliste"
+
+msgctxt "#11034"
+msgid "Default view for song list"
+msgstr "Standardansicht für Songliste"
+
+msgctxt "#11035"
+msgid "Play song radio"
+msgstr "Song Radio abspielen"
+
+msgctxt "#11036"
+msgid "Enable this device as Spotify Connect target (experimental)"
+msgstr "Aktiviere dieses Gerät als Spotify Connect Ziel (experimental)"
+
+msgctxt "#11037"
+msgid "Local playback on this device"
+msgstr "Lokale Wiedergabe auf diesem Gerät"
+
+msgctxt "#11039"
+msgid "Playback device"
+msgstr "Wiedergabegerät"
+
+msgctxt "#11040"
+msgid "Active"
+msgstr "Aktiv"
+
+msgctxt "#11041"
+msgid "Enable support for multiple accounts"
+msgstr "Aktiviere Unterstützung für mehrere Konten"
+
+msgctxt "#11042"
+msgid "Username 1"
+msgstr "Nutzername 1"
+
+msgctxt "#11043"
+msgid "Username 2"
+msgstr "Nutzername 2"
+
+msgctxt "#11044"
+msgid "Username 3"
+msgstr "Nutzername 3"
+
+msgctxt "#11045"
+msgid "Username 4"
+msgstr "Nutzername 4"
+
+msgctxt "#11046"
+msgid "Username 5"
+msgstr "Nutzername 5"
+
+msgctxt "#11047"
+msgid "Current user"
+msgstr "Aktueller Benutzer"
+
+msgctxt "#11048"
+msgid "Select user"
+msgstr "Wähle Nutzer"
+
+msgctxt "#11049"
+msgid "The default browser should now be opened,\nfollow the directions to authorize this app on Spotify"
+msgstr "Der Standardbrowser wird sich nun öffnen, \n folge den Anweisungen um diese App in Verbindung mit Spotify zu autorisieren"
+
+msgctxt "#11050"
+msgid "No credentials have been set or the login failed.\nPlease enter your credentials in the next settings dialog."
+msgstr "Keine Anmeldedaten vorhanden oder Anmeldung fehlgeschlagen. \n Bitte gebe deine Anmeldedaten im folgenden Einstellungsdialog ein."
+
+msgctxt "#11051"
+msgid "Enable audio cache"
+msgstr "Audio Cache aktivieren"
+
+msgctxt "#11052"
+msgid "Location to store the audio cache"
+msgstr "Audio Cache Speicherort"
+
+msgctxt "#11053"
+msgid "Audio device to use"
+msgstr "Zu verwendendes Audiogerät"
+
+msgctxt "#11054"
+msgid "Audio"
+msgstr "Audio"
+
+msgctxt "#11055"
+msgid "Views"
+msgstr "Ansichten"
+
+msgctxt "#11056"
+msgid "Directly output to default soundcard"
+msgstr "Direkte Ausgabe an die Standard-Soundkarte"
+
+msgctxt "#11057"
+msgid "Use Kodi player as output device"
+msgstr "Kodi Player als Ausgabe benutzen"
+
+msgctxt "#11058"
+msgid "Manual specify soundcard (advanced)"
+msgstr "Manuell Soundkarte spezifizieren (fortgeschritten)"
+
+msgctxt "#11059"
+msgid "Changes on this page require a restart of Kodi"
+msgstr "Änderungen auf dieser Seite erfordern einen Neustart von Kodi"
+
+msgctxt "#11060"
+msgid "Local playback - using remote machine"
+msgstr "Lokale Wiedergabe - nutze entferntes Gerät"
+
+msgctxt "#11061"
+msgid "This will allow you to enable local, direct playback from Spotify tracks in Kodi on unsupported platforms (e.g. Android) by using the remote service on another host. Make sure that you have the Spotify addon installed on another Kodi machine in your network that does support local playback. In the next dialog, please select the remote machine's hostname or ip-address."
+msgstr "Ermöglicht die lokale und die direkte Wiedergabe von Spotify Liedern in Kodi auf nicht unterstützten Plattformen (z.B. Android) über den Remote Service auf einem anderen Host. Stelle sicher, dass das Spotify Addon auf einem Gerät mit Kodi in deinem Netzwerk installiert ist, das lokale Wiedergabe unterstützt. Wähle im nächsten Dialog den Hostnamen oder die IP-Adresse des entfernen Geräts aus."
+
+msgctxt "#11062"
+msgid "Hostname or IP"
+msgstr "Hostname oder IP-Adresse"
+
+msgctxt "#11063"
+msgid "Local playback using remote host %s"
+msgstr "Lokale Wiedergabe mit entfernten Host %s"
+
+msgctxt "#11064"
+msgid "Use Kodi OSD for playback on (remote) Spotify Connect device"
+msgstr "Benutze Kodi OSD für Wiedergabe auf (entferntem) Spotify Connect Gerät"
