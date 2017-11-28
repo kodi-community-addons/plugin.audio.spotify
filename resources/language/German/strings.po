@@ -262,7 +262,7 @@ msgstr "Hostname oder IP-Adresse"
 
 msgctxt "#11063"
 msgid "Local playback using remote host %s"
-msgstr "Lokale Wiedergabe mit entfernten Host %s"
+msgstr "Lokale Wiedergabe mit entferntem Host %s"
 
 msgctxt "#11064"
 msgid "Use Kodi OSD for playback on (remote) Spotify Connect device"
