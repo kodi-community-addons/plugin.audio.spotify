@@ -79,17 +79,13 @@ class Root:
         spotty_bin = None
         try:
             # Initialize some loop vars
-            max_buffer_size = 204800
-            output_buffer = StringIO()
+            max_buffer_size = 524288
             bytes_written = 0
-            has_frames = True
 
             # Write wave header
-            output_buffer.write(wave_header)
-            bytes_written = output_buffer.tell()
+            bytes_written = len(wave_header)
             if not range_l:
                 yield wave_header
-            output_buffer.truncate(0)
 
             # get pcm data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
@@ -101,24 +97,14 @@ class Root:
 
             # Loop as long as there's something to output
             frame = spotty_bin.stdout.read(max_buffer_size)
-            while has_frames:
+            while frame:
                 if cherrypy.response.timed_out:
                     log_msg("response timeout !", xbmc.LOGDEBUG)
                     break
-                try:
-                    if not frame or len(frame) < max_buffer_size:
-                        has_frames = False
-                    output_buffer.write(frame)
-                    bytes_written += len(frame)
-                    frame = spotty_bin.stdout.read(max_buffer_size)
-                except Exception as exc:
-                    log_exception(__name__, exc)
-                    has_frames = False
-                finally:
-                    # Check if the current buffer needs to be flushed
-                    if not has_frames or output_buffer.tell() > max_buffer_size:
-                        yield output_buffer.getvalue()
-                        output_buffer.truncate(0)
+                bytes_written += len(frame)
+                yield frame
+                frame = spotty_bin.stdout.read(max_buffer_size)
+
             # Add some silence padding until the end is reached (if needed)
             while bytes_written < filesize:
                 if bytes_written + max_buffer_size < filesize:
@@ -128,10 +114,9 @@ class Root:
                 else:
                     # Does not fit, just generate the remaining bytes
                     yield '\0' * (filesize - bytes_written)
-                    memory_buffer.write(frame)
                     bytes_written = filesize
         except Exception as exc:
-            log_msg(__name__, exc)
+            log_exception(__name__, exc)
         finally:
             # make sure spotty always gets terminated
             if spotty_bin:

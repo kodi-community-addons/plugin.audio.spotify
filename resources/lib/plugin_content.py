@@ -149,7 +149,11 @@ class PluginContent():
             if not username:
                 break
             else:
-                display_name = self.sp.user(username)["display_name"]
+                display_name = ""
+                try:
+                    display_name = self.sp.user(username)["display_name"]
+                except Exception:
+                    pass
                 if not display_name:
                     display_name = username
                 usernames.append(display_name)
