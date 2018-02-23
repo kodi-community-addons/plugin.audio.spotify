@@ -171,21 +171,22 @@ class ProxyRunner(threading.Thread):
 
     def __init__(self, spotty):
         self.__root = Root(spotty)
-        log = cherrypy.log
-        log.access_file = ''
-        log.error_file = ''
-        log.screen = False
         cherrypy.config.update({
-            'server.socket_host': '0.0.0.0',
-            'server.socket_port': PROXY_PORT,
             'engine.timeout_monitor.frequency': 5,
-            'server.shutdown_timeout': 1
+            'server.shutdown_timeout': 1,
+            'engine.autoreload.on' : False,
+            'log.screen': False,
         })
         self.__server = cherrypy.server.httpserver = CPHTTPServer(cherrypy.server)
         threading.Thread.__init__(self)
 
     def run(self):
-        conf = { '/': {}}
+        conf = {
+            'global': {
+                'server.socket_host': '0.0.0.0',
+                'server.socket_port': PROXY_PORT
+            }, '/': {}
+        }
         cherrypy.quickstart(self.__root, '/', conf)
 
     def get_port(self):
@@ -196,6 +197,6 @@ class ProxyRunner(threading.Thread):
 
     def stop(self):
         cherrypy.engine.exit()
-        self.join(1)
+        self.join(0)
         del self.__root
         del self.__server
