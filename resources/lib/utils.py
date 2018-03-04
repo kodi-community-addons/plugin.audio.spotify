@@ -472,6 +472,7 @@ class Spotty(object):
                 paths = []
                 paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty-muslhf"))
                 paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty-hf"))
+                paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty"))
                 paths.append(os.path.join(os.path.dirname(__file__), "spotty", "x86-linux", "spotty"))
                 for binary_path in paths:
                     if self.test_spotty(binary_path):
