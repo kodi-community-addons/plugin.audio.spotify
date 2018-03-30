@@ -79,7 +79,10 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
         if self.is_playing:
             self.is_playing = False
             self.getControl(3202).setEnabled(False)
-            self.sp.pause_playback()
+            try:
+                self.sp.pause_playback()
+            except Exception:
+                pass
         else:
             self.is_playing = True
             self.getControl(3202).setEnabled(True)

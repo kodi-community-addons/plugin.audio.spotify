@@ -117,7 +117,7 @@ def get_token(spotty):
                 token_info = request_token_spotty(spotty, use_creds=True)
         else:
             # request new token with web flow
-            token_info = request_token_web(spotty.username)
+            token_info = request_token_web()
     except Exception as exc:
         log_exception("utils.get_token", exc)
         token_info = None
@@ -159,17 +159,18 @@ def request_token_spotty(spotty, use_creds=True):
     return token_info
 
 
-def request_token_web(username):
+def request_token_web(force=False):
     '''request the (initial) auth token by webbrowser'''
+    import spotipy
     from spotipy import oauth2
-    cache_path = u"special://profile/addon_data/%s/%s.cache" % (ADDON_ID, normalize_string(username))
+    cache_path = "special://profile/addon_data/%s/spotipy.cache" % ADDON_ID
     cache_path = xbmc.translatePath(cache_path).decode("utf-8")
     scope = " ".join(SCOPE)
     redirect_url = 'http://localhost:%s/callback' % PROXY_PORT
     sp_oauth = oauth2.SpotifyOAuth(CLIENTID, CLIENT_SECRET, redirect_url, scope=scope, cache_path=cache_path)
     # get token from cache
     token_info = sp_oauth.get_cached_token()
-    if not token_info:
+    if not token_info or force:
         # request token by using the webbrowser
         p = None
         auth_url = sp_oauth.get_authorize_url()
@@ -205,6 +206,10 @@ def request_token_web(username):
             token_info = sp_oauth.get_access_token(response)
         xbmc.sleep(2000)  # allow enough time for the webbrowser to stop
     log_msg("Token from web: %s" % token_info, xbmc.LOGDEBUG)
+    sp = spotipy.Spotify(token_info['access_token'])
+    username = sp.me()["id"]
+    del sp
+    addon_setting("username", username)
     return token_info
 
 

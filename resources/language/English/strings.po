@@ -275,3 +275,11 @@ msgstr ""
 msgctxt "#11065"
 msgid "Please connect to this device with the Spotify app on your phone to login or enter your credentials in the settings dialog."
 msgstr ""
+
+msgctxt "#11066"
+msgid "Logoff ?"
+msgstr ""
+
+msgctxt "#11067"
+msgid "Are you sure you want to logoff ?"
+msgstr ""
