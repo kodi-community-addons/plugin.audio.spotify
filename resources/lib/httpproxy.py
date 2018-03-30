@@ -35,6 +35,32 @@ class Root:
             raise cherrypy.HTTPError(403)
         return method
 
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def lms(self, filename, **kwargs):
+        ''' fake lms hook to retrieve events form spotty daemon'''
+        method = cherrypy.request.method.upper()
+        if method != "POST" or filename != "jsonrpc.js":
+            raise cherrypy.HTTPError(405)
+        input_json = cherrypy.request.json
+        if input_json and input_json.get("params"):
+            event = input_json["params"][1]
+            log_msg("lms event hook called. Event: %s" % event)
+            # check username, it might have changed
+            self.__spotty.get_username()
+            if "start" in event:
+                log_msg("playback start requested by connect")
+                xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.spotify/?action=play_connect)")
+            elif "change" in event:
+                log_msg("playback change requested by connect")
+                #xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.spotify/?action=play_connect)")
+            elif "stop" in event:
+                log_msg("playback stop requested by connect")
+                xbmc.executebuiltin("PlayerControl(Stop)")
+        return {"operation": "request", "result": "success"}
+
     @cherrypy.expose
     def track(self, track_id, duration, **kwargs):
         # Check sanity of the request
@@ -171,22 +197,21 @@ class ProxyRunner(threading.Thread):
 
     def __init__(self, spotty):
         self.__root = Root(spotty)
+        log = cherrypy.log
+        log.access_file = ''
+        log.error_file = ''
+        log.screen = False
         cherrypy.config.update({
+            'server.socket_host': '0.0.0.0',
+            'server.socket_port': PROXY_PORT,
             'engine.timeout_monitor.frequency': 5,
-            'server.shutdown_timeout': 1,
-            'engine.autoreload.on' : False,
-            'log.screen': False,
+            'server.shutdown_timeout': 1
         })
         self.__server = cherrypy.server.httpserver = CPHTTPServer(cherrypy.server)
         threading.Thread.__init__(self)
 
     def run(self):
-        conf = {
-            'global': {
-                'server.socket_host': '0.0.0.0',
-                'server.socket_port': PROXY_PORT
-            }, '/': {}
-        }
+        conf = { '/': {}}
         cherrypy.quickstart(self.__root, '/', conf)
 
     def get_port(self):

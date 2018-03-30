@@ -12,6 +12,7 @@ import sys
 import xbmcaddon
 import xbmcplugin
 import xbmcgui
+import xbmcvfs
 from simplecache import SimpleCache
 
 
@@ -67,10 +68,14 @@ class PluginContent():
         if not auth_token:
             dialog = xbmcgui.Dialog()
             header = self.addon.getAddonInfo("name")
-            msg = self.addon.getLocalizedString(11050)
+            if self.win.getProperty("spotify.supportsplayback"):
+                msg = self.addon.getLocalizedString(11065)
+            else:
+                msg = self.addon.getLocalizedString(11050)
             dialog.ok(header, msg)
             del dialog
-            xbmc.executebuiltin("Addon.OpenSettings(%s)" % ADDON_ID)
+            if not self.win.getProperty("spotify.supportsplayback"):
+                xbmc.executebuiltin("Addon.OpenSettings(%s)" % ADDON_ID)
         return auth_token
 
     def parse_params(self):
@@ -139,7 +144,44 @@ class PluginContent():
         self.addon.setSetting("cache_checksum", time.strftime("%Y%m%d%H%M%S", time.gmtime()))
         xbmc.executebuiltin("Container.Refresh")
 
+
     def switch_user(self):
+        '''switch or logout user'''
+        if self.addon.getSetting("multi_account") == "true":
+            return self.switch_user_multi()
+        else:
+            return self.switch_user_single()
+
+    def switch_user_single(self):
+        '''switch or logout user'''
+        username_config = self.addon.getSetting("username").decode("utf-8")
+        password_config = self.addon.getSetting("password").decode("utf-8")
+        username_connect = self.addon.getSetting("connect_username").decode("utf-8")
+        if username_config and password_config and username_connect and username_config != username_connect:
+            usernames = [username_config, username_connect]
+            dialog = xbmcgui.Dialog()
+            ret = dialog.select(self.addon.getLocalizedString(11048), usernames)
+            del dialog
+            if ret != -1:
+                new_user = usernames[ret]
+                log_msg("new user selected: %s" % new_user)
+                if new_user != username_connect:
+                    self.addon.setSetting("connect_username", "")
+                    xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
+        else:
+            dialog = xbmcgui.Dialog()
+            if dialog.yesno("Logout ?", "Do you want to logout ?"):
+                self.win.clearProperty("spotify-token")
+                if username_connect:
+                    self.addon.setSetting("connect_username", "__LOGOUT__")
+                    xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
+                else:
+                    self.addon.setSetting("username", "")
+                    self.addon.setSetting("password", "")
+            xbmc.executebuiltin("Container.Refresh")
+            del dialog
+
+    def switch_user_multi(self):
         '''switch the currently logged in user'''
         usernames = []
         count = 1
@@ -166,6 +208,9 @@ class PluginContent():
             new_pass = self.addon.getSetting("password%s" % ret)
             self.addon.setSetting("username", new_user)
             self.addon.setSetting("password", new_pass)
+            self.addon.setSetting("connect_username", "")
+            xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
+
 
     def next_track(self):
         '''special entry which tells the remote connect player to move to the next track'''
@@ -181,16 +226,26 @@ class PluginContent():
     def play_connect(self):
         '''start local connect playback - called from webservice when local connect player starts playback'''
         playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-        cur_playback = self.sp.current_playback()
-        trackdetails = cur_playback["item"]
-        url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
-        playlist.clear()
-        playlist.add(url, li)
-        playlist.add("http://localhost:%s/nexttrack" % PROXY_PORT)
-        player = xbmc.Player()
-        player.play(playlist)
-        del playlist
-        del player
+        trackdetails = None
+        count = 0
+        while not trackdetails and count < 10:
+            try:
+                cur_playback = self.sp.current_playback()
+                trackdetails = cur_playback["item"]
+            except:
+                count += 1
+                xbmc.sleep(500)
+        if not trackdetails:
+            log_msg("Could not retrieve trackdetails from api, connect playback aborted", xbmc.LOGERROR)
+        else:
+            url, li = parse_spotify_track(trackdetails, silenced=False, is_connect=True)
+            playlist.clear()
+            playlist.add(url, li)
+            playlist.add("http://localhost:%s/nexttrack" % PROXY_PORT)
+            player = xbmc.Player()
+            player.play(playlist)
+            del playlist
+            del player
 
     def connect_playback(self):
         '''when local playback is not available we can use the connect endpoint to control another app/device'''
@@ -278,15 +333,14 @@ class PluginContent():
             ("%s: %s" % (self.addon.getLocalizedString(11039), self.playername),
              "plugin://plugin.audio.spotify/?action=browse_playback_devices",
              "DefaultMusicPlugins.png", True))
-        if self.addon.getSetting("multi_account") == "true":
-            cur_user_label = self.sp.me()["display_name"]
-            if not cur_user_label:
-                cur_user_label = self.sp.me()["id"]
-            label = "%s: %s" % (self.addon.getLocalizedString(11047), cur_user_label)
-            items.append(
-                (label,
-                 "plugin://plugin.audio.spotify/?action=switch_user",
-                 "DefaultActor.png", False))
+        cur_user_label = self.sp.me()["display_name"]
+        if not cur_user_label:
+            cur_user_label = self.sp.me()["id"]
+        label = "%s: %s" % (self.addon.getLocalizedString(11047), cur_user_label)
+        items.append(
+            (label,
+             "plugin://plugin.audio.spotify/?action=switch_user",
+             "DefaultActor.png", False))
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],

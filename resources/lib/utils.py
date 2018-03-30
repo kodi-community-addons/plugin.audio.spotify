@@ -74,7 +74,7 @@ def log_msg(msg, loglevel=xbmc.LOGDEBUG):
     '''log message to kodi log'''
     if isinstance(msg, unicode):
         msg = msg.encode('utf-8')
-    if DEBUG and loglevel == xbmc.LOGDEBUG:
+    if DEBUG:
         loglevel = xbmc.LOGNOTICE
     xbmc.log("%s --> %s" % (ADDON_ID, msg), level=loglevel)
 
@@ -83,6 +83,15 @@ def log_exception(modulename, exceptiondetails):
     '''helper to properly log an exception'''
     log_msg(format_exc(sys.exc_info()), xbmc.LOGDEBUG)
     log_msg("Exception in %s ! --> %s" % (modulename, exceptiondetails), xbmc.LOGWARNING)
+
+
+def addon_setting(settingname, set_value=None):
+    '''get/set addon setting'''
+    addon = xbmcaddon.Addon(id=ADDON_ID)
+    if set_value:
+        addon.setSetting(settingname, set_value)
+    else:
+        return addon.getSetting(settingname).decode("utf-8")
 
 
 def kill_spotty():
@@ -101,7 +110,11 @@ def get_token(spotty):
     try:
         if spotty.playback_supported:
             # try to get a token with spotty
-            token_info = request_token_spotty(spotty)
+            token_info = request_token_spotty(spotty, use_creds=False)
+            if token_info:
+                spotty.get_username() # save current username in cached spotty creds
+            if not token_info:
+                token_info = request_token_spotty(spotty, use_creds=True)
         else:
             # request new token with web flow
             token_info = request_token_web(spotty.username)
@@ -115,16 +128,18 @@ def get_token(spotty):
     return token_info
 
 
-def request_token_spotty(spotty):
+def request_token_spotty(spotty, use_creds=True):
     '''request token by using the spotty binary'''
     token_info = None
     if spotty.playback_supported:
         try:
-            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", "temp"]
-            spotty = spotty.run_spotty(arguments=args)
+            temp_playername = "temp-%s" % xbmc.getInfoLabel("System.Time")
+            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", temp_playername]
+            spotty = spotty.run_spotty(arguments=args, use_creds=use_creds)
             stdout, stderr = spotty.communicate()
             result = None
             log_msg(stdout, xbmc.LOGDEBUG)
+            log_msg(stderr, xbmc.LOGDEBUG)
             for line in stdout.split():
                 line = line.strip()
                 if line.startswith("{\"accessToken\""):
@@ -358,7 +373,7 @@ def get_playername():
     playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
     if playername == "Kodi":
         import socket
-        playername = "Kodi (%s)" % socket.gethostname()
+        playername = "Kodi - %s" % socket.gethostname()
     return playername
 
 
@@ -368,26 +383,18 @@ class Spotty(object):
         this is done to prevent hitting a kodi issue where calling one of the infolabel methods
         at playback time causes a crash of the playback
     '''
-    username = None
-    password = None
     playback_supported = False
     playername = None
-    supports_discovery = True
+    enable_discovery = True
     __spotty_binary = None
     __cache_path = None
 
     def __init__(self):
         '''initialize with default values'''
-        addon = xbmcaddon.Addon(id=ADDON_ID)
-        self.username = addon.getSetting("username").decode("utf-8")
-        self.password = addon.getSetting("password").decode("utf-8")
-        if addon.getSetting("enable_cache").decode("utf-8") == "true":
-            cache_path = xbmc.translatePath(addon.getSetting("cache_path")).decode("utf-8")
-            if os.path.isdir(cache_path):
-                self.__cache_path = cache_path
-        del addon
+        self.__cache_path = xbmc.translatePath("special://profile/addon_data/%s/" % ADDON_ID).decode("utf-8")
         self.playername = get_playername()
         self.__spotty_binary = self.get_spotty_binary()
+
         if self.__spotty_binary and self.test_spotty(self.__spotty_binary):
             self.playback_supported = True
             xbmc.executebuiltin("SetProperty(spotify.supportsplayback, true, Home)")
@@ -425,25 +432,33 @@ class Spotty(object):
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None):
+    def run_spotty(self, arguments=None, use_creds=False):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
                 self.__spotty_binary,
-                "-u", self.username,
-                "-p", self.password,
-                "--disable-discovery"  # for now, disable dns discovery
+                "-c", self.__cache_path,
+                "-b", "320"
             ]
+            if use_creds:
+                # use username/password login for spotty
+                addon = xbmcaddon.Addon(id=ADDON_ID)
+                username = addon.getSetting("username").decode("utf-8")
+                password = addon.getSetting("password").decode("utf-8")
+                del addon
+                if username:
+                    args += ["-u", username, "-p", password]
+            if not self.enable_discovery:
+                args += ["--disable-discovery"]
             if arguments:
                 args += arguments
             if not "-n" in args:
                 args += ["-n", self.playername]
-            # if self.__cache_path:
-            #     args += ["-c", self.__cache_path, "--enable-audio-cache"]
             startupinfo = None
             if os.name == 'nt':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+            log_msg(args)
             return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, bufsize=0)
         except Exception as exc:
@@ -455,7 +470,6 @@ class Spotty(object):
         sp_binary = None
         if xbmc.getCondVisibility("System.Platform.Windows"):
             sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "windows", "spotty.exe")
-            self.supports_discovery = False  # The current MDNS implementation cannot be built on Windows
         elif xbmc.getCondVisibility("System.Platform.OSX"):
             # macos binary is x86_64 intel
             sp_binary = os.path.join(os.path.dirname(__file__), "spotty", "darwin", "spotty")
@@ -485,3 +499,15 @@ class Spotty(object):
         else:
             log_msg("Failed to detect architecture or platform not supported ! Local playback will not be available.")
         return sp_binary
+
+    def get_username(self):
+        ''' obtain/check (last) username of the credentials obtained by spotify connect'''
+        username = ""
+        cred_file = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
+        if xbmcvfs.exists(cred_file):
+            with open(cred_file) as cred_file:
+                data = cred_file.read()
+                data = eval(data)
+                username = data["username"]
+        addon_setting("connect_username", username)
+        return username

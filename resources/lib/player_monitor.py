@@ -15,6 +15,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
     connect_playing = False  # spotify connect is playing
     connect_local = False  # connect player is this device
     daemon_active = False
+    username = None
     __playlist = None
     __exit = False
     __is_paused = False
@@ -67,6 +68,8 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
             if not self.connect_playing and "connect=true" in filename:
                 # we started playback with (remote) connect player
                 log_msg("Playback started of Spotify Connect stream")
+                # check username of connect player
+                self.__spotty.get_username()
                 self.connect_playing = True
                 if "silence" in filename:
                     self.connect_local = False
@@ -95,7 +98,10 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
     def onPlayBackStopped(self):
         '''Kodi event fired when playback is stopped'''
         if self.connect_playing:
-            self.__sp.pause_playback()
+            try:
+                self.__sp.pause_playback()
+            except Exception:
+                pass
             log_msg("playback stopped")
         self.connect_playing = False
         self.connect_local = False
@@ -127,9 +133,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.daemon_active = True
         while not self.__exit:
             log_msg("Start Spotify Connect Daemon")
-            #spotty_args = ["-v"]
-            spotty_args = ["--onstart", "curl -s -f -m 2 http://localhost:%s/playercmd/start" % PROXY_PORT,
-                       "--onstop", "curl -s -f -m 2 http://localhost:%s/playercmd/stop" % PROXY_PORT]
+            spotty_args = ["--lms", "localhost:52308/lms", "--player-mac", "None"]
             self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args)
             thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__exit:
@@ -138,6 +142,7 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
                     log_msg(line, xbmc.LOGDEBUG)
                 if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
                     # daemon crashed ? restart ?
+                    log_msg("spotty crash?")
                     break
         self.daemon_active = False
         log_msg("Stopped Spotify Connect Daemon")

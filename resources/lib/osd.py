@@ -48,7 +48,10 @@ class SpotifyOSD(xbmcgui.WindowXMLDialog):
     def close_dialog(self):
         '''stop background thread and close the dialog'''
         self.update_thread.stop_running()
-        self.sp.pause_playback()
+        try:
+            self.sp.pause_playback()
+        except:
+            pass
         self.metadatautils.close()
         self.close()
 
