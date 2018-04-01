@@ -46,9 +46,8 @@ class PluginContent():
             if auth_token:
                 self.parse_params()
                 self.sp = spotipy.Spotify(auth=auth_token)
-                me = self.sp.me()
-                self.userid = me["id"]
-                self.usercountry = me["country"]
+                self.userid = self.win.getProperty("spotify-username").decode("utf-8")
+                self.usercountry = self.win.getProperty("spotify-country").decode("utf-8")
                 self.local_playback, self.playername, self.connect_id = self.active_playback_device()
                 if self.action:
                     action = "self." + self.action
@@ -64,7 +63,13 @@ class PluginContent():
 
     def get_authkey(self):
         '''get authentication key'''
-        auth_token = self.win.getProperty("spotify-token").decode("utf-8")
+        auth_token = None
+        count = 10
+        while not auth_token and count: # wait max 5 seconds for the token
+            auth_token = self.win.getProperty("spotify-token").decode("utf-8")
+            count -= 1
+            if not auth_token:
+                xbmc.sleep(500)
         if not auth_token:
             if self.win.getProperty("spotify.supportsplayback"):
                 msg = self.addon.getLocalizedString(11065)
@@ -74,10 +79,8 @@ class PluginContent():
                 del dialog
             else:
                 # login with browser
-                auth_token = request_token_web(force=True)
-                if auth_token:
-                    auth_token = auth_token['access_token']
-                    self.win.setProperty("spotify-token", auth_token)
+                request_token_web(force=True)
+                self.win.setProperty("spotify-cmd", "__LOGOUT__")
         return auth_token
 
     def parse_params(self):
@@ -149,52 +152,26 @@ class PluginContent():
 
     def switch_user(self):
         '''switch or logout user'''
-        if not self.win.getProperty("spotify.supportsplayback"):
-            return self.switch_user_web()
-        elif self.addon.getSetting("multi_account") == "true":
+        if self.addon.getSetting("multi_account") == "true":
             return self.switch_user_multi()
         else:
-            return self.switch_user_single()
+            return self.logoff_user()
 
-    def switch_user_web(self):
-        '''switch single user with web auth'''
+
+    def logoff_user(self):
+        ''' logoff user '''
         dialog = xbmcgui.Dialog()
         if dialog.yesno(self.addon.getLocalizedString(11066), self.addon.getLocalizedString(11067)):
-            self.win.clearProperty("spotify-token")
+            xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
             xbmcvfs.delete("special://profile/addon_data/%s/spotipy.cache" % ADDON_ID)
+            self.win.clearProperty("spotify-token")
+            self.win.clearProperty("spotify-username")
+            self.win.clearProperty("spotify-country")
             self.addon.setSetting("username", "")
             self.addon.setSetting("password", "")
+            self.win.setProperty("spotify-cmd", "__LOGOUT__")
             xbmc.executebuiltin("Container.Refresh")
         del dialog
-
-    def switch_user_single(self):
-        '''switch or logout user'''
-        username_config = self.addon.getSetting("username").decode("utf-8")
-        password_config = self.addon.getSetting("password").decode("utf-8")
-        username_connect = self.addon.getSetting("connect_username").decode("utf-8")
-        if username_config and password_config and username_connect and username_config != username_connect:
-            usernames = [username_config, username_connect]
-            dialog = xbmcgui.Dialog()
-            ret = dialog.select(self.addon.getLocalizedString(11048), usernames)
-            del dialog
-            if ret != -1:
-                new_user = usernames[ret]
-                log_msg("new user selected: %s" % new_user)
-                if new_user != username_connect:
-                    self.addon.setSetting("connect_username", "")
-                    xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
-        else:
-            dialog = xbmcgui.Dialog()
-            if dialog.yesno(self.addon.getLocalizedString(11066), self.addon.getLocalizedString(11067)):
-                self.win.clearProperty("spotify-token")
-                if username_connect:
-                    self.addon.setSetting("connect_username", "__LOGOUT__")
-                    xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
-                else:
-                    self.addon.setSetting("username", "")
-                    self.addon.setSetting("password", "")
-            xbmc.executebuiltin("Container.Refresh")
-            del dialog
 
     def switch_user_multi(self):
         '''switch the currently logged in user'''
@@ -223,8 +200,12 @@ class PluginContent():
             new_pass = self.addon.getSetting("password%s" % ret)
             self.addon.setSetting("username", new_user)
             self.addon.setSetting("password", new_pass)
-            self.addon.setSetting("connect_username", "")
             xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
+            self.win.setProperty("spotify-cmd", "__LOGOUT__")
+            self.win.clearProperty("spotify-token")
+            self.win.clearProperty("spotify-username")
+            self.win.clearProperty("spotify-country")
+            xbmc.executebuiltin("Container.Refresh")
 
 
     def next_track(self):

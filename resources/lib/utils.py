@@ -60,8 +60,8 @@ SCOPE = [
     "user-read-email",
     "user-read-birthdate",
     "user-top-read"]
-CLIENTID = '4940f5cc79b149af9f71d5ef9319eff0'
-CLIENT_SECRET = '779F4D60BD3B42E29984ADF423F19688'
+CLIENTID = '2eb96f9b37494be1824999d58028a305'
+CLIENT_SECRET = '038ec3b4555f46eab1169134985b9013'
 
 
 try:
@@ -162,7 +162,6 @@ def request_token_spotty(spotty, use_creds=True):
                 token_info["scope"] = ' '.join(result["scope"])
                 token_info['expires_at'] = int(time.time()) + token_info['expires_in']
                 token_info['refresh_token'] = result["accessToken"]
-                log_msg("Token from spotty: %s" % token_info, xbmc.LOGDEBUG)
         except Exception as exc:
             log_exception(__name__, exc)
     return token_info
@@ -172,6 +171,7 @@ def request_token_web(force=False):
     '''request the (initial) auth token by webbrowser'''
     import spotipy
     from spotipy import oauth2
+    xbmcvfs.mkdir("special://profile/addon_data/%s/" % ADDON_ID)
     cache_path = "special://profile/addon_data/%s/spotipy.cache" % ADDON_ID
     cache_path = xbmc.translatePath(cache_path).decode("utf-8")
     scope = " ".join(SCOPE)

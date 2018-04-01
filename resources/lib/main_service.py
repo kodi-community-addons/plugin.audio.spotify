@@ -34,10 +34,12 @@ class MainService:
     connect_player = None
     webservice = None
     spotty = None
-    token_info = None
+    current_user = None
+    auth_token = None
 
     def __init__(self):
         self.addon = xbmcaddon.Addon(id=ADDON_ID)
+        self.win = xbmcgui.Window(10000)
         self.kodimonitor = xbmc.Monitor()
         self.spotty = Spotty()
 
@@ -45,7 +47,7 @@ class MainService:
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
         self.sp = spotipy.Spotify()
-        self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty)
+        self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty, callback=self.check_user)
 
         self.proxy_runner = ProxyRunner(self.spotty)
         self.proxy_runner.start()
@@ -67,27 +69,21 @@ class MainService:
         loop_timer = 5
         while not self.kodimonitor.waitForAbort(loop_timer):
             # monitor logged in user
-            current_user = self.current_user()
-            username_config = self.addon.getSetting("username").decode("utf-8")
-            username_connect = self.addon.getSetting("connect_username").decode("utf-8")
-            if username_connect == "__LOGOUT__":
-                self.addon.setSetting("connect_username", "")
+            cmd = self.win.getProperty("spotify-cmd").decode("utf-8")
+            if cmd == "__LOGOUT__":
+                log_msg("logout cmd received")
+                self.win.clearProperty("spotify-cmd")
+                self.current_user = None
+                self.auth_token = None
                 self.switch_user(True)
-            if username_connect and username_connect != current_user:
-                log_msg("username changed in connect player !")
-                self.addon.setSetting("playback_device", "connect")
-                self.switch_user()
-            elif not username_connect and username_config and username_config != current_user:
-                log_msg("username and/or password changed in config !")
-                xbmcvfs.delete("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
-                self.switch_user(True)
-            # monitor auth token expiration
-            elif not self.token_info:
+            elif not self.auth_token:
                 # we do not yet have a token
+                log_msg("retrieving token...")
                 if self.renew_token():
                     xbmc.executebuiltin("Container.Refresh")
-            elif self.token_info and self.token_info['expires_at'] - 60 <= (int(time.time())):
+            elif self.auth_token and self.auth_token['expires_at'] - 60 <= (int(time.time())):
                 # token needs refreshing !
+                log_msg("token needs to be refreshed")
                 self.renew_token()
             elif self.connect_player.connect_playing:
                 # monitor fake connect OSD for remote track changes
@@ -120,55 +116,57 @@ class MainService:
         del self.connect_player
         del self.addon
         del self.kodimonitor
+        del self.win
         log_msg('stopped', xbmc.LOGNOTICE)
 
-    def get_auth_token(self):
-        '''check for valid credentials and grab token'''
-        auth_token = None
-        username = self.addon.getSetting("username").decode("utf-8")
-        if not username:
-            username = self.spotty.get_username()
-        if username:
-            auth_token = get_token(self.spotty)
-        if auth_token:
-            log_msg("Retrieved auth token")
-            # store authtoken as window prop for easy access by plugin entry
-            xbmc.executebuiltin("SetProperty(spotify-token, %s, Home)" % auth_token['access_token'])
-        return auth_token
+    def check_user(self):
+        ''' check if the spotify connect still matches '''
+        log_msg("checking user account for connect player")
+        username = self.spotty.get_username()
+        if username and username != self.current_user:
+            log_msg("username does not match! need token refresh")
+            self.switch_user()
+
 
     def switch_user(self, restart_daemon=False):
         '''called whenever we switch to a different user/credentials'''
         log_msg("login credentials changed")
         if self.renew_token():
             xbmc.executebuiltin("Container.Refresh")
-            me = self.sp.me()
-            log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
         # restart daemon
         if self.connect_player.daemon_active and (not self.spotty.enable_discovery or restart_daemon):
-            self.connect_player.stop_thread()
+            self.connect_player.close()
             audio_device = self.addon.getSetting("audio_device") == "true"
-            self.connect_player = ConnectPlayer(sp=self.sp, audio_device=audio_device, spotty=self.spotty)
+            self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty, callback=self.check_user)
             self.connect_player.start()
 
 
-    def current_user(self):
-        ''' current user logged in to spotify'''
-        username = ""
-        try:
-            me = self.sp.me()
-            username = me["id"]
-        except:
-            pass
-        return username
-
-
     def renew_token(self):
-        '''refresh the token'''
-        self.token_info = self.get_auth_token()
-        if self.token_info:
+        '''refresh/retrieve the token'''
+        username = self.spotty.get_username()
+        auth_token = None
+        if not username:
+            username = self.addon.getSetting("username").decode("utf-8")
+            if not username and self.addon.getSetting("multi_account") == "true":
+                username1 = self.addon.getSetting("username1").decode("utf-8")
+                password1 = self.addon.getSetting("password1").decode("utf-8")
+                if username1 and password1:
+                    self.addon.setSetting("username", username1)
+                    self.addon.setSetting("password", password1)
+                    username = username1
+        if username:
+            auth_token = get_token(self.spotty)
+        if auth_token:
+            log_msg("Retrieved auth token")
+            self.auth_token = auth_token
             # only update token info in spotipy object
-            self.sp._auth = self.token_info['access_token']
+            self.sp._auth = auth_token["access_token"]
             me = self.sp.me()
-            log_msg("Logged in to Spotify - Username: %s" % me["id"], xbmc.LOGNOTICE)
+            self.current_user = me["id"]
+            log_msg("Logged in to Spotify - Username: %s" % self.current_user, xbmc.LOGNOTICE)
+            # store authtoken and username as window prop for easy access by plugin entry
+            self.win.setProperty("spotify-token", auth_token["access_token"])
+            self.win.setProperty("spotify-username", self.current_user)
+            self.win.setProperty("spotify-country", me["country"])
             return True
         return False
