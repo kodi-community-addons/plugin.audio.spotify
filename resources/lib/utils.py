@@ -23,6 +23,7 @@ import struct
 import random
 import time
 import math
+from threading import Thread, Event
 
 
 PROXY_PORT = 52308
@@ -104,6 +105,11 @@ def kill_spotty():
         os.system("killall spotty")
 
 
+def kill_on_timeout(done, timeout, proc):
+    if not done.wait(timeout):
+        proc.kill()
+
+
 def get_token(spotty):
     # get authentication token for api - prefer cached version
     token_info = None
@@ -133,13 +139,16 @@ def request_token_spotty(spotty, use_creds=True):
     token_info = None
     if spotty.playback_supported:
         try:
-            temp_playername = "temp-%s" % xbmc.getInfoLabel("System.Time")
-            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", temp_playername]
+            args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", "temp-spotty"]
+            done = Event()
             spotty = spotty.run_spotty(arguments=args, use_creds=use_creds)
+            watcher = Thread(target=kill_on_timeout, args=(done, 5, spotty))
+            watcher.daemon = True
+            watcher.start()
             stdout, stderr = spotty.communicate()
+            done.set()
             result = None
-            log_msg(stdout, xbmc.LOGDEBUG)
-            log_msg(stderr, xbmc.LOGDEBUG)
+            log_msg("request_token_spotty stdout: %s" % stdout)
             for line in stdout.split():
                 line = line.strip()
                 if line.startswith("{\"accessToken\""):
@@ -463,9 +472,8 @@ class Spotty(object):
             if os.name == 'nt':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-            log_msg(args)
             return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE, bufsize=0)
+                                    stderr=None, bufsize=8192)
         except Exception as exc:
             log_exception(__name__, exc)
         return None

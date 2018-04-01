@@ -135,11 +135,9 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
             log_msg("Start Spotify Connect Daemon")
             spotty_args = ["--lms", "localhost:52308/lms", "--player-mac", "None"]
             self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args)
-            thread.start_new_thread(self.fill_fake_buffer, ())
+            #thread.start_new_thread(self.fill_fake_buffer, ())
             while not self.__exit:
-                line = self.__spotty_proc.stderr.readline().strip()
-                if line:
-                    log_msg(line, xbmc.LOGDEBUG)
+                self.__spotty_proc.stdout.readline()
                 if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
                     # daemon crashed ? restart ?
                     log_msg("spotty crash?")
@@ -147,14 +145,14 @@ class ConnectPlayer(threading.Thread, xbmc.Player):
         self.daemon_active = False
         log_msg("Stopped Spotify Connect Daemon")
 
-    def fill_fake_buffer(self):
-        '''emulate playback by just slowly reading the stdout'''
-        # We could pick up this data in a buffer but it is almost impossible to keep it all in sync.
-        # So instead we ignore the audio from the connect daemon completely and we
-        # just launch a standalone instance to play the track
-        while not self.__exit:
-            line = self.__spotty_proc.stdout.readline()
-            xbmc.sleep(1)
+    # def fill_fake_buffer(self):
+    #     '''emulate playback by just slowly reading the stdout'''
+    #     # We could pick up this data in a buffer but it is almost impossible to keep it all in sync.
+    #     # So instead we ignore the audio from the connect daemon completely and we
+    #     # just launch a standalone instance to play the track
+    #     while not self.__exit:
+    #         line = self.__spotty_proc.stdout.readline()
+    #         xbmc.sleep(1)
 
     def stop_thread(self):
         self.__exit = True
