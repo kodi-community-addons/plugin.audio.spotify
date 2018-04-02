@@ -72,7 +72,10 @@ class PluginContent():
                 xbmc.sleep(500)
         if not auth_token:
             if self.win.getProperty("spotify.supportsplayback"):
-                msg = self.addon.getLocalizedString(11065)
+                if self.win.getProperty("spotify-discovery") == "disabled":
+                    msg = self.addon.getLocalizedString(11050)
+                else:
+                    msg = self.addon.getLocalizedString(11065)
                 dialog = xbmcgui.Dialog()
                 header = self.addon.getAddonInfo("name")
                 dialog.ok(header, msg)

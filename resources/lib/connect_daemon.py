@@ -6,6 +6,7 @@ from utils import log_msg, log_exception
 import xbmc
 import threading
 import thread
+import xbmcvfs
 
 
 class ConnectDaemon(threading.Thread):
@@ -32,15 +33,19 @@ class ConnectDaemon(threading.Thread):
         self.__exit = False
         self.daemon_active = True
         spotty_args = ["--lms", "localhost:52308/lms", "--player-mac", "None"]
-        self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=False)
+        disable_discovery = False
+        if xbmcvfs.exists("/run/libreelec/"):
+            disable_discovery = True # avahi on libreelec conflicts with the mdns implementation of librespot
+            xbmc.executebuiltin("SetProperty(spotify-discovery,disabled,Home)")
+        self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery)
 
         while not self.__exit:
             line = self.__spotty_proc.stdout.readline()
+            if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
+                # daemon crashed ? restart ?
+                log_msg("spotty stopped!")
+                break
             xbmc.sleep(100)
-
-        if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
-            # daemon crashed ? restart ?
-            log_msg("spotty crashed ?")
         self.daemon_active = False
         log_msg("Stopped Spotify Connect Daemon")
 

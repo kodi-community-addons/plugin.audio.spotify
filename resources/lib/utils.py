@@ -472,7 +472,7 @@ class Spotty(object):
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
             return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE,
-                                    stderr=None, bufsize=8192)
+                                    stderr=subprocess.STDOUT)
         except Exception as exc:
             log_exception(__name__, exc)
         return None

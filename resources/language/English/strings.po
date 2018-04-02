@@ -213,7 +213,7 @@ msgid "The default browser should now be opened,\nfollow the directions to autho
 msgstr ""
 
 msgctxt "#11050"
-msgid "No credentials have been set or the login failed.\nPlease enter your credentials in the next settings dialog."
+msgid "No credentials have been set or the login failed.\nPlease enter your credentials in the addon settings."
 msgstr ""
 
 msgctxt "#11051"
