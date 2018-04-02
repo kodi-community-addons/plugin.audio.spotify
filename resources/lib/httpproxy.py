@@ -49,16 +49,25 @@ class Root:
             event = input_json["params"][1]
             log_msg("lms event hook called. Event: %s" % event)
             # check username, it might have changed
-            self.__spotty.get_username()
+            spotty_user = self.__spotty.get_username()
+            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)").decode("utf-8")
+            if spotty_user != cur_user:
+                log_msg("user change detected")
+                xbmc.executebuiltin("SetProperty(spotify-cmd,__LOGOUT__,Home)")
             if "start" in event:
                 log_msg("playback start requested by connect")
                 xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.spotify/?action=play_connect)")
             elif "change" in event:
                 log_msg("playback change requested by connect")
+                # we ignore this as track changes are 
                 #xbmc.executebuiltin("RunPlugin(plugin://plugin.audio.spotify/?action=play_connect)")
             elif "stop" in event:
                 log_msg("playback stop requested by connect")
                 xbmc.executebuiltin("PlayerControl(Stop)")
+            elif "volume" in event:
+                vol_level = event[2]
+                log_msg("volume change detected on connect player: %s" % vol_level)
+                xbmc.executebuiltin("SetVolume(%s,true)" % vol_level)
         return {"operation": "request", "result": "success"}
 
     @cherrypy.expose

@@ -399,7 +399,6 @@ class Spotty(object):
     '''
     playback_supported = False
     playername = None
-    enable_discovery = True
     __spotty_binary = None
     __cache_path = None
 
@@ -446,7 +445,7 @@ class Spotty(object):
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None, use_creds=False):
+    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
@@ -462,7 +461,7 @@ class Spotty(object):
                 del addon
                 if username:
                     args += ["-u", username, "-p", password]
-            if not self.enable_discovery:
+            if disable_discovery:
                 args += ["--disable-discovery"]
             if arguments:
                 args += arguments

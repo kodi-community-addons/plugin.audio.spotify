@@ -10,6 +10,7 @@
 
 from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty, parse_spotify_track
 from player_monitor import ConnectPlayer
+from connect_daemon import ConnectDaemon
 from httpproxy import ProxyRunner
 import xbmc
 import xbmcaddon
@@ -32,6 +33,7 @@ class MainService:
     sp = None
     addon = None
     connect_player = None
+    connect_daemon = None
     webservice = None
     spotty = None
     current_user = None
@@ -47,16 +49,12 @@ class MainService:
         # the auth key for spotipy will be set afterwards
         # the webserver is also used for the authentication callbacks from spotify api
         self.sp = spotipy.Spotify()
-        self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty, callback=self.check_user)
+        self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty)
 
         self.proxy_runner = ProxyRunner(self.spotty)
         self.proxy_runner.start()
         webport = self.proxy_runner.get_port()
         log_msg('started webproxy at port {0}'.format(webport))
-
-        # start experimental spotify connect daemon
-        if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
-            self.connect_player.start()
 
         # authenticate at startup
         self.renew_token()
@@ -72,6 +70,7 @@ class MainService:
             cmd = self.win.getProperty("spotify-cmd").decode("utf-8")
             if cmd == "__LOGOUT__":
                 log_msg("logout cmd received")
+                self.stop_connect_daemon()
                 self.win.clearProperty("spotify-cmd")
                 self.current_user = None
                 self.auth_token = None
@@ -89,18 +88,21 @@ class MainService:
                 # monitor fake connect OSD for remote track changes
                 loop_timer = 2
                 cur_playback = self.sp.current_playback()
-                if cur_playback["is_playing"] and not xbmc.getCondVisibility("Player.Paused"):
-                    player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
-                    if player_title and player_title != cur_playback["item"]["name"]:
-                        log_msg("Next track requested by Spotify Connect player")
-                        trackdetails = cur_playback["item"]
-                        self.connect_player.start_playback(trackdetails["id"])
-                elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
-                    log_msg("playback resumed from pause")
-                    self.connect_player.play()
-                elif not xbmc.getCondVisibility("Player.Paused"):
-                    log_msg("Stop requested by Spotify Connect")
-                    self.connect_player.pause()
+                if cur_playback:
+                    if cur_playback["is_playing"] and not xbmc.getCondVisibility("Player.Paused"):
+                        player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
+                        if player_title and player_title != cur_playback["item"]["name"]:
+                            log_msg("Next track requested by Spotify Connect player")
+                            trackdetails = cur_playback["item"]
+                            self.connect_player.start_playback(trackdetails["id"])
+                    elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
+                        log_msg("playback resumed from pause")
+                        self.connect_player.play()
+                    elif not xbmc.getCondVisibility("Player.Paused"):
+                        log_msg("Stop requested by Spotify Connect")
+                        self.connect_player.pause()
+                else:
+                    self.connect_player.stop()
             else:
                 loop_timer = 5
 
@@ -113,19 +115,12 @@ class MainService:
         kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
+        self.connect_daemon.stop()
         del self.connect_player
         del self.addon
         del self.kodimonitor
         del self.win
         log_msg('stopped', xbmc.LOGNOTICE)
-
-    def check_user(self):
-        ''' check if the spotify connect still matches '''
-        log_msg("checking user account for connect player")
-        username = self.spotty.get_username()
-        if username and username != self.current_user:
-            log_msg("username does not match! need token refresh")
-            self.switch_user()
 
 
     def switch_user(self, restart_daemon=False):
@@ -133,18 +128,10 @@ class MainService:
         log_msg("login credentials changed")
         if self.renew_token():
             xbmc.executebuiltin("Container.Refresh")
-        # restart daemon
-        if self.connect_player.daemon_active and (not self.spotty.enable_discovery or restart_daemon):
-            self.connect_player.close()
-            audio_device = self.addon.getSetting("audio_device") == "true"
-            self.connect_player = ConnectPlayer(sp=self.sp, spotty=self.spotty, callback=self.check_user)
-            self.connect_player.start()
 
-
-    def renew_token(self):
-        '''refresh/retrieve the token'''
+    def get_username(self):
+        ''' get the current configured/setup username'''
         username = self.spotty.get_username()
-        auth_token = None
         if not username:
             username = self.addon.getSetting("username").decode("utf-8")
             if not username and self.addon.getSetting("multi_account") == "true":
@@ -154,7 +141,35 @@ class MainService:
                     self.addon.setSetting("username", username1)
                     self.addon.setSetting("password", password1)
                     username = username1
+        return username
+
+
+    def stop_connect_daemon(self):
+        ''' stop spotty connect daemon if needed '''
+        if self.connect_daemon and self.connect_daemon.daemon_active:
+            self.connect_daemon.stop()
+            del self.connect_daemon
+
+    def start_connect_daemon(self):
+        '''start experimental spotify connect daemon'''
+        if (not self.connect_daemon or not self.connect_daemon.daemon_active):
+            if self.addon.getSetting("connect_player") == "true" and self.spotty.playback_supported:
+                if not self.connect_daemon:
+                    self.connect_daemon = ConnectDaemon(self.spotty)
+                if not self.connect_daemon.daemon_active:
+                    self.connect_daemon.start()
+
+
+    def renew_token(self):
+        '''refresh/retrieve the token'''
+        result = False
+        auth_token = None
+        username = self.get_username()
         if username:
+            # stop connect daemon
+            self.stop_connect_daemon()
+            # retrieve token
+            log_msg("Retrieving auth token....")
             auth_token = get_token(self.spotty)
         if auth_token:
             log_msg("Retrieved auth token")
@@ -168,5 +183,7 @@ class MainService:
             self.win.setProperty("spotify-token", auth_token["access_token"])
             self.win.setProperty("spotify-username", self.current_user)
             self.win.setProperty("spotify-country", me["country"])
-            return True
-        return False
+            result = True
+        # start experimental spotify connect daemon
+        self.start_connect_daemon()
+        return result
