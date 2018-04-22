@@ -124,7 +124,7 @@ class Root:
 
             # get pcm data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
-            spotty_bin = self.__spotty.run_spotty(args)
+            spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
             
             # ignore the first x bytes to match the range request
             if range_l:

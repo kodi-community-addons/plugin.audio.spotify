@@ -459,7 +459,7 @@ class Spotty(object):
                 username = addon.getSetting("username").decode("utf-8")
                 password = addon.getSetting("password").decode("utf-8")
                 del addon
-                if username:
+                if username and password:
                     args += ["-u", username, "-p", password]
             if disable_discovery:
                 args += ["--disable-discovery"]
