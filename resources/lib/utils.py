@@ -299,7 +299,7 @@ def get_track_rating(popularity):
     if not popularity:
         return 0
     else:
-        return int(math.ceil(popularity * 6 / 100.0)) - 1
+        return popularity / 10.0
 
 
 def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=False):
