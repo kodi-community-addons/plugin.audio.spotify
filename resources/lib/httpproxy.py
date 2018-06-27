@@ -67,7 +67,8 @@ class Root:
             elif "volume" in event:
                 vol_level = event[2]
                 log_msg("volume change detected on connect player: %s" % vol_level)
-                xbmc.executebuiltin("SetVolume(%s,true)" % vol_level)
+                # ignore for now as it needs more work
+                #xbmc.executebuiltin("SetVolume(%s,true)" % vol_level)
         return {"operation": "request", "result": "success"}
 
     @cherrypy.expose
