@@ -152,7 +152,7 @@ def request_token_spotty(spotty, use_creds=True):
             for line in stdout.split():
                 line = line.strip()
                 if line.startswith("{\"accessToken\""):
-                    result = eval(line)
+                    result = json.loads(line)
             # transform token info to spotipy compatible format
             if result:
                 token_info = {}
@@ -514,12 +514,35 @@ class Spotty(object):
 
     def get_username(self):
         ''' obtain/check (last) username of the credentials obtained by spotify connect'''
+        cred_filename = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
+        username = self._get_username_from_cache(cred_filename)
+
+        if username:
+            addon_setting("connect_username", username)
+        else:
+            # We'll rewrite the new file on next try,
+            # see https://github.com/marcelveldt/plugin.audio.spotify/issues/94
+            os.remove(cred_filename)
+
+        return username
+
+    def _get_username_from_cache(self, cred_file):
         username = ""
-        cred_file = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
         if xbmcvfs.exists(cred_file):
             with open(cred_file) as cred_file:
                 data = cred_file.read()
-                data = eval(data)
-                username = data["username"]
-        addon_setting("connect_username", username)
+                username = self._extract_username(data)
+
         return username
+
+    def _extract_username(self, data):
+        username = ""
+        try:
+            data = json.loads(data)
+            username = data["username"]
+        except json.JSONDecodeError:
+            # Ignore error - most likely a corrupted cache file,
+            # see https://github.com/marcelveldt/plugin.audio.spotify/issues/94
+            pass
+        return username
+
