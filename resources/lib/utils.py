@@ -522,7 +522,8 @@ class Spotty(object):
         else:
             # We'll rewrite the new file on next try,
             # see https://github.com/marcelveldt/plugin.audio.spotify/issues/94
-            os.remove(cred_filename)
+            if xbmcvfs.exists(cred_filename):
+                os.remove(cred_filename)
 
         return username
 
