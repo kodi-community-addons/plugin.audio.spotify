@@ -116,15 +116,20 @@ class Root:
             return self.send_audio_stream(track_id, filesize, wave_header, range_l)
     track._cp_config = {'response.stream': True}
 
+    def kill_spotty(self):
+        self.spotty_bin.terminate()
+        self.spotty_bin = None
+
     def send_audio_stream(self, track_id, filesize, wave_header, range_l):
         '''chunked transfer of audio data from spotty binary'''
-        log_msg("start transfer for track %s - range: %s" % (track_id, range_l), xbmc.LOGDEBUG)
-
         if self.spotty_bin != None:
-            # If spotty still processing some data don't launch another
-            # This may have only been happening with timeouts that were too short.
-            return
-        
+            # If spotty binary still attached, try to terminate it.
+            log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
+                    xbmc.LOGERROR)
+            self.kill_spotty()
+
+        log_msg("start transfer for track %s - range: %s" % (track_id, range_l), \
+                xbmc.LOGDEBUG)
         try:
             # Initialize some loop vars
             max_buffer_size = 524288
@@ -162,9 +167,9 @@ class Root:
         finally:
             # make sure spotty always gets terminated
             if self.spotty_bin != None:
-                self.spotty_bin.terminate()
-                self.spotty_bin = None
-            log_msg("FINISH transfer for track %s - range %s" % (track_id, range_l), xbmc.LOGDEBUG)
+                self.kill_spotty()
+            log_msg("FINISH transfer for track %s - range %s" % (track_id, range_l), \
+                    xbmc.LOGDEBUG)
 
     @cherrypy.expose
     def silence(self, duration, **kwargs):
