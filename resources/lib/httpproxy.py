@@ -18,7 +18,10 @@ import math
 
 class Root:
     spotty = None
+    
     spotty_bin = None
+    spotty_trackid = None
+    spotty_range_l = None
     
     def __init__(self, spotty):
         self.__spotty = spotty
@@ -119,11 +122,20 @@ class Root:
     def kill_spotty(self):
         self.spotty_bin.terminate()
         self.spotty_bin = None
+        self.spotty_trackid = None
+        self.spotty_range_l = None
 
     def send_audio_stream(self, track_id, filesize, wave_header, range_l):
         '''chunked transfer of audio data from spotty binary'''
-        if self.spotty_bin != None:
-            # If spotty binary still attached, try to terminate it.
+        if self.spotty_bin != None and \
+           self.spotty_trackid == track_id and \
+           self.spotty_range_l == range_l:
+            # leave the existing spotty running and don't start a new one.
+            log_msg("WHOOPS!!! Running spotty still handling same request - leave it alone.", \
+                    xbmc.LOGERROR)
+            return
+        elif self.spotty_bin != None:
+            # If spotty binary still attached for a different request, try to terminate it.
             log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
                     xbmc.LOGERROR)
             self.kill_spotty()
@@ -144,6 +156,8 @@ class Root:
             # get pcm data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
             self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
+            self.spotty_trackid = track_id
+            self.spotty_range_l = range_l
             
             # ignore the first x bytes to match the range request
             if range_l:
