@@ -53,11 +53,9 @@ class ConnectPlayer(xbmc.Player):
         # set the connect_playing bool to indicate we are playing spotify connect content
         self.__is_paused = False
         filename = ""
-        while not filename:
-            try:
-                filename = self.getPlayingFile()
-            except:
-                xbmc.sleep(500)
+        if self.isPlaying():
+            filename = self.getPlayingFile()
+            
         if "localhost:%s" % PROXY_PORT in filename:
             if not self.connect_playing and "connect=true" in filename:
                 # we started playback with (remote) connect player
