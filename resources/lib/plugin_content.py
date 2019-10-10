@@ -36,6 +36,7 @@ class PluginContent():
     base_url = sys.argv[0]
     addon_handle = int(sys.argv[1])
     _cache_checksum = ""
+    last_playlist_position = 0
 
     def __init__(self):
         try:
@@ -152,6 +153,10 @@ class PluginContent():
         self.addon.setSetting("cache_checksum", time.strftime("%Y%m%d%H%M%S", time.gmtime()))
         xbmc.executebuiltin("Container.Refresh")
 
+    def refresh_connected_device(self):
+        '''set reconnect flag for main_loop'''
+        if self.addon.getSetting("playback_device") == "connect":
+            self.win.setProperty("spotify-cmd", "__RECONNECT__")
 
     def switch_user(self):
         '''switch or logout user'''
@@ -213,10 +218,17 @@ class PluginContent():
 
     def next_track(self):
         '''special entry which tells the remote connect player to move to the next track'''
-        # move to next track
-        self.sp.next_track()
-        # play next track
-        xbmc.sleep(100)
+        
+        cur_playlist_position = xbmc.PlayList(xbmc.PLAYLIST_MUSIC).getposition()
+        # prevent unintentional skipping when Kodi track ends before connect player
+        # playlist position will increse only when play next button is pressed
+        if cur_playlist_position > self.last_playlist_position:
+            # move to next track
+            self.sp.next_track()
+            # give time for connect player to update info
+            xbmc.sleep(100)
+            
+        self.last_playlist_position = cur_playlist_position
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
         url, li = parse_spotify_track(trackdetails, silenced=True)
@@ -352,6 +364,7 @@ class PluginContent():
             xbmcplugin.addDirectoryItem(handle=self.addon_handle, url=item[1], listitem=li, isFolder=item[3])
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.endOfDirectory(handle=self.addon_handle)
+        self.refresh_connected_device()
 
     def set_playback_device(self):
         '''set the active playback device'''
@@ -371,9 +384,15 @@ class PluginContent():
         elif deviceid == "squeezebox":
             self.addon.setSetting("playback_device", "squeezebox")
         else:
+            cur_playback = self.sp.current_playback()
             self.sp.transfer_playback(deviceid, False)
+            # resume play if connect player was playing berfore transfer_playback
+            if cur_playback and cur_playback["is_playing"]:
+                self.sp.start_playback()
             self.addon.setSetting("playback_device", "connect")
             self.addon.setSetting("connect_id", deviceid)
+
+        self.refresh_connected_device()
         xbmc.executebuiltin("Container.Refresh")
 
     def browse_playback_devices(self):
@@ -407,6 +426,7 @@ class PluginContent():
             label = "Spotify Connect: %s" % device["name"]
             if device["is_active"] and self.addon.getSetting("playback_device") == "connect":
                 label += " [%s]" % self.addon.getLocalizedString(11040)
+                self.refresh_connected_device()
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=%s" % device["id"]
             li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
             li.setProperty("isPlayable", "false")
