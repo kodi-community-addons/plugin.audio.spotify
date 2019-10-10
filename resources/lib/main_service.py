@@ -84,25 +84,13 @@ class MainService:
                 # token needs refreshing !
                 log_msg("token needs to be refreshed")
                 self.renew_token()
-            elif self.connect_player.connect_playing:
-                # monitor fake connect OSD for remote track changes
+            elif self.connect_player.connect_playing or cmd == "__RECONNECT__":
+                # monitor for remote track changes
                 loop_timer = 2
-                cur_playback = self.sp.current_playback()
-                if cur_playback:
-                    if cur_playback["is_playing"] and not xbmc.getCondVisibility("Player.Paused"):
-                        player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
-                        if player_title and player_title != cur_playback["item"]["name"]:
-                            log_msg("Next track requested by Spotify Connect player")
-                            trackdetails = cur_playback["item"]
-                            self.connect_player.start_playback(trackdetails["id"])
-                    elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
-                        log_msg("playback resumed from pause")
-                        self.connect_player.play()
-                    elif not xbmc.getCondVisibility("Player.Paused"):
-                        log_msg("Stop requested by Spotify Connect")
-                        self.connect_player.pause()
-                else:
-                    self.connect_player.stop()
+                reconnect = cmd == "__RECONNECT__"
+                if reconnect:
+                    self.win.clearProperty("spotify-cmd")
+                self.connect_player.update_info(reconnect)
             else:
                 loop_timer = 5
 
@@ -115,7 +103,7 @@ class MainService:
         kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
-        self.connect_daemon.stop()
+        self.stop_connect_daemon()
         del self.connect_player
         del self.addon
         del self.kodimonitor
