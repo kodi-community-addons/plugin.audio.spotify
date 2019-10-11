@@ -89,12 +89,12 @@ class ConnectPlayer(xbmc.Player):
         '''Kodi event fired when playback is stopped'''
         # event is called after every track 
         # check playlist postition to detect if playback is realy stopped
-        if self.connect_playing and self.__playlist.getposition() < 0 and not self.__skip_events and not self.connect_is_paused():
-            self.__sp.pause_playback()
+        if self.connect_playing and self.__playlist.getposition() < 0:
             self.connect_playing = False
             self.connect_local = False
+            if not self.connect_is_paused():
+                self.__sp.pause_playback()
             log_msg("Playback stopped")
-        self.__skip_events = False
 
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
