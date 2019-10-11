@@ -293,7 +293,12 @@ class PluginContent():
                     # launch Kodi player with a silent audio stream just for OSD controls
                     trackdetails = cur_playback["item"]
                     url, li = parse_spotify_track(trackdetails, silenced=True)
-                    xbmc.Player().play(url, li)
+                    playlsit = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+                    playlsit.clear()
+                    playlsit.add(url, li)
+                    url = "plugin://plugin.audio.spotify/?action=next_track"
+                    playlsit.add(url)
+                    xbmc.Player().play()
                 else:
                     # launch our special OSD dialog
                     from osd import SpotifyOSD
