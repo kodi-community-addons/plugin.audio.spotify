@@ -1,0 +1,21 @@
+PAP-Version: 1.0
+Packer:
+Script: findSpotifyFolderFiles.pl
+Add: URI
+Clean: 1
+Debug:
+Dyndll: 0
+Exe: findSpotifyFolderFiles.exe
+Force: 1
+Gui: 0
+No-Compress: 0
+No-Logo: 0
+Runlib:
+Shared: none
+Tmpdir:
+Verbose: 0
+Version-CompanyName: Michael Herger
+Version-LegalCopyright: Michael Herger
+Version-ProductName: findSpotifyFolderFiles
+Version-ProductVersion: 1.0.1
+Warnings: 0

@@ -152,7 +152,7 @@ def request_token_spotty(spotty, use_creds=True):
             for line in stdout.split():
                 line = line.strip()
                 if line.startswith("{\"accessToken\""):
-                    result = json.loads(line)
+                    result = eval(line)
             # transform token info to spotipy compatible format
             if result:
                 token_info = {}
@@ -299,7 +299,7 @@ def get_track_rating(popularity):
     if not popularity:
         return 0
     else:
-        return popularity / 10.0
+        return int(math.ceil(popularity * 6 / 100.0)) - 1
 
 
 def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=False):
@@ -445,13 +445,14 @@ class Spotty(object):
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True):
+    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True, ap_port="443"):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
                 self.__spotty_binary,
                 "-c", self.__cache_path,
-                "-b", "320"
+##                "-b", "320"
+                "--ap-port",ap_port
             ]
             if use_creds:
                 # use username/password login for spotty
@@ -496,9 +497,9 @@ class Spotty(object):
             else:
                 # just try to get the correct binary path if we're unsure about the platform/cpu
                 paths = []
-                paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty-muslhf"))
+##                paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty-muslhf"))
                 paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty-hf"))
-                paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty"))
+##                paths.append(os.path.join(os.path.dirname(__file__), "spotty", "arm-linux", "spotty"))
                 paths.append(os.path.join(os.path.dirname(__file__), "spotty", "x86-linux", "spotty"))
                 for binary_path in paths:
                     if self.test_spotty(binary_path):
@@ -514,36 +515,12 @@ class Spotty(object):
 
     def get_username(self):
         ''' obtain/check (last) username of the credentials obtained by spotify connect'''
-        cred_filename = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
-        username = self._get_username_from_cache(cred_filename)
-
-        if username:
-            addon_setting("connect_username", username)
-        else:
-            # We'll rewrite the new file on next try,
-            # see https://github.com/marcelveldt/plugin.audio.spotify/issues/94
-            if xbmcvfs.exists(cred_filename):
-                os.remove(cred_filename)
-
-        return username
-
-    def _get_username_from_cache(self, cred_file):
         username = ""
+        cred_file = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
         if xbmcvfs.exists(cred_file):
             with open(cred_file) as cred_file:
                 data = cred_file.read()
-                username = self._extract_username(data)
-
+                data = eval(data)
+                username = data["username"]
+        addon_setting("connect_username", username)
         return username
-
-    def _extract_username(self, data):
-        username = ""
-        try:
-            data = json.loads(data)
-            username = data["username"]
-        except json.JSONDecodeError:
-            # Ignore error - most likely a corrupted cache file,
-            # see https://github.com/marcelveldt/plugin.audio.spotify/issues/94
-            pass
-        return username
-
