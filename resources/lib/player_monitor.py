@@ -17,8 +17,6 @@ class ConnectPlayer(xbmc.Player):
     username = None
     __playlist = None
     __exit = False
-    __is_paused = False
-    __cur_track = None
     __ignore_seek = False
     __sp = None
     __skip_events = False
@@ -34,29 +32,30 @@ class ConnectPlayer(xbmc.Player):
 
     def onPlayBackPaused(self):
         '''Kodi event fired when playback is paused'''
-        if self.connect_playing and not self.__is_paused and not self.__skip_events:
+        if self.connect_playing and not self.__skip_events and not self.connect_is_paused():
             self.__sp.pause_playback()
             log_msg("Playback paused")
-        self.__is_paused = True
+        self.__skip_events = False
 
     def onPlayBackResumed(self):
         '''Kodi event fired when playback is resumed after pause'''
-        if self.connect_playing and self.__is_paused:
+        if self.connect_playing and not self.__skip_events and self.connect_is_paused():
             self.__sp.start_playback()
             log_msg("Playback unpaused")
-        self.__is_paused = False
+        self.__skip_events = False
 
     def onPlayBackEnded(self):
+        self.update_info(True)
+        self.connect_playing = False
+        self.connect_local = False
         pass
 
     def onPlayBackStarted(self):
         '''Kodi event fired when playback is started (including next tracks)'''
-        # set the connect_playing bool to indicate we are playing spotify connect content
-        self.__is_paused = False
         filename = ""
         if self.isPlaying():
             filename = self.getPlayingFile()
-            
+
         if "localhost:%s" % PROXY_PORT in filename:
             if not self.connect_playing and "connect=true" in filename:
                 # we started playback with (remote) connect player
@@ -88,15 +87,14 @@ class ConnectPlayer(xbmc.Player):
 
     def onPlayBackStopped(self):
         '''Kodi event fired when playback is stopped'''
-        if self.connect_playing and not self.__skip_events:
-            try:
+        # event is called after every track 
+        # check playlist postition to detect if playback is realy stopped
+        if self.connect_playing and self.__playlist.getposition() < 0:
+            self.connect_playing = False
+            self.connect_local = False
+            if not self.connect_is_paused():
                 self.__sp.pause_playback()
-            except Exception:
-                pass
-            log_msg("playback stopped")
-        self.connect_playing = False
-        self.connect_local = False
-        self.__skip_events = False
+            log_msg("Playback stopped")
 
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
@@ -105,18 +103,53 @@ class ConnectPlayer(xbmc.Player):
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
         self.__playlist.add(url)
+        self.__playlist.add(url)
 
     def start_playback(self, track_id):
+        self.__skip_events = True
         self.connect_playing = True
         self.__playlist.clear()
         silenced = False
         if not self.connect_local:
             silenced = True
-            self.__skip_events = True
         trackdetails = self.__sp.track(track_id)
         url, li = parse_spotify_track(trackdetails, silenced=silenced)
         self.__playlist.add(url, li)
-        self.play()
         self.__ignore_seek = True
         if self.connect_local:
             self.__sp.seek_track(0)  # for now we always start a track at the beginning
+        # give small handicap to connect player to prevent next track race condition
+        xbmc.sleep(100)
+        self.play()
+
+    def update_info(self, force):
+        cur_playback = self.__sp.current_playback()
+        if cur_playback:
+            if cur_playback["is_playing"] and (not xbmc.getCondVisibility("Player.Paused") or force):
+                player_title = None
+                if self.isPlaying():
+                    player_title = self.getMusicInfoTag().getTitle().decode("utf-8")
+                
+                trackdetails = cur_playback["item"]
+                if not player_title or player_title != trackdetails["name"]:
+                    log_msg("Next track requested by Spotify Connect player")
+                    self.start_playback(trackdetails["id"])
+            elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
+                log_msg("Playback resumed from pause requested by Spotify Connect")
+                self.__skip_events = True
+                self.play()
+            elif not xbmc.getCondVisibility("Player.Paused"):
+                log_msg("Pause requested by Spotify Connect")
+                self.__skip_events = True
+                self.pause()
+        else:
+            self.__skip_events = True
+            self.stop()
+                
+    def connect_is_paused(self):
+        '''check if connect player currently is paused'''
+        cur_playback = self.__sp.current_playback()
+        if cur_playback:
+            if cur_playback["is_playing"]:
+                return False
+        return True
