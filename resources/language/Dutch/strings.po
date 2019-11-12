@@ -1,4 +1,4 @@
-# Kodi Media Center language file
+﻿# Kodi Media Center language file
 # Addon Name: Spotify
 # Addon id: plugin.audio.spotify
 # Addon Provider: marcelveldt
@@ -7,15 +7,14 @@ msgstr ""
 "Project-Id-Version: Kodi-Addons\n"
 "Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
 "POT-Creation-Date: 2015-11-04 18:30+0100\n"
-"PO-Revision-Date: 2019-07-18 15:34+0200\n"
+"PO-Revision-Date: 2015-11-04 18:30+0100\n"
 "Last-Translator: logi85\n"
 "Language-Team: Dutch\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: nl\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 2.2.3\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 msgctxt "#11000"
 msgid "General"
@@ -115,137 +114,4 @@ msgstr "Lijst vernieuwen"
 
 msgctxt "#11035"
 msgid "Play song radio"
-msgstr "Speel nummer radio"
-
-msgctxt "#11036"
-msgid "Enable this device as Spotify Connect target (experimental)"
-msgstr "Schakel dit apparaat in als Spotify Connect doel (experimenteel)"
-
-msgctxt "#11037"
-msgid "Local playback on this device"
-msgstr "Lokaal afspelen op dit apparaat"
-
-msgctxt "#11039"
-msgid "Playback device"
-msgstr "Afspeel apparaat"
-
-msgctxt "#11040"
-msgid "Active"
-msgstr "Actief"
-
-msgctxt "#11041"
-msgid "Enable support for multiple accounts"
-msgstr "Schakel ondersteuning voor meerdere accounts in"
-
-msgctxt "#11042"
-msgid "Username 1"
-msgstr "Gebruikersnaam 1"
-
-msgctxt "#11043"
-msgid "Username 2"
-msgstr "Gebruikersnaam 2"
-
-msgctxt "#11044"
-msgid "Username 3"
-msgstr "Gebruikersnaam 3"
-
-msgctxt "#11045"
-msgid "Username 4"
-msgstr "Gebruikersnaam 4"
-
-msgctxt "#11046"
-msgid "Username 5"
-msgstr "Gebruikersnaam 5"
-
-msgctxt "#11047"
-msgid "Current user"
-msgstr "Huidige gebruiker"
-
-msgctxt "#11048"
-msgid "Select user"
-msgstr "Selecteer gebruiker"
-
-msgctxt "#11049"
-msgid ""
-"The default browser should now be opened,\n"
-"follow the directions to authorize this app on Spotify"
-msgstr ""
-"De standaardbrowser wordt nu geopend, \n"
-"volg de instructies om deze plugin toegang te geven"
-
-msgctxt "#11050"
-msgid ""
-"No credentials have been set or the login failed.\n"
-"Please enter your credentials in the addon settings."
-msgstr ""
-"Er zijn geen inloggegevens gevonden of het inloggen faalt.\n"
-"Voer alsjeblieft je inloggegevens in in de plugin instellingen."
-
-msgctxt "#11051"
-msgid "Enable audio cache"
-msgstr "Audio cache inschakelen"
-
-msgctxt "#11052"
-msgid "Location to store the audio cache"
-msgstr "Locatie om de audio cache op te slaan"
-
-msgctxt "#11053"
-msgid "Audio device to use"
-msgstr "Welk audioapparaat wil je gebruiken?"
-
-msgctxt "#11054"
-msgid "Audio"
-msgstr "Audio"
-
-#, fuzzy
-msgctxt "#11055"
-msgid "Views"
-msgstr "Weergave"
-
-msgctxt "#11056"
-msgid "Directly output to default soundcard"
-msgstr "Gebruik standaard geluidskaart als uitgang"
-
-msgctxt "#11057"
-msgid "Use Kodi player as output device"
-msgstr "Gebruik Kodi als uitgang"
-
-msgctxt "#11058"
-msgid "Manual specify soundcard (advanced)"
-msgstr "Specificeer de uitgang handmatig (geavanceerd)"
-
-msgctxt "#11059"
-msgid "Changes on this page require a restart of Kodi"
-msgstr "Wijzigingen op deze pagina vereisen een herstart van Kodi"
-
-msgctxt "#11060"
-msgid "Local playback - using remote machine"
-msgstr "Lokaal afspelen op dit apparaat vanaf een ander apparaat"
-
-msgctxt "#11061"
-msgid "This will allow you to enable local, direct playback from Spotify tracks in Kodi on unsupported platforms (e.g. Android) by using the remote service on another host. Make sure that you have the Spotify addon installed on another Kodi machine in your network that does support local playback. In the next dialog, please select the remote machine's hostname or ip-address."
-msgstr "Dit geeft toestemming om Spotify lokaal af te laten spelen in Kodi op platformen die niet ondersteund worden (bijv. Android) door gebruik te maken van de diensten van een ander apparaat. Zorg er voor dat je de Spotify plugin hebt geïnstalleerd op een andere Kodi apparaat in je netwerk die lokaal afspelen ondersteunt. Selecteer in het volgende venster het andere apparaat haar hostname of ip-adres."
-
-msgctxt "#11062"
-msgid "Hostname or IP"
-msgstr "Hostname of IP"
-
-msgctxt "#11063"
-msgid "Local playback using remote host %s"
-msgstr "Lokaal afspelen vanaf %s"
-
-msgctxt "#11064"
-msgid "Use Kodi OSD for playback on (remote) Spotify Connect device"
-msgstr "Toon Kodi OSD op (extern) Spotify Connect apparaat"
-
-msgctxt "#11065"
-msgid "Please connect to this device with the Spotify app on your phone to login or enter your credentials in the settings dialog."
-msgstr "Verbind met dit apparaat met de Spotify App op je telefoon om in te loggen of vul je inloggegevens in in het Instellingen venster."
-
-msgctxt "#11066"
-msgid "Logoff ?"
-msgstr "UItloggen?"
-
-msgctxt "#11067"
-msgid "Are you sure you want to logoff ?"
-msgstr "Weet je zeker dat je wilt uitloggen?"
+msgstr "Spelen radio"
