@@ -115,7 +115,7 @@ class MainService:
         kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
-        self.connect_daemon.stop()
+        self.stop_connect_daemon()
         del self.connect_player
         del self.addon
         del self.kodimonitor
