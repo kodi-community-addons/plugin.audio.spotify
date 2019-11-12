@@ -21,6 +21,7 @@ class ConnectPlayer(xbmc.Player):
     __cur_track = None
     __ignore_seek = False
     __sp = None
+    __skip_events = False
 
     def __init__(self, **kwargs):
         self.__sp = kwargs.get("sp")
@@ -33,7 +34,7 @@ class ConnectPlayer(xbmc.Player):
 
     def onPlayBackPaused(self):
         '''Kodi event fired when playback is paused'''
-        if self.connect_playing and not self.__is_paused:
+        if self.connect_playing and not self.__is_paused and not self.__skip_events:
             self.__sp.pause_playback()
             log_msg("Playback paused")
         self.__is_paused = True
@@ -87,7 +88,7 @@ class ConnectPlayer(xbmc.Player):
 
     def onPlayBackStopped(self):
         '''Kodi event fired when playback is stopped'''
-        if self.connect_playing:
+        if self.connect_playing and not self.__skip_events:
             try:
                 self.__sp.pause_playback()
             except Exception:
@@ -95,6 +96,7 @@ class ConnectPlayer(xbmc.Player):
             log_msg("playback stopped")
         self.connect_playing = False
         self.connect_local = False
+        self.__skip_events = False
 
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
@@ -103,7 +105,6 @@ class ConnectPlayer(xbmc.Player):
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
         self.__playlist.add(url)
-        self.__playlist.add(url)
 
     def start_playback(self, track_id):
         self.connect_playing = True
@@ -111,6 +112,7 @@ class ConnectPlayer(xbmc.Player):
         silenced = False
         if not self.connect_local:
             silenced = True
+            self.__skip_events = True
         trackdetails = self.__sp.track(track_id)
         url, li = parse_spotify_track(trackdetails, silenced=silenced)
         self.__playlist.add(url, li)
