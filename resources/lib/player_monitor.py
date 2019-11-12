@@ -131,7 +131,7 @@ class ConnectPlayer(xbmc.Player):
                     player_title = self.getMusicInfoTag().getTitle().decode("utf-8")
                 
                 trackdetails = cur_playback["item"]
-                if trackdetails is not None and (not player_title or player_title != trackdetails["name"]):
+                if not player_title or player_title != trackdetails["name"]:
                     log_msg("Next track requested by Spotify Connect player")
                     self.start_playback(trackdetails["id"])
             elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
