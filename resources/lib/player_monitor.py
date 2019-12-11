@@ -103,7 +103,6 @@ class ConnectPlayer(xbmc.Player):
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
         self.__playlist.add(url)
-        self.__playlist.add(url)
 
     def start_playback(self, track_id):
         self.__skip_events = True
@@ -112,6 +111,7 @@ class ConnectPlayer(xbmc.Player):
         silenced = False
         if not self.connect_local:
             silenced = True
+            self.__skip_events = True
         trackdetails = self.__sp.track(track_id)
         url, li = parse_spotify_track(trackdetails, silenced=silenced)
         self.__playlist.add(url, li)
