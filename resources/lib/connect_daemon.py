@@ -37,15 +37,28 @@ class ConnectDaemon(threading.Thread):
         if xbmcvfs.exists("/run/libreelec/"):
             disable_discovery = True # avahi on libreelec conflicts with the mdns implementation of librespot
             xbmc.executebuiltin("SetProperty(spotify-discovery,disabled,Home)")
-        self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery)
+        try:
+            try:
+                log_msg("trying AP Port 443", xbmc.LOGNOTICE)
+                self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="443")
+            except:
+                try:
+                    log_msg("trying AP Port 80", xbmc.LOGNOTICE)                    
+                    self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="80")
+                except:
+                    log_msg("trying AP Port 4070", xbmc.LOGNOTICE)                    
+                    self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="4070")                
+            while not self.__exit:
+                line = self.__spotty_proc.stdout.readline()
+                if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
+                    # daemon crashed ? restart ?
+                    log_msg("spotty stopped!", xbmc.LOGNOTICE)
+                    break
+                xbmc.sleep(100)
+            self.daemon_active = False
+            log_msg("Stopped Spotify Connect Daemon")        
+        except:
+            self.daemon_active = False
+            log_msg("Cannot run SPOTTY, No APs available", xbmc.LOGNOTICE)
 
-        while not self.__exit:
-            line = self.__spotty_proc.stdout.readline()
-            if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
-                # daemon crashed ? restart ?
-                log_msg("spotty stopped!")
-                break
-            xbmc.sleep(100)
-        self.daemon_active = False
-        log_msg("Stopped Spotify Connect Daemon")
 
