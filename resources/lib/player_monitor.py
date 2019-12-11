@@ -103,6 +103,7 @@ class ConnectPlayer(xbmc.Player):
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
         self.__playlist.add(url)
+        self.__playlist.add(url)
 
     def start_playback(self, track_id):
         self.__skip_events = True
@@ -111,7 +112,7 @@ class ConnectPlayer(xbmc.Player):
         silenced = False
         if not self.connect_local:
             silenced = True
-            self.__skip_events = True
+            
         trackdetails = self.__sp.track(track_id)
         url, li = parse_spotify_track(trackdetails, silenced=silenced)
         self.__playlist.add(url, li)
@@ -131,7 +132,7 @@ class ConnectPlayer(xbmc.Player):
                     player_title = self.getMusicInfoTag().getTitle().decode("utf-8")
                 
                 trackdetails = cur_playback["item"]
-                if not player_title or player_title != trackdetails["name"]:
+                if trackdetails is not None and (not player_title or player_title != trackdetails["name"]):
                     log_msg("Next track requested by Spotify Connect player")
                     self.start_playback(trackdetails["id"])
             elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
