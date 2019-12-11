@@ -36,6 +36,7 @@ class PluginContent():
     base_url = sys.argv[0]
     addon_handle = int(sys.argv[1])
     _cache_checksum = ""
+    last_playlist_position = 0
 
     def __init__(self):
         try:
@@ -217,10 +218,17 @@ class PluginContent():
 
     def next_track(self):
         '''special entry which tells the remote connect player to move to the next track'''
-        # move to next track
-        self.sp.next_track()
-        # play next track
-        xbmc.sleep(100)
+        
+        cur_playlist_position = xbmc.PlayList(xbmc.PLAYLIST_MUSIC).getposition()
+        # prevent unintentional skipping when Kodi track ends before connect player
+        # playlist position will increse only when play next button is pressed
+        if cur_playlist_position > self.last_playlist_position:
+            # move to next track
+            self.sp.next_track()
+            # give time for connect player to update info
+            xbmc.sleep(100)
+            
+        self.last_playlist_position = cur_playlist_position
         cur_playback = self.sp.current_playback()
         trackdetails = cur_playback["item"]
         url, li = parse_spotify_track(trackdetails, silenced=True)
@@ -297,7 +305,12 @@ class PluginContent():
                     # launch Kodi player with a silent audio stream just for OSD controls
                     trackdetails = cur_playback["item"]
                     url, li = parse_spotify_track(trackdetails, silenced=True)
-                    xbmc.Player().play(url, li)
+                    playlsit = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+                    playlsit.clear()
+                    playlsit.add(url, li)
+                    url = "plugin://plugin.audio.spotify/?action=next_track"
+                    playlsit.add(url)
+                    xbmc.Player().play()
                 else:
                     # launch our special OSD dialog
                     from osd import SpotifyOSD
@@ -378,11 +391,12 @@ class PluginContent():
         else:
             cur_playback = self.sp.current_playback()
             self.sp.transfer_playback(deviceid, False)
+            # resume play if connect player was playing berfore transfer_playback
             if cur_playback and cur_playback["is_playing"]:
                 self.sp.start_playback()
             self.addon.setSetting("playback_device", "connect")
             self.addon.setSetting("connect_id", deviceid)
-            
+
         self.refresh_connected_device()
         xbmc.executebuiltin("Container.Refresh")
 

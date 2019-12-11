@@ -85,26 +85,12 @@ class MainService:
                 log_msg("token needs to be refreshed")
                 self.renew_token()
             elif self.connect_player.connect_playing or cmd == "__RECONNECT__":
-                if cmd == "__RECONNECT__":
-                    self.win.clearProperty("spotify-cmd")
-                # monitor fake connect OSD for remote track changes
+                # monitor for remote track changes
                 loop_timer = 2
-                cur_playback = self.sp.current_playback()
-                if cur_playback:
-                    if cur_playback["is_playing"] and not xbmc.getCondVisibility("Player.Paused"):
-                        player_title = xbmc.getInfoLabel("MusicPlayer.Title").decode("utf-8")
-                        if not player_title or player_title != cur_playback["item"]["name"]:
-                            log_msg("Next track requested by Spotify Connect player")
-                            trackdetails = cur_playback["item"]
-                            self.connect_player.start_playback(trackdetails["id"])
-                    elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
-                        log_msg("playback resumed from pause")
-                        self.connect_player.play()
-                    elif not xbmc.getCondVisibility("Player.Paused"):
-                        log_msg("Stop requested by Spotify Connect")
-                        self.connect_player.pause()
-                else:
-                    self.connect_player.stop()
+                reconnect = cmd == "__RECONNECT__"
+                if reconnect:
+                    self.win.clearProperty("spotify-cmd")
+                self.connect_player.update_info(reconnect)
             else:
                 loop_timer = 5
 
