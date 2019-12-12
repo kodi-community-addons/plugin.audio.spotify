@@ -308,8 +308,9 @@ class PluginContent():
                     playlsit = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
                     playlsit.clear()
                     playlsit.add(url, li)
-                    url = "plugin://plugin.audio.spotify/?action=next_track"
-                    playlsit.add(url)
+                    next_url = "plugin://plugin.audio.spotify/?action=next_track"
+                    next_li = xbmcgui.ListItem("...", path=next_url)
+                    playlsit.add(next_url, next_li)
                     xbmc.Player().play()
                 else:
                     # launch our special OSD dialog

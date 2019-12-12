@@ -102,8 +102,10 @@ class ConnectPlayer(xbmc.Player):
             url = "http://localhost:%s/nexttrack" % PROXY_PORT
         else:
             url = "plugin://plugin.audio.spotify/?action=next_track"
-        self.__playlist.add(url)
-        self.__playlist.add(url)
+        
+        li = xbmcgui.ListItem('...', path=url)
+        self.__playlist.add(url, li)
+        self.__playlist.add(url, li)
 
     def start_playback(self, track_id):
         self.__skip_events = True
