@@ -45,7 +45,6 @@ class ConnectPlayer(xbmc.Player):
         self.__skip_events = False
 
     def onPlayBackEnded(self):
-        self.update_info(True)
         self.connect_playing = False
         self.connect_local = False
         pass
