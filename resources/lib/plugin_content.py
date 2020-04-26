@@ -1,10 +1,10 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
 from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track, get_playername, KODI_VERSION, request_token_web
-import urlparse
+from urllib.parse import urlparse
 import urllib
 import threading
-import thread
+import _thread
 import time
 import spotipy
 import xbmc
@@ -47,8 +47,8 @@ class PluginContent():
             if auth_token:
                 self.parse_params()
                 self.sp = spotipy.Spotify(auth=auth_token)
-                self.userid = self.win.getProperty("spotify-username").decode("utf-8")
-                self.usercountry = self.win.getProperty("spotify-country").decode("utf-8")
+                self.userid = self.win.getProperty("spotify-username")
+                self.usercountry = self.win.getProperty("spotify-country")
                 self.local_playback, self.playername, self.connect_id = self.active_playback_device()
                 if self.action:
                     action = "self." + self.action
@@ -67,7 +67,7 @@ class PluginContent():
         auth_token = None
         count = 10
         while not auth_token and count: # wait max 5 seconds for the token
-            auth_token = self.win.getProperty("spotify-token").decode("utf-8")
+            auth_token = self.win.getProperty("spotify-token")
             count -= 1
             if not auth_token:
                 xbmc.sleep(500)
@@ -89,34 +89,34 @@ class PluginContent():
 
     def parse_params(self):
         '''parse parameters from the plugin entry path'''
-        self.params = urlparse.parse_qs(sys.argv[2][1:])
+        self.params = urllib.parse.parse_qs(sys.argv[2][1:])
         action = self.params.get("action", None)
         if action:
-            self.action = action[0].lower().decode("utf-8")
+            self.action = action[0].lower()
         playlistid = self.params.get("playlistid", None)
         if playlistid:
-            self.playlistid = playlistid[0].decode("utf-8")
+            self.playlistid = playlistid[0]
         ownerid = self.params.get("ownerid", None)
         if ownerid:
-            self.ownerid = ownerid[0].decode("utf-8")
+            self.ownerid = ownerid[0]
         trackid = self.params.get("trackid", None)
         if trackid:
-            self.trackid = trackid[0].decode("utf-8")
+            self.trackid = trackid[0]
         albumid = self.params.get("albumid", None)
         if albumid:
-            self.albumid = albumid[0].decode("utf-8")
+            self.albumid = albumid[0]
         artistid = self.params.get("artistid", None)
         if artistid:
-            self.artistid = artistid[0].decode("utf-8")
+            self.artistid = artistid[0]
         artistname = self.params.get("artistname", None)
         if artistname:
-            self.artistname = artistname[0].decode("utf-8")
+            self.artistname = artistname[0]
         offset = self.params.get("offset", None)
         if offset:
             self.offset = int(offset[0])
         filter = self.params.get("applyfilter", None)
         if filter:
-            self.filter = filter[0].decode("utf-8")
+            self.filter = filter[0]
         # default settings
         self.append_artist_to_title = self.addon.getSetting("appendArtistToTitle") == "true"
         self.defaultview_songs = self.addon.getSetting("songDefaultView")
@@ -141,13 +141,13 @@ class PluginContent():
 
     def build_url(self, query):
         query_encoded = {}
-        for key, value in query.iteritems():
-            if isinstance(key, unicode):
+        for key, value in query.items():
+            if isinstance(key, str):
                 key = key.encode("utf-8")
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode("utf-8")
             query_encoded[key] = value
-        return self.base_url + '?' + urllib.urlencode(query_encoded)
+        return self.base_url + '?' + urllib.parse.urlencode(query_encoded)
 
     def refresh_listing(self):
         self.addon.setSetting("cache_checksum", time.strftime("%Y%m%d%H%M%S", time.gmtime()))
@@ -186,7 +186,7 @@ class PluginContent():
         usernames = []
         count = 1
         while True:
-            username = self.addon.getSetting("username%s" % count).decode("utf-8")
+            username = self.addon.getSetting("username%s" % count)
             count += 1
             if not username:
                 break
@@ -316,7 +316,7 @@ class PluginContent():
                     # launch our special OSD dialog
                     from osd import SpotifyOSD
                     osd = SpotifyOSD("plugin-audio-spotify-OSD.xml",
-                                                 self.addon.getAddonInfo('path').decode("utf-8"), "Default", "1080i")
+                                                 self.addon.getAddonInfo('path'), "Default", "1080i")
                     osd.sp = self.sp
                     osd.doModal()
                     del osd
@@ -1626,7 +1626,7 @@ class PluginContent():
         if listtotal > self.offset + self.limit:
             params["offset"] = self.offset + self.limit
             url = "plugin://plugin.audio.spotify/"
-            for key, value in params.iteritems():
+            for key, value in params.items():
                 if key == "action":
                     url += "?%s=%s" % (key, value[0])
                 elif key == "offset":
@@ -1722,7 +1722,7 @@ class SpotifyRadioTrackBuffer(object):
     def _fetch(self):
         log_msg("Spotify radio track buffer invoking recommendations() via spotipy", xbmc.LOGDEBUG)
         try:
-            auth_token = xbmc.getInfoLabel("Window(Home).Property(spotify-token)").decode("utf-8")
+            auth_token = xbmc.getInfoLabel("Window(Home).Property(spotify-token)")
             client = spotipy.Spotify(auth_token)
             tracks = client.recommendations(
                 seed_tracks=[t["id"] for t in self._buffer[0: 5]],
