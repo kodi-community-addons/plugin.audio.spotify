@@ -5,9 +5,9 @@
 from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT
 import xbmc
 import xbmcgui
-from urllib import quote_plus
+import urllib.parse
 import threading
-import thread
+import _thread
 
 
 class ConnectPlayer(xbmc.Player):

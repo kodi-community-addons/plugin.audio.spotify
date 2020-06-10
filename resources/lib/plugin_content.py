@@ -361,8 +361,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('IsPlayable', 'false')
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
@@ -516,8 +516,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
@@ -605,8 +605,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')

@@ -5,7 +5,7 @@
 from utils import log_msg, log_exception
 import xbmc
 import threading
-import thread
+import _thread
 import xbmcvfs
 
 
