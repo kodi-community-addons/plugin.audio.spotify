@@ -40,6 +40,10 @@ try:
 except ImportError:
     from io import StringIO
 
+try:
+    from cBytesIO import BytesIO
+except ImportError:
+    from io import BytesIO
 
 ADDON_ID = "plugin.audio.spotify"
 KODI_VERSION = int(xbmc.getInfoLabel("System.BuildVersion").split(".")[0])
@@ -225,7 +229,7 @@ def request_token_web(force=False):
 
 def create_wave_header(duration):
     '''generate a wave header for the stream'''
-    file = StringIO()
+    file = BytesIO()
     numsamples = 44100 * duration
     channels = 2
     samplerate = 44100
@@ -235,21 +239,21 @@ def create_wave_header(duration):
     format_chunk_spec = "<4sLHHLLHH"
     format_chunk = struct.pack(
         format_chunk_spec,
-        "fmt ",  # Chunk id
+        "fmt ".encode(encoding='UTF-8'),  # Chunk id
         16,  # Size of this chunk (excluding chunk id and this field)
         1,  # Audio format, 1 for PCM
         channels,  # Number of channels
         samplerate,  # Samplerate, 44100, 48000, etc.
-        samplerate * channels * (bitspersample / 8),  # Byterate
-        channels * (bitspersample / 8),  # Blockalign
-        bitspersample,  # 16 bits for two byte samples, etc.
+        samplerate * channels * (bitspersample // 8),  # Byterate
+        channels * (bitspersample // 8),  # Blockalign
+        bitspersample,  # 16 bits for two byte samples, etc.  => A METTRE A JOUR - POUR TEST'''
     )
     # Generate data chunk
     data_chunk_spec = "<4sL"
     datasize = numsamples * channels * (bitspersample / 8)
     data_chunk = struct.pack(
         data_chunk_spec,
-        "data",  # Chunk id
+        "data".encode(encoding='UTF-8'),  # Chunk id
         int(datasize),  # Chunk size (excluding chunk id and this field)
     )
     sum_items = [
@@ -265,9 +269,9 @@ def create_wave_header(duration):
     main_header_spec = "<4sL4s"
     main_header = struct.pack(
         main_header_spec,
-        "RIFF",
+        "RIFF".encode(encoding='UTF-8'),
         all_cunks_size,
-        "WAVE"
+        "WAVE".encode(encoding='UTF-8')
     )
     # Write all the contents in
     file.write(main_header)
@@ -423,7 +427,8 @@ class Spotty(object):
             args = [
                 binary_path,
                 "-n", "selftest",
-                "-x", "--disable-discovery"
+                "-x", "--disable-discovery",
+				"-v"
             ]
             startupinfo = None
             if os.name == 'nt':
@@ -437,23 +442,25 @@ class Spotty(object):
                 bufsize=0)
             stdout, stderr = spotty.communicate()
             log_msg(stdout)
-            '''if "ok spotty" in stdout:'''
-            return True
-            '''elif xbmc.getCondVisibility("System.Platform.Windows"):
+            if "ok spotty".encode(encoding='UTF-8') in stdout:
+                return True
+            elif xbmc.getCondVisibility("System.Platform.Windows"):
                 log_msg("Unable to initialize spotty binary for playback."
-                        "Make sure you have the VC++ 2015 runtime installed.", xbmc.LOGERROR)'''
+                        "Make sure you have the VC++ 2015 runtime installed.", xbmc.LOGERROR)
         except Exception as exc:
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True, ap_port="443"):
+    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True, ap_port="54443"):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
                 self.__spotty_binary,
                 "-c", self.__cache_path,
-##                "-b", "320"
-                "--ap-port",ap_port
+                "-b", "320",
+				"-v",
+				"--enable-audio-cache",
+				"--ap-port",ap_port
             ]
             if use_creds:
                 # use username/password login for spotty

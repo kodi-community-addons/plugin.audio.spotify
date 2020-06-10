@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import thread
+import _thread
 import time
 import re
 import struct
@@ -35,12 +35,14 @@ class Root:
         # Error if the requester is not allowed
         # for now this is a simple check just checking if the useragent matches Kodi
         user_agent = headers['User-Agent'].lower()
-        if not ("kodi" in user_agent or "osmc" in user_agent):
-            raise cherrypy.HTTPError(403)
+        # if not ("Kodi" in user_agent or "osmc" in user_agent):
+        #     raise cherrypy.HTTPError(403)
         return method
 
 
     @cherrypy.expose
+    def index(self): 
+        return "Server started"	
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def lms(self, filename, **kwargs):
@@ -81,7 +83,7 @@ class Root:
         self._check_request()
 
         # Calculate file size, and obtain the header
-        duration = int(duration)
+        duration = int(float(duration))
         wave_header, filesize = create_wave_header(duration)
         request_range = cherrypy.request.headers.get('Range', '')
         # response timeout must be at least the duration of the track: read/write loop
@@ -113,6 +115,7 @@ class Root:
             cherrypy.response.headers['Content-Type'] = 'audio/x-wav'
             cherrypy.response.headers['Accept-Ranges'] = 'bytes'
             cherrypy.response.headers['Content-Length'] = filesize
+            log_msg("!! Full File. Size : %s " % (filesize), xbmc.LOGDEBUG)
 
         # If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
@@ -153,26 +156,21 @@ class Root:
             if not range_l:
                 yield wave_header
 
-            # get pcm data from spotty stdout and append to our buffer
+            # get OGG data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
             self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
             self.spotty_trackid = track_id
             self.spotty_range_l = range_l
-            
-            # ignore the first x bytes to match the range request
+            log_msg("Infos : Track : %s" % track_id)
+			
+			
+	        # ignore the first x bytes to match the range request
             if range_l:
                 self.spotty_bin.stdout.read(range_l)
 
             # Loop as long as there's something to output
             frame = self.spotty_bin.stdout.read(max_buffer_size)
             while frame:
-                if cherrypy.response.timed_out:
-                    # A timeout occured on the cherrypy session and has been flagged - so exit
-                    # The session timer was set to be longer than the track being played so this
-                    # would probably require network problems or something bad elsewhere.
-                    log_msg("SPOTTY cherrypy response timeout: %r - %s" % \
-                            (repr(cherrypy.response.timed_out), cherrypy.response.status), xbmc.LOGERROR)
-                    break
                 bytes_written += len(frame)
                 yield frame
                 frame = self.spotty_bin.stdout.read(max_buffer_size)
@@ -182,7 +180,7 @@ class Root:
             # make sure spotty always gets terminated
             if self.spotty_bin != None:
                 self.kill_spotty()
-            log_msg("FINISH transfer for track %s - range %s" % (track_id, range_l), \
+            log_msg("FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
                     xbmc.LOGDEBUG)
 
     @cherrypy.expose
@@ -234,14 +232,10 @@ class ProxyRunner(threading.Thread):
     def __init__(self, spotty):
         self.__root = Root(spotty)
         log = cherrypy.log
-        log.access_file = ''
-        log.error_file = ''
-        log.screen = False
+        log.screen = True
         cherrypy.config.update({
-            'server.socket_host': '0.0.0.0',
-            'server.socket_port': PROXY_PORT,
-            'engine.timeout_monitor.frequency': 5,
-            'server.shutdown_timeout': 1
+            'server.socket_host': '127.0.0.1',
+            'server.socket_port': PROXY_PORT
         })
         self.__server = cherrypy.server.httpserver = CPHTTPServer(cherrypy.server)
         threading.Thread.__init__(self)
