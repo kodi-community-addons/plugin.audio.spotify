@@ -17,5 +17,9 @@
         <summary>Unofficial Spotify music plugin for Kodi</summary>
         <description>Requires a Spotify premium account.</description>
         <disclaimer>This product uses SPOTIFY(R) CORE but is not endorsed, certified or otherwise approved in any way by Spotify. Spotify is the registered trade mark of the Spotify Group.</disclaimer>
+		<assets>
+			<icon>resources/icon.png</icon>
+			<fanart>resources/fanart.jpg</fanart>
+		</assets>
     </extension>
 </addon>
