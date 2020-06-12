@@ -1612,7 +1612,7 @@ class PluginContent():
                 li = xbmcgui.ListItem(
                     item[0],
                     path=item[1],
-                    iconImage="DefaultMusicAlbums.png"
+                    # iconImage="DefaultMusicAlbums.png"
                 )
                 li.setProperty('do_not_analyze', 'true')
                 li.setProperty('IsPlayable', 'false')
@@ -1636,7 +1636,7 @@ class PluginContent():
             li = xbmcgui.ListItem(
                 xbmc.getLocalizedString(33078),
                 path=url,
-                iconImage="DefaultMusicAlbums.png"
+                # iconImage="DefaultMusicAlbums.png"
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
