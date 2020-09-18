@@ -28,7 +28,7 @@ from threading import Thread, Event
 
 
 PROXY_PORT = 52308
-DEBUG = True
+DEBUG = False
 
 try:
     import simplejson as json
@@ -81,7 +81,7 @@ def log_msg(msg, loglevel=xbmc.LOGDEBUG):
     if isinstance(msg, str):
         msg = msg.encode('utf-8')
     if DEBUG:
-        loglevel = xbmc.LOGNOTICE
+        loglevel = xbmc.LOGINFO
     xbmc.log("%s --> %s" % (ADDON_ID, msg), level=loglevel)
 
 
