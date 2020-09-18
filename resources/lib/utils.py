@@ -178,7 +178,7 @@ def request_token_web(force=False):
     from spotipy import oauth2
     xbmcvfs.mkdir("special://profile/addon_data/%s/" % ADDON_ID)
     cache_path = "special://profile/addon_data/%s/spotipy.cache" % ADDON_ID
-    cache_path = xbmc.translatePath(cache_path)
+    cache_path = xbmcvfs.translatePath(cache_path)
     scope = " ".join(SCOPE)
     redirect_url = 'http://localhost:%s/callback' % PROXY_PORT
     sp_oauth = oauth2.SpotifyOAuth(CLIENTID, CLIENT_SECRET, redirect_url, scope=scope, cache_path=cache_path)
@@ -409,7 +409,7 @@ class Spotty(object):
 
     def __init__(self):
         '''initialize with default values'''
-        self.__cache_path = xbmc.translatePath("special://profile/addon_data/%s/" % ADDON_ID)
+        self.__cache_path = xbmcvfs.translatePath("special://profile/addon_data/%s/" % ADDON_ID)
         self.playername = get_playername()
         self.__spotty_binary = self.get_spotty_binary()
 
@@ -524,7 +524,7 @@ class Spotty(object):
     def get_username(self):
         ''' obtain/check (last) username of the credentials obtained by spotify connect'''
         username = ""
-        cred_file = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
+        cred_file = xbmcvfs.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
         if xbmcvfs.exists(cred_file):
             with open(cred_file) as cred_file:
                 data = cred_file.read()
