@@ -166,7 +166,7 @@ class MainService:
             self.sp._auth = auth_token["access_token"]
             me = self.sp.me()
             self.current_user = me["id"]
-            log_msg("Logged in to Spotify - Username: %s" % self.current_user, xbmc.LOGNOTICE)
+            log_msg("Logged in to Spotify - Username: %s" % self.current_user, xbmc.LOGINFO)
             # store authtoken and username as window prop for easy access by plugin entry
             self.win.setProperty("spotify-token", auth_token["access_token"])
             self.win.setProperty("spotify-username", self.current_user)
