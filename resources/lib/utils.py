@@ -246,7 +246,7 @@ def create_wave_header(duration):
         samplerate,  # Samplerate, 44100, 48000, etc.
         samplerate * channels * (bitspersample // 8),  # Byterate
         channels * (bitspersample // 8),  # Blockalign
-        bitspersample,  # 16 bits for two byte samples, etc.  => A METTRE A JOUR - POUR TEST'''
+        bitspersample,  # 16 bits for two byte samples, etc.  => A METTRE A JOUR - POUR TEST
     )
     # Generate data chunk
     data_chunk_spec = "<4sL"
