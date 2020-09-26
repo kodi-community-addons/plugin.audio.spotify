@@ -99,7 +99,7 @@ class MainService:
 
     def close(self):
         '''shutdown, perform cleanup'''
-        log_msg('Shutdown requested !', xbmc.LOGNOTICE)
+        log_msg('Shutdown requested !', xbmc.LOGINFO)
         kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
@@ -108,7 +108,7 @@ class MainService:
         del self.addon
         del self.kodimonitor
         del self.win
-        log_msg('stopped', xbmc.LOGNOTICE)
+        log_msg('stopped', xbmc.LOGINFO)
 
 
     def switch_user(self, restart_daemon=False):
