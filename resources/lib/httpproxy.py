@@ -11,6 +11,7 @@ import random
 import sys
 import platform
 import logging
+from io import BytesIO
 import os
 from utils import log_msg, log_exception, create_wave_header, PROXY_PORT, StringIO
 import xbmc
@@ -186,13 +187,12 @@ class Root:
     @cherrypy.expose
     def silence(self, duration, **kwargs):
         '''stream silence audio for the given duration, used by spotify connect player'''
-        duration = int(duration)
+        duration = float(duration)
         wave_header, filesize = create_wave_header(duration)
-        output_buffer = StringIO()
+        output_buffer = BytesIO()
         output_buffer.write(wave_header)
-        output_buffer.write('\0' * (filesize - output_buffer.tell()))
-        return cherrypy.lib.static.serve_fileobj(output_buffer, content_type="audio/wav",
-                                                 name="%s.wav" % duration, filesize=output_buffer.tell())
+        output_buffer.write(bytes('\0' * (filesize - output_buffer.tell()), 'utf-8'))
+        return cherrypy.lib.static.serve_fileobj(output_buffer.read(), content_type="audio/wav", name="%s.wav" % duration, debug=True)
 
     @cherrypy.expose
     def nexttrack(self, **kwargs):

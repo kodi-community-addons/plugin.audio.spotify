@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT
+from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT, get_playername
 import xbmc
 import xbmcgui
 import urllib.parse
@@ -127,21 +127,21 @@ class ConnectPlayer(xbmc.Player):
     def update_info(self, force):
         cur_playback = self.__sp.current_playback()
         if cur_playback:
-            if cur_playback["is_playing"] and (not xbmc.getCondVisibility("Player.Paused") or force):
+            if cur_playback["device"]["name"] == get_playername() and (not xbmc.getCondVisibility("Player.Paused") or force):
                 player_title = None
                 if self.isPlaying():
-                    player_title = self.getMusicInfoTag().getTitle().decode("utf-8")
+                    player_title = self.getMusicInfoTag().getTitle()
                 
                 trackdetails = cur_playback["item"]
                 if trackdetails is not None and (not player_title or player_title != trackdetails["name"]):
-                    log_msg("Next track requested by Spotify Connect player")
+                    log_msg("Next track requested by Spotify Connect player.")
                     self.start_playback(trackdetails["id"])
-            elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
-                log_msg("Playback resumed from pause requested by Spotify Connect")
+            elif cur_playback["device"]["name"] == get_playername() and xbmc.getCondVisibility("Player.Paused"):
+                log_msg("Playback resumed from pause requested by Spotify Connect." )
                 self.__skip_events = True
                 self.play()
             elif not xbmc.getCondVisibility("Player.Paused"):
-                log_msg("Pause requested by Spotify Connect")
+                log_msg("Pause requested by Spotify Connect.")
                 self.__skip_events = True
                 self.pause()
         else:

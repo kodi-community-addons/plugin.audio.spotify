@@ -218,15 +218,13 @@ class PluginContent():
 
     def next_track(self):
         '''special entry which tells the remote connect player to move to the next track'''
-        
+        log_msg("Next track requested", xbmc.LOGDEBUG)
         cur_playlist_position = xbmc.PlayList(xbmc.PLAYLIST_MUSIC).getposition()
-        # prevent unintentional skipping when Kodi track ends before connect player
-        # playlist position will increse only when play next button is pressed
-        if cur_playlist_position > self.last_playlist_position:
-            # move to next track
-            self.sp.next_track()
-            # give time for connect player to update info
-            xbmc.sleep(100)
+       
+        self.sp.next_track()
+        # give time for connect player to update info
+        xbmc.sleep(100)         
+            
             
         self.last_playlist_position = cur_playlist_position
         cur_playback = self.sp.current_playback()
@@ -411,7 +409,7 @@ class PluginContent():
             if self.local_playback:
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=local"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -422,7 +420,7 @@ class PluginContent():
             if self.addon.getSetting("playback_device") == "remote":
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=remote"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -434,7 +432,7 @@ class PluginContent():
                 label += " [%s]" % self.addon.getLocalizedString(11040)
                 self.refresh_connected_device()
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=%s" % device["id"]
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -445,7 +443,7 @@ class PluginContent():
             if self.addon.getSetting("playback_device") == "squeezebox":
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=squeezebox"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)

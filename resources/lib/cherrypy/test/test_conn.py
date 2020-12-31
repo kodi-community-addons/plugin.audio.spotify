@@ -4,10 +4,8 @@ import errno
 import socket
 import sys
 import time
-
-import six
-from six.moves import urllib
-from six.moves.http_client import BadStatusLine, HTTPConnection, NotConnected
+import urllib.parse
+from http.client import BadStatusLine, HTTPConnection, NotConnected
 
 import pytest
 
@@ -91,7 +89,7 @@ def setup_server():
                 body = [body]
             newbody = []
             for chunk in body:
-                if isinstance(chunk, six.text_type):
+                if isinstance(chunk, str):
                     chunk = chunk.encode('ISO-8859-1')
                 newbody.append(chunk)
             return newbody
@@ -354,18 +352,17 @@ class PipelineTests(helper.CPWebCase):
         conn._output(ntob('Host: %s' % self.HOST, 'ascii'))
         conn._send_output()
         response = conn.response_class(conn.sock, method='GET')
+        msg = (
+            "Writing to timed out socket didn't fail as it should have: %s")
         try:
             response.begin()
         except Exception:
             if not isinstance(sys.exc_info()[1],
                               (socket.error, BadStatusLine)):
-                self.fail("Writing to timed out socket didn't fail"
-                          ' as it should have: %s' % sys.exc_info()[1])
+                self.fail(msg % sys.exc_info()[1])
         else:
             if response.status != 408:
-                self.fail("Writing to timed out socket didn't fail"
-                          ' as it should have: %s' %
-                          response.read())
+                self.fail(msg % response.read())
 
         conn.close()
 
@@ -392,12 +389,10 @@ class PipelineTests(helper.CPWebCase):
         except Exception:
             if not isinstance(sys.exc_info()[1],
                               (socket.error, BadStatusLine)):
-                self.fail("Writing to timed out socket didn't fail"
-                          ' as it should have: %s' % sys.exc_info()[1])
+                self.fail(msg % sys.exc_info()[1])
         else:
-            self.fail("Writing to timed out socket didn't fail"
-                      ' as it should have: %s' %
-                      response.read())
+            if response.status != 408:
+                self.fail(msg % response.read())
 
         conn.close()
 
@@ -441,8 +436,7 @@ class PipelineTests(helper.CPWebCase):
             # ``conn.sock``. Until that bug get's fixed we will
             # monkey patch the ``response`` instance.
             # https://bugs.python.org/issue23377
-            if six.PY3:
-                response.fp = conn.sock.makefile('rb', 0)
+            response.fp = conn.sock.makefile('rb', 0)
             response.begin()
             body = response.read(13)
             self.assertEqual(response.status, 200)

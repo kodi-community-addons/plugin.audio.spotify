@@ -28,7 +28,7 @@ from threading import Thread, Event
 
 
 PROXY_PORT = 52308
-DEBUG = False
+DEBUG = True
 
 try:
     import simplejson as json
@@ -318,10 +318,11 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
         thumb = "DefaultMusicSongs"
     duration = track['duration_ms'] / 1000
 
-    if silenced:
-        url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
-    else:
-        url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+    #if silenced:
+        # url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
+    #else:
+        # url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+    url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
 
     if is_connect or silenced:
         url += "/?connect=true"
@@ -427,7 +428,8 @@ class Spotty(object):
             args = [
                 binary_path,
                 "-n", "selftest",
-                "-x", "--disable-discovery",
+                "--disable-discovery",
+                "-x",
 				"-v"
             ]
             startupinfo = None
@@ -451,7 +453,7 @@ class Spotty(object):
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True, ap_port="54443"):
+    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=False, ap_port="54443"):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
