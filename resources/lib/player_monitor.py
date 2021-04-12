@@ -127,14 +127,15 @@ class ConnectPlayer(xbmc.Player):
     def update_info(self, force):
         cur_playback = self.__sp.current_playback()
         if cur_playback:
-            #log_msg("Spotify Connect request received : %s" % cur_playback)
+            log_msg("Spotify Connect request received : %s" % cur_playback)
             if  cur_playback["device"]["name"] == get_playername() and (not xbmc.getCondVisibility("Player.Paused") and cur_playback["is_playing"] or force):
                 player_title = None
                 if self.isPlaying():
                     player_title = self.getMusicInfoTag().getTitle()                
                 trackdetails = cur_playback["item"]
                 # Set volume level
-                xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )   
+                if cur_playback['device']['volume_percent'] != 50:
+                    xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )   
                 if trackdetails is not None and (not player_title or player_title != trackdetails["name"]):
                     log_msg("Next track requested by Spotify Connect player.")
                     self.start_playback(trackdetails["id"])
@@ -142,7 +143,8 @@ class ConnectPlayer(xbmc.Player):
                 log_msg("Playback resumed from pause requested by Spotify Connect." )
                 self.__skip_events = True
                 # Set volume level
-                xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )  
+                if cur_playback['device']['volume_percent'] != 50:
+                    xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )   
                 log_msg("Start position : %s" % cur_playback['progress_ms'])
                 self.play(startpos = cur_playback['progress_ms'])
             elif not xbmc.getCondVisibility("Player.Paused"):
