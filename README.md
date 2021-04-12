@@ -6,12 +6,12 @@ Based on the opensource Librespot client. Special thanks to mherger for building
 
 ## Install with repository
 Install the add-on from my Kodi repo:
-https://github.com/kodi-community-addons/repository.marcelveldt/raw/master/repository.marcelveldt/repository.marcelveldt-1.0.1.zip
+[https://github.com/kodi-community-addons/repository.marcelveldt/raw/master/repository/repository.marcelveldt/repository.marcelveldt-1.0.3.zip](https://github.com/kodi-community-addons/repository.marcelveldt/raw/master/repository/repository.marcelveldt/repository.marcelveldt-1.0.3.zip)
 
 
 ## Support
 Support is provided on the Kodi forums:
-http://forum.kodi.tv/showthread.php?tid=265356
+[http://forum.kodi.tv/showthread.php?tid=265356](http://forum.kodi.tv/showthread.php?tid=265356)
 Or create issue in Github
 
 
