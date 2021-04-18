@@ -57,7 +57,7 @@ class Root:
             log_msg("lms event hook called. Event: %s" % event)
             # check username, it might have changed
             spotty_user = self.__spotty.get_username()
-            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)").decode("utf-8")
+            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)")
             if spotty_user != cur_user:
                 log_msg("user change detected")
                 xbmc.executebuiltin("SetProperty(spotify-cmd,__LOGOUT__,Home)")
@@ -159,7 +159,8 @@ class Root:
 
             # get OGG data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
-            self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
+            if self.spotty_bin == None:
+                self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
             self.spotty_trackid = track_id
             self.spotty_range_l = range_l
             log_msg("Infos : Track : %s" % track_id)

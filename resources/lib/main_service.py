@@ -8,7 +8,7 @@
     Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty, parse_spotify_track
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, parse_spotify_track
 from player_monitor import ConnectPlayer
 from connect_daemon import ConnectDaemon
 from httpproxy import ProxyRunner
@@ -100,7 +100,7 @@ class MainService:
     def close(self):
         '''shutdown, perform cleanup'''
         log_msg('Shutdown requested !', xbmc.LOGINFO)
-        kill_spotty()
+        self.spotty.kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
         self.stop_connect_daemon()
