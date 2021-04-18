@@ -159,7 +159,8 @@ class Root:
 
             # get OGG data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
-            self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
+            if self.spotty_bin == None:
+                self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
             self.spotty_trackid = track_id
             self.spotty_range_l = range_l
             log_msg("Infos : Track : %s" % track_id)
