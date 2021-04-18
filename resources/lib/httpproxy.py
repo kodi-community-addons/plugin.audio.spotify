@@ -57,7 +57,7 @@ class Root:
             log_msg("lms event hook called. Event: %s" % event)
             # check username, it might have changed
             spotty_user = self.__spotty.get_username()
-            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)").decode("utf-8")
+            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)")
             if spotty_user != cur_user:
                 log_msg("user change detected")
                 xbmc.executebuiltin("SetProperty(spotify-cmd,__LOGOUT__,Home)")
