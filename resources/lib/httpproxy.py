@@ -125,6 +125,7 @@ class Root:
 
     def kill_spotty(self):
         self.spotty_bin.terminate()
+        self.spotty_bin.communicate()
         self.spotty_bin = None
         self.spotty_trackid = None
         self.spotty_range_l = None
