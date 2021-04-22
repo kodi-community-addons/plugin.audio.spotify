@@ -32,7 +32,7 @@ class ConnectDaemon(threading.Thread):
         log_msg("Start Spotify Connect Daemon")
         self.__exit = False
         self.daemon_active = True
-        spotty_args = ["--lms", "localhost:52308/", "--player-mac", "None"]
+        spotty_args = ["--lms", "localhost:52308/lms", "--player-mac", "None"]
         disable_discovery = False
         if xbmcvfs.exists("/run/libreelec/"):
             disable_discovery = True # avahi on libreelec conflicts with the mdns implementation of librespot

@@ -44,6 +44,8 @@ class Root:
     @cherrypy.expose
     def index(self): 
         return "Server started"	
+
+    @cherrypy.expose
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def lms(self, filename, **kwargs):
