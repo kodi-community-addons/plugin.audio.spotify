@@ -3,4 +3,13 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-__version__ = '6.4.0'
+try:
+    import pkg_resources
+except ImportError:
+    pass
+
+
+try:
+    __version__ = pkg_resources.get_distribution('cheroot').version
+except Exception:
+    __version__ = '8.4.5'

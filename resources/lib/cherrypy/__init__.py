@@ -111,7 +111,7 @@ tree = _cptree.Tree()
 try:
     __version__ = pkg_resources.require('cherrypy')[0].version
 except Exception:
-    __version__ = 'unknown'
+    __version__ = '18.6.0'
 
 
 engine.listeners['before_request'] = set()

@@ -83,7 +83,8 @@ class Server(server.HTTPServer):
         self.requests = threadpool.ThreadPool(
             self, min=numthreads or 1, max=max,
             accepted_queue_size=accepted_queue_size,
-            accepted_queue_timeout=accepted_queue_timeout)
+            accepted_queue_timeout=accepted_queue_timeout,
+        )
 
     @property
     def numthreads(self):
@@ -118,14 +119,11 @@ class Gateway(server.Gateway):
                 corresponding class
 
         """
-        return dict(
-            (gw.version, gw)
-            for gw in cls.__subclasses__()
-        )
+        return {gw.version: gw for gw in cls.__subclasses__()}
 
     def get_environ(self):
         """Return a new environ dict targeting the given wsgi.version."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def respond(self):
         """Process the current request.
@@ -156,8 +154,10 @@ class Gateway(server.Gateway):
         # "The application may call start_response more than once,
         # if and only if the exc_info argument is provided."
         if self.started_response and not exc_info:
-            raise AssertionError('WSGI start_response called a second '
-                                 'time with no exc_info.')
+            raise AssertionError(
+                'WSGI start_response called a second '
+                'time with no exc_info.',
+            )
         self.started_response = True
 
         # "if exc_info is provided, and the HTTP headers have already been
@@ -174,10 +174,12 @@ class Gateway(server.Gateway):
         for k, v in headers:
             if not isinstance(k, str):
                 raise TypeError(
-                    'WSGI response header key %r is not of type str.' % k)
+                    'WSGI response header key %r is not of type str.' % k,
+                )
             if not isinstance(v, str):
                 raise TypeError(
-                    'WSGI response header value %r is not of type str.' % v)
+                    'WSGI response header value %r is not of type str.' % v,
+                )
             if k.lower() == 'content-length':
                 self.remaining_bytes_out = int(v)
             out_header = ntob(k), ntob(v)
@@ -190,7 +192,7 @@ class Gateway(server.Gateway):
         """Cast status to bytes representation of current Python version.
 
         According to :pep:`3333`, when using Python 3, the response status
-        and headers must be bytes masquerading as unicode; that is, they
+        and headers must be bytes masquerading as Unicode; that is, they
         must be of type "str" but are restricted to code points in the
         "latin-1" set.
         """
@@ -217,7 +219,8 @@ class Gateway(server.Gateway):
                 self.req.simple_response(
                     '500 Internal Server Error',
                     'The requested resource returned more bytes than the '
-                    'declared Content-Length.')
+                    'declared Content-Length.',
+                )
             else:
                 # Dang. We have probably already sent data. Truncate the chunk
                 # to fit (so the client doesn't hang) and raise an error later.
@@ -231,7 +234,8 @@ class Gateway(server.Gateway):
             rbo -= chunklen
             if rbo < 0:
                 raise ValueError(
-                    'Response body exceeds the declared Content-Length.')
+                    'Response body exceeds the declared Content-Length.',
+                )
 
 
 class Gateway_10(Gateway):
@@ -293,7 +297,11 @@ class Gateway_10(Gateway):
 
         # Request headers
         env.update(
-            ('HTTP_' + bton(k).upper().replace('-', '_'), bton(v))
+            (
+                'HTTP_{header_name!s}'.
+                format(header_name=bton(k).upper().replace('-', '_')),
+                bton(v),
+            )
             for k, v in req.inheaders.items()
         )
 
@@ -314,7 +322,7 @@ class Gateway_10(Gateway):
 class Gateway_u0(Gateway_10):
     """A Gateway class to interface HTTPServer with WSGI u.0.
 
-    WSGI u.0 is an experimental protocol, which uses unicode for keys
+    WSGI u.0 is an experimental protocol, which uses Unicode for keys
     and values in both Python 2 and Python 3.
     """
 
@@ -352,7 +360,7 @@ class Gateway_u0(Gateway_10):
     def _decode_value(item):
         k, v = item
         skip_keys = 'REQUEST_URI', 'wsgi.input'
-        if six.PY3 or not isinstance(v, bytes) or k in skip_keys:
+        if not six.PY2 or not isinstance(v, bytes) or k in skip_keys:
             return k, v
         return k, v.decode('ISO-8859-1')
 
@@ -402,14 +410,18 @@ class PathInfoDispatcher:
         path = environ['PATH_INFO'] or '/'
         for p, app in self.apps:
             # The apps list should be sorted by length, descending.
-            if path.startswith(p + '/') or path == p:
+            if path.startswith('{path!s}/'.format(path=p)) or path == p:
                 environ = environ.copy()
-                environ['SCRIPT_NAME'] = environ['SCRIPT_NAME'] + p
+                environ['SCRIPT_NAME'] = environ.get('SCRIPT_NAME', '') + p
                 environ['PATH_INFO'] = path[len(p):]
                 return app(environ, start_response)
 
-        start_response('404 Not Found', [('Content-Type', 'text/plain'),
-                                         ('Content-Length', '0')])
+        start_response(
+            '404 Not Found', [
+                ('Content-Type', 'text/plain'),
+                ('Content-Length', '0'),
+            ],
+        )
         return ['']
 
 

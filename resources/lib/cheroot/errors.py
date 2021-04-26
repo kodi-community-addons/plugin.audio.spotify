@@ -23,16 +23,15 @@ class FatalSSLAlert(Exception):
 
 
 def plat_specific_errors(*errnames):
-    """Return error numbers for all errors in errnames on this platform.
+    """Return error numbers for all errors in ``errnames`` on this platform.
 
-    The 'errno' module contains different global constants depending on
-    the specific platform (OS). This function will return the list of
-    numeric values for a given list of potential names.
+    The :py:mod:`errno` module contains different global constants
+    depending on the specific platform (OS). This function will return
+    the list of numeric values for a given list of potential names.
     """
-    errno_names = dir(errno)
-    nums = [getattr(errno, k) for k in errnames if k in errno_names]
-    # de-dupe the list
-    return list(dict.fromkeys(nums).keys())
+    missing_attr = {None}
+    unique_nums = {getattr(errno, k, None) for k in errnames}
+    return list(unique_nums - missing_attr)
 
 
 socket_error_eintr = plat_specific_errors('EINTR', 'WSAEINTR')
@@ -51,7 +50,8 @@ socket_errors_to_ignore = plat_specific_errors(
 socket_errors_to_ignore.append('timed out')
 socket_errors_to_ignore.append('The read operation timed out')
 socket_errors_nonblocking = plat_specific_errors(
-    'EAGAIN', 'EWOULDBLOCK', 'WSAEWOULDBLOCK')
+    'EAGAIN', 'EWOULDBLOCK', 'WSAEWOULDBLOCK',
+)
 
 if sys.platform == 'darwin':
     socket_errors_to_ignore.extend(plat_specific_errors('EPROTOTYPE'))
