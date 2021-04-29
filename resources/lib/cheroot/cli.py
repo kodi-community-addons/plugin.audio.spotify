@@ -1,24 +1,30 @@
 """Command line tool for starting a Cheroot WSGI/HTTP server instance.
 
-Basic usage::
+Basic usage:
 
-    # Start a server on 127.0.0.1:8000 with the default settings
-    # for the WSGI app myapp/wsgi.py:application()
-    cheroot myapp.wsgi
+.. code-block:: shell-session
 
-    # Start a server on 0.0.0.0:9000 with 8 threads
-    # for the WSGI app myapp/wsgi.py:main_app()
-    cheroot myapp.wsgi:main_app --bind 0.0.0.0:9000 --threads 8
+    $ # Start a server on 127.0.0.1:8000 with the default settings
+    $ # for the WSGI app myapp/wsgi.py:application()
+    $ cheroot myapp.wsgi
 
-    # Start a server for the cheroot.server.Gateway subclass
-    # myapp/gateway.py:HTTPGateway
-    cheroot myapp.gateway:HTTPGateway
+    $ # Start a server on 0.0.0.0:9000 with 8 threads
+    $ # for the WSGI app myapp/wsgi.py:main_app()
+    $ cheroot myapp.wsgi:main_app --bind 0.0.0.0:9000 --threads 8
 
-    # Start a server on the UNIX socket /var/spool/myapp.sock
-    cheroot myapp.wsgi --bind /var/spool/myapp.sock
+    $ # Start a server for the cheroot.server.Gateway subclass
+    $ # myapp/gateway.py:HTTPGateway
+    $ cheroot myapp.gateway:HTTPGateway
 
-    # Start a server on the abstract UNIX socket CherootServer
-    cheroot myapp.wsgi --bind @CherootServer
+    $ # Start a server on the UNIX socket /var/spool/myapp.sock
+    $ cheroot myapp.wsgi --bind /var/spool/myapp.sock
+
+    $ # Start a server on the abstract UNIX socket CherootServer
+    $ cheroot myapp.wsgi --bind @CherootServer
+
+.. spelling::
+
+   cli
 """
 
 import argparse
@@ -158,70 +164,70 @@ def parse_wsgi_bind_addr(bind_addr_string):
 
 
 _arg_spec = {
-    '_wsgi_app': dict(
-        metavar='APP_MODULE',
-        type=Application.resolve,
-        help='WSGI application callable or cheroot.server.Gateway subclass',
-    ),
-    '--bind': dict(
-        metavar='ADDRESS',
-        dest='bind_addr',
-        type=parse_wsgi_bind_addr,
-        default='[::1]:8000',
-        help='Network interface to listen on (default: [::1]:8000)',
-    ),
-    '--chdir': dict(
-        metavar='PATH',
-        type=os.chdir,
-        help='Set the working directory',
-    ),
-    '--server-name': dict(
-        dest='server_name',
-        type=str,
-        help='Web server name to be advertised via Server HTTP header',
-    ),
-    '--threads': dict(
-        metavar='INT',
-        dest='numthreads',
-        type=int,
-        help='Minimum number of worker threads',
-    ),
-    '--max-threads': dict(
-        metavar='INT',
-        dest='max',
-        type=int,
-        help='Maximum number of worker threads',
-    ),
-    '--timeout': dict(
-        metavar='INT',
-        dest='timeout',
-        type=int,
-        help='Timeout in seconds for accepted connections',
-    ),
-    '--shutdown-timeout': dict(
-        metavar='INT',
-        dest='shutdown_timeout',
-        type=int,
-        help='Time in seconds to wait for worker threads to cleanly exit',
-    ),
-    '--request-queue-size': dict(
-        metavar='INT',
-        dest='request_queue_size',
-        type=int,
-        help='Maximum number of queued connections',
-    ),
-    '--accepted-queue-size': dict(
-        metavar='INT',
-        dest='accepted_queue_size',
-        type=int,
-        help='Maximum number of active requests in queue',
-    ),
-    '--accepted-queue-timeout': dict(
-        metavar='INT',
-        dest='accepted_queue_timeout',
-        type=int,
-        help='Timeout in seconds for putting requests into queue',
-    ),
+    '_wsgi_app': {
+        'metavar': 'APP_MODULE',
+        'type': Application.resolve,
+        'help': 'WSGI application callable or cheroot.server.Gateway subclass',
+    },
+    '--bind': {
+        'metavar': 'ADDRESS',
+        'dest': 'bind_addr',
+        'type': parse_wsgi_bind_addr,
+        'default': '[::1]:8000',
+        'help': 'Network interface to listen on (default: [::1]:8000)',
+    },
+    '--chdir': {
+        'metavar': 'PATH',
+        'type': os.chdir,
+        'help': 'Set the working directory',
+    },
+    '--server-name': {
+        'dest': 'server_name',
+        'type': str,
+        'help': 'Web server name to be advertised via Server HTTP header',
+    },
+    '--threads': {
+        'metavar': 'INT',
+        'dest': 'numthreads',
+        'type': int,
+        'help': 'Minimum number of worker threads',
+    },
+    '--max-threads': {
+        'metavar': 'INT',
+        'dest': 'max',
+        'type': int,
+        'help': 'Maximum number of worker threads',
+    },
+    '--timeout': {
+        'metavar': 'INT',
+        'dest': 'timeout',
+        'type': int,
+        'help': 'Timeout in seconds for accepted connections',
+    },
+    '--shutdown-timeout': {
+        'metavar': 'INT',
+        'dest': 'shutdown_timeout',
+        'type': int,
+        'help': 'Time in seconds to wait for worker threads to cleanly exit',
+    },
+    '--request-queue-size': {
+        'metavar': 'INT',
+        'dest': 'request_queue_size',
+        'type': int,
+        'help': 'Maximum number of queued connections',
+    },
+    '--accepted-queue-size': {
+        'metavar': 'INT',
+        'dest': 'accepted_queue_size',
+        'type': int,
+        'help': 'Maximum number of active requests in queue',
+    },
+    '--accepted-queue-timeout': {
+        'metavar': 'INT',
+        'dest': 'accepted_queue_timeout',
+        'type': int,
+        'help': 'Timeout in seconds for putting requests into queue',
+    },
 }
 
 

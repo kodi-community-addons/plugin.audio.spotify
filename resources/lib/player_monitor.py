@@ -66,6 +66,7 @@ class ConnectPlayer(xbmc.Player):
                     self.connect_local = True
             if "nexttrack" in filename:
                 # next track requested for kodi player
+                log_msg("next track requested for kodi player")
                 self.__sp.next_track()
             elif self.connect_playing:
                 self.update_playlist()
@@ -97,6 +98,7 @@ class ConnectPlayer(xbmc.Player):
 
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
+        log_msg("Update the playlist: add fake item at the end which allows us to skip", xbmc.LOGDEBUG)
         if self.connect_local:
             url = "http://localhost:%s/nexttrack" % PROXY_PORT
         else:

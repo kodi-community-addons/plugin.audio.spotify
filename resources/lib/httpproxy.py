@@ -12,7 +12,6 @@ import sys
 import platform
 import logging
 from io import BytesIO
-import os
 from utils import log_msg, log_exception, create_wave_header, PROXY_PORT, StringIO
 import xbmc
 import math
@@ -45,11 +44,11 @@ class Root:
     def index(self): 
         return "Server started"	
 
-    @cherrypy.expose
+    # @cherrypy.expose   
     @cherrypy.tools.json_out()
-    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_in()  
     def lms(self, filename, **kwargs):
-        ''' fake lms hook to retrieve events form spotty daemon'''
+        ''' fake lms hook to retrieve events from spotty daemon'''
         method = cherrypy.request.method.upper()
         if method != "POST" or filename != "jsonrpc.js":
             raise cherrypy.HTTPError(405)
@@ -201,6 +200,7 @@ class Root:
     @cherrypy.expose
     def nexttrack(self, **kwargs):
         '''play silence while spotify connect player is waiting for the next track'''
+        log_msg('play silence while spotify connect player is waiting for the next track', xbmc.LOGDEBUG)
         return self.silence(20)
 
     @cherrypy.expose

@@ -299,6 +299,8 @@ class BuiltinSSLAdapter(Adapter):
                     'no shared cipher', 'certificate unknown',
                     'ccs received early',
                     'certificate verify failed',  # client cert w/o trusted CA
+                    'version too low',  # caused by SSL3 connections
+                    'unsupported protocol',  # caused by TLS1 connections
                 )
                 if _assert_ssl_exc_contains(ex, *_block_errors):
                     # Accepted error, let's pass

@@ -44,6 +44,10 @@ Both are :py:data:`None` by default. If :py:attr:`ssl_adapter.context
 <cheroot.ssl.pyopenssl.pyOpenSSLAdapter.context>` is :py:data:`None`,
 but ``.private_key`` and ``.certificate`` are both given and valid, they
 will be read, and the context will be automatically created from them.
+
+.. spelling::
+
+   pyopenssl
 """
 
 from __future__ import absolute_import, division, print_function

@@ -1,4 +1,9 @@
-"""A thread-based worker pool."""
+"""A thread-based worker pool.
+
+.. spelling::
+
+   joinable
+"""
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type

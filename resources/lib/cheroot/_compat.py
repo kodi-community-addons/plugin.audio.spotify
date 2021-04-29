@@ -4,6 +4,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+import os
 import platform
 import re
 
@@ -34,6 +35,10 @@ except ImportError:
             yield
         except exceptions:
             pass
+
+
+IS_CI = bool(os.getenv('CI'))
+IS_GITHUB_ACTIONS_WORKFLOW = bool(os.getenv('GITHUB_WORKFLOW'))
 
 
 IS_PYPY = platform.python_implementation() == 'PyPy'

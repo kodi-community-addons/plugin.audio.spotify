@@ -12,4 +12,4 @@ except ImportError:
 try:
     __version__ = pkg_resources.get_distribution('cheroot').version
 except Exception:
-    __version__ = '8.4.5'
+    __version__ = '8.5.2'

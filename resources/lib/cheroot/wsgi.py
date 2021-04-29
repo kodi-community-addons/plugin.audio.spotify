@@ -194,7 +194,7 @@ class Gateway(server.Gateway):
         According to :pep:`3333`, when using Python 3, the response status
         and headers must be bytes masquerading as Unicode; that is, they
         must be of type "str" but are restricted to code points in the
-        "latin-1" set.
+        "Latin-1" set.
         """
         if six.PY2:
             return status

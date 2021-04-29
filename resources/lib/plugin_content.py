@@ -234,6 +234,7 @@ class PluginContent():
 
     def play_connect(self):
         '''start local connect playback - called from webservice when local connect player starts playback'''
+        log_msg("start local connect playback - called from webservice when local connect player starts playback", xbmc.LOGDEBUG)
         playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         trackdetails = None
         count = 0

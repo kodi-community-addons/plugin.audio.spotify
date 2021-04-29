@@ -138,11 +138,11 @@ def request_token_spotty(spotty, use_creds=True):
         try:
             args = ["-t", "--client-id", CLIENTID, "--scope", ",".join(SCOPE), "-n", "temp-spotty"]
             done = Event()
-            spotty_bin = spotty.run_spotty(arguments=args, use_creds=use_creds)
+            spotty = spotty.run_spotty(arguments=args, use_creds=use_creds)
             watcher = Thread(target=kill_on_timeout, args=(done, 5, spotty))
             watcher.daemon = True
             watcher.start()
-            stdout, stderr = spotty_bin.communicate()
+            stdout, stderr = spotty.communicate()
             done.set()
             result = None
             log_msg("request_token_spotty stdout: %s" % stdout)
