@@ -6,8 +6,7 @@ Based on the opensource Librespot client. Special thanks to mherger for building
 
 ## Install with repository
 Install the add-on from my Kodi repo:
-https://github.com/kodi-community-addons/repository.marcelveldt/raw/master/repository.marcelveldt/repository.marcelveldt-1.0.1.zip
-
+https://github.com/kodi-community-addons/plugin.audio.spotify/files/4543943/repository.marcelveldt-1.0.2.zip
 
 ## Support
 Support is provided on the Kodi forums:
