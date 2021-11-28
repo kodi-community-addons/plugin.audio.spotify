@@ -18,7 +18,6 @@ import math
 
 class Root:
     spotty = None
-    
     spotty_bin = None
     spotty_trackid = None
     spotty_range_l = None
@@ -109,7 +108,7 @@ class Root:
                 range_r = filesize
 
             cherrypy.response.headers['Accept-Ranges'] = 'bytes'
-            cherrypy.response.headers['Content-Length'] = filesize
+            cherrypy.response.headers['Content-Length'] = range_r - range_l
             cherrypy.response.headers['Content-Range'] = "bytes %s-%s/%s" % (range_l, range_r, filesize)
             log_msg("partial request range: %s, length: %s" % (cherrypy.response.headers['Content-Range'], cherrypy.response.headers['Content-Length']), xbmc.LOGDEBUG)
         else:
@@ -121,7 +120,18 @@ class Root:
 
         # If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
-            return self.send_audio_stream(track_id, filesize, wave_header, range_l)
+        
+            if self.spotty_bin != None:
+                # If spotty binary still attached for a different request, try to terminate it.
+                log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
+                    xbmc.LOGERROR)
+                self.kill_spotty()
+                
+            while self.spotty_bin:
+                time.sleep(0.1)
+            
+            return self.send_audio_stream(track_id, range_r - range_l, wave_header, range_l)
+        
     track._cp_config = {'response.stream': True}
 
     def kill_spotty(self):
@@ -131,24 +141,12 @@ class Root:
         self.spotty_trackid = None
         self.spotty_range_l = None
 
-    def send_audio_stream(self, track_id, filesize, wave_header, range_l):
+    def send_audio_stream(self, track_id, length, wave_header, range_l):
         '''chunked transfer of audio data from spotty binary'''
-        if self.spotty_bin != None and \
-           self.spotty_trackid == track_id and \
-           self.spotty_range_l == range_l:
-            # leave the existing spotty running and don't start a new one.
-            log_msg("WHOOPS!!! Running spotty still handling same request - leave it alone.", \
-                    xbmc.LOGERROR)
-            return
-        elif self.spotty_bin != None:
-            # If spotty binary still attached for a different request, try to terminate it.
-            log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
-                    xbmc.LOGERROR)
-            self.kill_spotty()
-
-        log_msg("start transfer for track %s - range: %s" % (track_id, range_l), \
-                xbmc.LOGDEBUG)
         try:
+            log_msg("start transfer for track %s - range: %s" % (track_id, range_l), \
+                xbmc.LOGDEBUG)
+                    
             # Initialize some loop vars
             max_buffer_size = 524288
             bytes_written = 0
@@ -158,6 +156,7 @@ class Root:
             # bytes_written = len(wave_header)
             if not range_l:
                 yield wave_header
+                bytes_written = len(wave_header)
 
             # get OGG data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
@@ -173,19 +172,23 @@ class Root:
                 self.spotty_bin.stdout.read(range_l)
 
             # Loop as long as there's something to output
-            frame = self.spotty_bin.stdout.read(max_buffer_size)
-            while frame:
+            while bytes_written < length:
+                frame = self.spotty_bin.stdout.read(max_buffer_size)
+                if not frame:
+                    break
                 bytes_written += len(frame)
                 yield frame
-                frame = self.spotty_bin.stdout.read(max_buffer_size)
+
+            log_msg("FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
+                     xbmc.LOGDEBUG)
         except Exception as exc:
             log_exception(__name__, exc)
+            log_msg("EXCEPTION FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
+                    xbmc.LOGDEBUG)
         finally:
             # make sure spotty always gets terminated
             if self.spotty_bin != None:
                 self.kill_spotty()
-            log_msg("FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
-                    xbmc.LOGDEBUG)
 
     @cherrypy.expose
     def silence(self, duration, **kwargs):
