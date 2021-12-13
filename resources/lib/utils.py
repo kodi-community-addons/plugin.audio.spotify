@@ -21,13 +21,14 @@ import subprocess
 import xbmcaddon
 import struct
 import random
+import io
 import time
 import math
 from threading import Thread, Event
 
 
 PROXY_PORT = 52308
-DEBUG = False
+DEBUG = True
 
 try:
     import simplejson as json
@@ -37,8 +38,12 @@ except Exception:
 try:
     from cStringIO import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 
+try:
+    from cBytesIO import BytesIO
+except ImportError:
+    from io import BytesIO
 
 ADDON_ID = "plugin.audio.spotify"
 KODI_VERSION = int(xbmc.getInfoLabel("System.BuildVersion").split(".")[0])
@@ -73,10 +78,10 @@ except Exception:
 
 def log_msg(msg, loglevel=xbmc.LOGDEBUG):
     '''log message to kodi log'''
-    if isinstance(msg, unicode):
+    if isinstance(msg, str):
         msg = msg.encode('utf-8')
     if DEBUG:
-        loglevel = xbmc.LOGNOTICE
+        loglevel = xbmc.LOGINFO
     xbmc.log("%s --> %s" % (ADDON_ID, msg), level=loglevel)
 
 
@@ -92,17 +97,9 @@ def addon_setting(settingname, set_value=None):
     if set_value:
         addon.setSetting(settingname, set_value)
     else:
-        return addon.getSetting(settingname).decode("utf-8")
+        return addon.getSetting(settingname)
 
 
-def kill_spotty():
-    '''make sure we don't have any (remaining) spotty processes running before we start one'''
-    if xbmc.getCondVisibility("System.Platform.Windows"):
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-        subprocess.Popen(["taskkill", "/IM", "spotty.exe"], startupinfo=startupinfo, shell=True)
-    else:
-        os.system("killall spotty")
 
 
 def kill_on_timeout(done, timeout, proc):
@@ -151,7 +148,7 @@ def request_token_spotty(spotty, use_creds=True):
             log_msg("request_token_spotty stdout: %s" % stdout)
             for line in stdout.split():
                 line = line.strip()
-                if line.startswith("{\"accessToken\""):
+                if line.startswith(b"{\"accessToken\""):
                     result = eval(line)
             # transform token info to spotipy compatible format
             if result:
@@ -173,7 +170,7 @@ def request_token_web(force=False):
     from spotipy import oauth2
     xbmcvfs.mkdir("special://profile/addon_data/%s/" % ADDON_ID)
     cache_path = "special://profile/addon_data/%s/spotipy.cache" % ADDON_ID
-    cache_path = xbmc.translatePath(cache_path).decode("utf-8")
+    cache_path = xbmcvfs.translatePath(cache_path)
     scope = " ".join(SCOPE)
     redirect_url = 'http://localhost:%s/callback' % PROXY_PORT
     sp_oauth = oauth2.SpotifyOAuth(CLIENTID, CLIENT_SECRET, redirect_url, scope=scope, cache_path=cache_path)
@@ -186,8 +183,8 @@ def request_token_web(force=False):
 
         # show message to user that the browser is going to be launched
         dialog = xbmcgui.Dialog()
-        header = xbmc.getInfoLabel("System.AddonTitle(%s)" % ADDON_ID).decode("utf-8")
-        msg = xbmc.getInfoLabel("$ADDON[%s 11049]" % ADDON_ID).decode("utf-8")
+        header = xbmc.getInfoLabel("System.AddonTitle(%s)" % ADDON_ID)
+        msg = xbmc.getInfoLabel("$ADDON[%s 11049]" % ADDON_ID)
         dialog.ok(header, msg)
         del dialog
 
@@ -224,7 +221,7 @@ def request_token_web(force=False):
 
 def create_wave_header(duration):
     '''generate a wave header for the stream'''
-    file = StringIO()
+    file = BytesIO()
     numsamples = 44100 * duration
     channels = 2
     samplerate = 44100
@@ -234,21 +231,21 @@ def create_wave_header(duration):
     format_chunk_spec = "<4sLHHLLHH"
     format_chunk = struct.pack(
         format_chunk_spec,
-        "fmt ",  # Chunk id
+        "fmt ".encode(encoding='UTF-8'),  # Chunk id
         16,  # Size of this chunk (excluding chunk id and this field)
         1,  # Audio format, 1 for PCM
         channels,  # Number of channels
         samplerate,  # Samplerate, 44100, 48000, etc.
-        samplerate * channels * (bitspersample / 8),  # Byterate
-        channels * (bitspersample / 8),  # Blockalign
-        bitspersample,  # 16 bits for two byte samples, etc.
+        samplerate * channels * (bitspersample // 8),  # Byterate
+        channels * (bitspersample // 8),  # Blockalign
+        bitspersample,  # 16 bits for two byte samples, etc.  => A METTRE A JOUR - POUR TEST
     )
     # Generate data chunk
     data_chunk_spec = "<4sL"
     datasize = numsamples * channels * (bitspersample / 8)
     data_chunk = struct.pack(
         data_chunk_spec,
-        "data",  # Chunk id
+        "data".encode(encoding='UTF-8'),  # Chunk id
         int(datasize),  # Chunk size (excluding chunk id and this field)
     )
     sum_items = [
@@ -264,9 +261,9 @@ def create_wave_header(duration):
     main_header_spec = "<4sL4s"
     main_header = struct.pack(
         main_header_spec,
-        "RIFF",
+        "RIFF".encode(encoding='UTF-8'),
         all_cunks_size,
-        "WAVE"
+        "WAVE".encode(encoding='UTF-8')
     )
     # Write all the contents in
     file.write(main_header)
@@ -313,10 +310,11 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
         thumb = "DefaultMusicSongs"
     duration = track['duration_ms'] / 1000
 
-    if silenced:
-        url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
-    else:
-        url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+    #if silenced:
+        # url = "http://localhost:%s/silence/%s" % (PROXY_PORT, duration)
+    #else:
+        # url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
+    url = "http://localhost:%s/track/%s/%s" % (PROXY_PORT, track['id'], duration)
 
     if is_connect or silenced:
         url += "/?connect=true"
@@ -347,7 +345,7 @@ def parse_spotify_track(track, is_album_track=True, silenced=False, is_connect=F
 
 
 def get_chunks(data, chunksize):
-    return[data[x:x + chunksize] for x in xrange(0, len(data), chunksize)]
+    return[data[x:x + chunksize] for x in range(0, len(data), chunksize)]
 
 
 def try_encode(text, encoding="utf-8"):
@@ -384,7 +382,7 @@ def normalize_string(text):
 
 
 def get_playername():
-    playername = xbmc.getInfoLabel("System.FriendlyName").decode("utf-8")
+    playername = xbmc.getInfoLabel("System.FriendlyName")
     if playername == "Kodi":
         import socket
         playername = "Kodi - %s" % socket.gethostname()
@@ -404,7 +402,7 @@ class Spotty(object):
 
     def __init__(self):
         '''initialize with default values'''
-        self.__cache_path = xbmc.translatePath("special://profile/addon_data/%s/" % ADDON_ID).decode("utf-8")
+        self.__cache_path = xbmcvfs.translatePath("special://profile/addon_data/%s/" % ADDON_ID)
         self.playername = get_playername()
         self.__spotty_binary = self.get_spotty_binary()
 
@@ -422,12 +420,14 @@ class Spotty(object):
             args = [
                 binary_path,
                 "-n", "selftest",
-                "-x", "--disable-discovery"
+                "--disable-discovery",
+                "-x",
+				"-v"
             ]
             startupinfo = None
             if os.name == 'nt':
                 startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             spotty = subprocess.Popen(
                 args,
                 startupinfo=startupinfo,
@@ -436,7 +436,7 @@ class Spotty(object):
                 bufsize=0)
             stdout, stderr = spotty.communicate()
             log_msg(stdout)
-            if "ok spotty" in stdout:
+            if "ok spotty".encode(encoding='UTF-8') in stdout:
                 return True
             elif xbmc.getCondVisibility("System.Platform.Windows"):
                 log_msg("Unable to initialize spotty binary for playback."
@@ -445,20 +445,22 @@ class Spotty(object):
             log_exception(__name__, exc)
         return False
 
-    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=True, ap_port="443"):
+    def run_spotty(self, arguments=None, use_creds=False, disable_discovery=False, ap_port="54443"):
         '''On supported platforms we include spotty binary'''
         try:
             args = [
                 self.__spotty_binary,
                 "-c", self.__cache_path,
-##                "-b", "320"
-                "--ap-port",ap_port
+                "-b", "320",
+				"-v",
+				"--enable-audio-cache",
+				"--ap-port",ap_port
             ]
             if use_creds:
                 # use username/password login for spotty
                 addon = xbmcaddon.Addon(id=ADDON_ID)
-                username = addon.getSetting("username").decode("utf-8")
-                password = addon.getSetting("password").decode("utf-8")
+                username = addon.getSetting("username")
+                password = addon.getSetting("password")
                 del addon
                 if username and password:
                     args += ["-u", username, "-p", password]
@@ -471,12 +473,23 @@ class Spotty(object):
             startupinfo = None
             if os.name == 'nt':
                 startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             return subprocess.Popen(args, startupinfo=startupinfo, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT)
         except Exception as exc:
             log_exception(__name__, exc)
         return None
+
+    def kill_spotty(self):
+            '''make sure we don't have any (remaining) spotty processes running before we start one'''
+            if xbmc.getCondVisibility("System.Platform.Windows"):
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                subprocess.Popen(["taskkill", "/IM", "spotty.exe"], startupinfo=startupinfo, shell=True)
+            else:
+                if self.__spotty_binary != None:
+                    sp_binary_file = os.path.basename(self.__spotty_binary)
+                    os.system("killall " + sp_binary_file)
 
     def get_spotty_binary(self):
         '''find the correct spotty binary belonging to the platform'''
@@ -516,7 +529,7 @@ class Spotty(object):
     def get_username(self):
         ''' obtain/check (last) username of the credentials obtained by spotify connect'''
         username = ""
-        cred_file = xbmc.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID).decode("utf-8")
+        cred_file = xbmcvfs.translatePath("special://profile/addon_data/%s/credentials.json" % ADDON_ID)
         if xbmcvfs.exists(cred_file):
             with open(cred_file) as cred_file:
                 data = cred_file.read()

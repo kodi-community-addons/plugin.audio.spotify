@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import thread
+import _thread
 import time
 import re
 import struct
@@ -11,14 +11,13 @@ import random
 import sys
 import platform
 import logging
-import os
+from io import BytesIO
 from utils import log_msg, log_exception, create_wave_header, PROXY_PORT, StringIO
 import xbmc
 import math
 
 class Root:
     spotty = None
-    
     spotty_bin = None
     spotty_trackid = None
     spotty_range_l = None
@@ -35,16 +34,20 @@ class Root:
         # Error if the requester is not allowed
         # for now this is a simple check just checking if the useragent matches Kodi
         user_agent = headers['User-Agent'].lower()
-        if not ("kodi" in user_agent or "osmc" in user_agent):
-            raise cherrypy.HTTPError(403)
+        # if not ("Kodi" in user_agent or "osmc" in user_agent):
+        #     raise cherrypy.HTTPError(403)
         return method
 
 
     @cherrypy.expose
+    def index(self): 
+        return "Server started"	
+
+    # @cherrypy.expose   
     @cherrypy.tools.json_out()
-    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_in()  
     def lms(self, filename, **kwargs):
-        ''' fake lms hook to retrieve events form spotty daemon'''
+        ''' fake lms hook to retrieve events from spotty daemon'''
         method = cherrypy.request.method.upper()
         if method != "POST" or filename != "jsonrpc.js":
             raise cherrypy.HTTPError(405)
@@ -54,7 +57,7 @@ class Root:
             log_msg("lms event hook called. Event: %s" % event)
             # check username, it might have changed
             spotty_user = self.__spotty.get_username()
-            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)").decode("utf-8")
+            cur_user = xbmc.getInfoLabel("Window(Home).Property(spotify-username)")
             if spotty_user != cur_user:
                 log_msg("user change detected")
                 xbmc.executebuiltin("SetProperty(spotify-cmd,__LOGOUT__,Home)")
@@ -81,7 +84,7 @@ class Root:
         self._check_request()
 
         # Calculate file size, and obtain the header
-        duration = int(duration)
+        duration = int(float(duration))
         wave_header, filesize = create_wave_header(duration)
         request_range = cherrypy.request.headers.get('Range', '')
         # response timeout must be at least the duration of the track: read/write loop
@@ -105,7 +108,7 @@ class Root:
                 range_r = filesize
 
             cherrypy.response.headers['Accept-Ranges'] = 'bytes'
-            cherrypy.response.headers['Content-Length'] = filesize
+            cherrypy.response.headers['Content-Length'] = range_r - range_l
             cherrypy.response.headers['Content-Range'] = "bytes %s-%s/%s" % (range_l, range_r, filesize)
             log_msg("partial request range: %s, length: %s" % (cherrypy.response.headers['Content-Range'], cherrypy.response.headers['Content-Length']), xbmc.LOGDEBUG)
         else:
@@ -113,36 +116,37 @@ class Root:
             cherrypy.response.headers['Content-Type'] = 'audio/x-wav'
             cherrypy.response.headers['Accept-Ranges'] = 'bytes'
             cherrypy.response.headers['Content-Length'] = filesize
+            log_msg("!! Full File. Size : %s " % (filesize), xbmc.LOGDEBUG)
 
         # If method was GET, write the file content
         if cherrypy.request.method.upper() == 'GET':
-            return self.send_audio_stream(track_id, filesize, wave_header, range_l)
+        
+            if self.spotty_bin != None:
+                # If spotty binary still attached for a different request, try to terminate it.
+                log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
+                    xbmc.LOGERROR)
+                self.kill_spotty()
+                
+            while self.spotty_bin:
+                time.sleep(0.1)
+            
+            return self.send_audio_stream(track_id, range_r - range_l, wave_header, range_l)
+        
     track._cp_config = {'response.stream': True}
 
     def kill_spotty(self):
         self.spotty_bin.terminate()
+        self.spotty_bin.communicate()
         self.spotty_bin = None
         self.spotty_trackid = None
         self.spotty_range_l = None
 
-    def send_audio_stream(self, track_id, filesize, wave_header, range_l):
+    def send_audio_stream(self, track_id, length, wave_header, range_l):
         '''chunked transfer of audio data from spotty binary'''
-        if self.spotty_bin != None and \
-           self.spotty_trackid == track_id and \
-           self.spotty_range_l == range_l:
-            # leave the existing spotty running and don't start a new one.
-            log_msg("WHOOPS!!! Running spotty still handling same request - leave it alone.", \
-                    xbmc.LOGERROR)
-            return
-        elif self.spotty_bin != None:
-            # If spotty binary still attached for a different request, try to terminate it.
-            log_msg("WHOOPS!!! Running spotty detected - killing it to continue.", \
-                    xbmc.LOGERROR)
-            self.kill_spotty()
-
-        log_msg("start transfer for track %s - range: %s" % (track_id, range_l), \
-                xbmc.LOGDEBUG)
         try:
+            log_msg("start transfer for track %s - range: %s" % (track_id, range_l), \
+                xbmc.LOGDEBUG)
+                    
             # Initialize some loop vars
             max_buffer_size = 524288
             bytes_written = 0
@@ -152,53 +156,54 @@ class Root:
             # bytes_written = len(wave_header)
             if not range_l:
                 yield wave_header
+                bytes_written = len(wave_header)
 
-            # get pcm data from spotty stdout and append to our buffer
+            # get OGG data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
-            self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
+            if self.spotty_bin == None:
+                self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
             self.spotty_trackid = track_id
             self.spotty_range_l = range_l
-            
-            # ignore the first x bytes to match the range request
+            log_msg("Infos : Track : %s" % track_id)
+			
+			
+	        # ignore the first x bytes to match the range request
             if range_l:
                 self.spotty_bin.stdout.read(range_l)
 
             # Loop as long as there's something to output
-            frame = self.spotty_bin.stdout.read(max_buffer_size)
-            while frame:
-                if cherrypy.response.timed_out:
-                    # A timeout occured on the cherrypy session and has been flagged - so exit
-                    # The session timer was set to be longer than the track being played so this
-                    # would probably require network problems or something bad elsewhere.
-                    log_msg("SPOTTY cherrypy response timeout: %r - %s" % \
-                            (repr(cherrypy.response.timed_out), cherrypy.response.status), xbmc.LOGERROR)
+            while bytes_written < length:
+                frame = self.spotty_bin.stdout.read(max_buffer_size)
+                if not frame:
                     break
                 bytes_written += len(frame)
                 yield frame
-                frame = self.spotty_bin.stdout.read(max_buffer_size)
+
+            log_msg("FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
+                     xbmc.LOGDEBUG)
         except Exception as exc:
             log_exception(__name__, exc)
+            log_msg("EXCEPTION FINISH transfer for track %s - range %s - written %s" % (track_id, range_l, bytes_written), \
+                    xbmc.LOGDEBUG)
         finally:
             # make sure spotty always gets terminated
             if self.spotty_bin != None:
                 self.kill_spotty()
-            log_msg("FINISH transfer for track %s - range %s" % (track_id, range_l), \
-                    xbmc.LOGDEBUG)
 
     @cherrypy.expose
     def silence(self, duration, **kwargs):
         '''stream silence audio for the given duration, used by spotify connect player'''
-        duration = int(duration)
+        duration = float(duration)
         wave_header, filesize = create_wave_header(duration)
-        output_buffer = StringIO()
+        output_buffer = BytesIO()
         output_buffer.write(wave_header)
-        output_buffer.write('\0' * (filesize - output_buffer.tell()))
-        return cherrypy.lib.static.serve_fileobj(output_buffer, content_type="audio/wav",
-                                                 name="%s.wav" % duration, filesize=output_buffer.tell())
+        output_buffer.write(bytes('\0' * (filesize - output_buffer.tell()), 'utf-8'))
+        return cherrypy.lib.static.serve_fileobj(output_buffer.read(), content_type="audio/wav", name="%s.wav" % duration, debug=True)
 
     @cherrypy.expose
     def nexttrack(self, **kwargs):
         '''play silence while spotify connect player is waiting for the next track'''
+        log_msg('play silence while spotify connect player is waiting for the next track', xbmc.LOGDEBUG)
         return self.silence(20)
 
     @cherrypy.expose
@@ -234,14 +239,10 @@ class ProxyRunner(threading.Thread):
     def __init__(self, spotty):
         self.__root = Root(spotty)
         log = cherrypy.log
-        log.access_file = ''
-        log.error_file = ''
-        log.screen = False
+        log.screen = True
         cherrypy.config.update({
-            'server.socket_host': '0.0.0.0',
-            'server.socket_port': PROXY_PORT,
-            'engine.timeout_monitor.frequency': 5,
-            'server.shutdown_timeout': 1
+            'server.socket_host': '127.0.0.1',
+            'server.socket_port': PROXY_PORT
         })
         self.__server = cherrypy.server.httpserver = CPHTTPServer(cherrypy.server)
         threading.Thread.__init__(self)

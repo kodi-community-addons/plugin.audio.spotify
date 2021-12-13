@@ -8,7 +8,7 @@
     Background service which launches the spotty binary and monitors the player
 '''
 
-from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, kill_spotty, parse_spotify_track
+from utils import log_msg, ADDON_ID, log_exception, get_token, Spotty, PROXY_PORT, parse_spotify_track
 from player_monitor import ConnectPlayer
 from connect_daemon import ConnectDaemon
 from httpproxy import ProxyRunner
@@ -24,8 +24,8 @@ import stat
 import spotipy
 import time
 import threading
-import thread
-import StringIO
+import _thread
+import io
 
 
 class MainService:
@@ -67,7 +67,7 @@ class MainService:
         loop_timer = 5
         while not self.kodimonitor.waitForAbort(loop_timer):
             # monitor logged in user
-            cmd = self.win.getProperty("spotify-cmd").decode("utf-8")
+            cmd = self.win.getProperty("spotify-cmd")
             if cmd == "__LOGOUT__":
                 log_msg("logout cmd received")
                 self.stop_connect_daemon()
@@ -99,8 +99,8 @@ class MainService:
 
     def close(self):
         '''shutdown, perform cleanup'''
-        log_msg('Shutdown requested !', xbmc.LOGNOTICE)
-        kill_spotty()
+        log_msg('Shutdown requested !', xbmc.LOGINFO)
+        self.spotty.kill_spotty()
         self.proxy_runner.stop()
         self.connect_player.close()
         self.stop_connect_daemon()
@@ -108,7 +108,7 @@ class MainService:
         del self.addon
         del self.kodimonitor
         del self.win
-        log_msg('stopped', xbmc.LOGNOTICE)
+        log_msg('stopped', xbmc.LOGINFO)
 
 
     def switch_user(self, restart_daemon=False):
@@ -121,10 +121,10 @@ class MainService:
         ''' get the current configured/setup username'''
         username = self.spotty.get_username()
         if not username:
-            username = self.addon.getSetting("username").decode("utf-8")
+            username = self.addon.getSetting("username")
             if not username and self.addon.getSetting("multi_account") == "true":
-                username1 = self.addon.getSetting("username1").decode("utf-8")
-                password1 = self.addon.getSetting("password1").decode("utf-8")
+                username1 = self.addon.getSetting("username1")
+                password1 = self.addon.getSetting("password1")
                 if username1 and password1:
                     self.addon.setSetting("username", username1)
                     self.addon.setSetting("password", password1)
@@ -166,7 +166,7 @@ class MainService:
             self.sp._auth = auth_token["access_token"]
             me = self.sp.me()
             self.current_user = me["id"]
-            log_msg("Logged in to Spotify - Username: %s" % self.current_user, xbmc.LOGNOTICE)
+            log_msg("Logged in to Spotify - Username: %s" % self.current_user, xbmc.LOGINFO)
             # store authtoken and username as window prop for easy access by plugin entry
             self.win.setProperty("spotify-token", auth_token["access_token"])
             self.win.setProperty("spotify-username", self.current_user)

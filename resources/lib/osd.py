@@ -8,7 +8,7 @@
 '''
 
 import threading
-import thread
+import _thread
 import xbmc
 import xbmcgui
 from utils import log_msg, log_exception, get_track_rating

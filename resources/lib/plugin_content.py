@@ -1,10 +1,10 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, unicode_literals
 from utils import log_msg, log_exception, ADDON_ID, PROXY_PORT, get_chunks, get_track_rating, parse_spotify_track, get_playername, KODI_VERSION, request_token_web
-import urlparse
+from urllib.parse import urlparse
 import urllib
 import threading
-import thread
+import _thread
 import time
 import spotipy
 import xbmc
@@ -47,8 +47,8 @@ class PluginContent():
             if auth_token:
                 self.parse_params()
                 self.sp = spotipy.Spotify(auth=auth_token)
-                self.userid = self.win.getProperty("spotify-username").decode("utf-8")
-                self.usercountry = self.win.getProperty("spotify-country").decode("utf-8")
+                self.userid = self.win.getProperty("spotify-username")
+                self.usercountry = self.win.getProperty("spotify-country")
                 self.local_playback, self.playername, self.connect_id = self.active_playback_device()
                 if self.action:
                     action = "self." + self.action
@@ -67,7 +67,7 @@ class PluginContent():
         auth_token = None
         count = 10
         while not auth_token and count: # wait max 5 seconds for the token
-            auth_token = self.win.getProperty("spotify-token").decode("utf-8")
+            auth_token = self.win.getProperty("spotify-token")
             count -= 1
             if not auth_token:
                 xbmc.sleep(500)
@@ -89,34 +89,34 @@ class PluginContent():
 
     def parse_params(self):
         '''parse parameters from the plugin entry path'''
-        self.params = urlparse.parse_qs(sys.argv[2][1:])
+        self.params = urllib.parse.parse_qs(sys.argv[2][1:])
         action = self.params.get("action", None)
         if action:
-            self.action = action[0].lower().decode("utf-8")
+            self.action = action[0].lower()
         playlistid = self.params.get("playlistid", None)
         if playlistid:
-            self.playlistid = playlistid[0].decode("utf-8")
+            self.playlistid = playlistid[0]
         ownerid = self.params.get("ownerid", None)
         if ownerid:
-            self.ownerid = ownerid[0].decode("utf-8")
+            self.ownerid = ownerid[0]
         trackid = self.params.get("trackid", None)
         if trackid:
-            self.trackid = trackid[0].decode("utf-8")
+            self.trackid = trackid[0]
         albumid = self.params.get("albumid", None)
         if albumid:
-            self.albumid = albumid[0].decode("utf-8")
+            self.albumid = albumid[0]
         artistid = self.params.get("artistid", None)
         if artistid:
-            self.artistid = artistid[0].decode("utf-8")
+            self.artistid = artistid[0]
         artistname = self.params.get("artistname", None)
         if artistname:
-            self.artistname = artistname[0].decode("utf-8")
+            self.artistname = artistname[0]
         offset = self.params.get("offset", None)
         if offset:
             self.offset = int(offset[0])
         filter = self.params.get("applyfilter", None)
         if filter:
-            self.filter = filter[0].decode("utf-8")
+            self.filter = filter[0]
         # default settings
         self.append_artist_to_title = self.addon.getSetting("appendArtistToTitle") == "true"
         self.defaultview_songs = self.addon.getSetting("songDefaultView")
@@ -141,13 +141,13 @@ class PluginContent():
 
     def build_url(self, query):
         query_encoded = {}
-        for key, value in query.iteritems():
-            if isinstance(key, unicode):
+        for key, value in query.items():
+            if isinstance(key, str):
                 key = key.encode("utf-8")
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode("utf-8")
             query_encoded[key] = value
-        return self.base_url + '?' + urllib.urlencode(query_encoded)
+        return self.base_url + '?' + urllib.parse.urlencode(query_encoded)
 
     def refresh_listing(self):
         self.addon.setSetting("cache_checksum", time.strftime("%Y%m%d%H%M%S", time.gmtime()))
@@ -186,7 +186,7 @@ class PluginContent():
         usernames = []
         count = 1
         while True:
-            username = self.addon.getSetting("username%s" % count).decode("utf-8")
+            username = self.addon.getSetting("username%s" % count)
             count += 1
             if not username:
                 break
@@ -218,15 +218,13 @@ class PluginContent():
 
     def next_track(self):
         '''special entry which tells the remote connect player to move to the next track'''
-        
+        log_msg("Next track requested", xbmc.LOGDEBUG)
         cur_playlist_position = xbmc.PlayList(xbmc.PLAYLIST_MUSIC).getposition()
-        # prevent unintentional skipping when Kodi track ends before connect player
-        # playlist position will increse only when play next button is pressed
-        if cur_playlist_position > self.last_playlist_position:
-            # move to next track
-            self.sp.next_track()
-            # give time for connect player to update info
-            xbmc.sleep(100)
+       
+        self.sp.next_track()
+        # give time for connect player to update info
+        xbmc.sleep(100)         
+            
             
         self.last_playlist_position = cur_playlist_position
         cur_playback = self.sp.current_playback()
@@ -236,6 +234,7 @@ class PluginContent():
 
     def play_connect(self):
         '''start local connect playback - called from webservice when local connect player starts playback'''
+        log_msg("start local connect playback - called from webservice when local connect player starts playback", xbmc.LOGDEBUG)
         playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
         trackdetails = None
         count = 0
@@ -316,7 +315,7 @@ class PluginContent():
                     # launch our special OSD dialog
                     from osd import SpotifyOSD
                     osd = SpotifyOSD("plugin-audio-spotify-OSD.xml",
-                                                 self.addon.getAddonInfo('path').decode("utf-8"), "Default", "1080i")
+                                                 self.addon.getAddonInfo('path'), "Default", "1080i")
                     osd.sp = self.sp
                     osd.doModal()
                     del osd
@@ -361,8 +360,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('IsPlayable', 'false')
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
@@ -411,7 +410,7 @@ class PluginContent():
             if self.local_playback:
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=local"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -422,7 +421,7 @@ class PluginContent():
             if self.addon.getSetting("playback_device") == "remote":
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=remote"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -434,7 +433,7 @@ class PluginContent():
                 label += " [%s]" % self.addon.getLocalizedString(11040)
                 self.refresh_connected_device()
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=%s" % device["id"]
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -445,7 +444,7 @@ class PluginContent():
             if self.addon.getSetting("playback_device") == "squeezebox":
                 label += " [%s]" % self.addon.getLocalizedString(11040)
             url = "plugin://plugin.audio.spotify/?action=set_playback_device&deviceid=squeezebox"
-            li = xbmcgui.ListItem(label, iconImage="DefaultMusicCompilations.png")
+            li = xbmcgui.ListItem(label)
             li.setProperty("isPlayable", "false")
             li.setArt({"fanart": "special://home/addons/plugin.audio.spotify/fanart.jpg"})
             li.addContextMenuItems([], True)
@@ -516,8 +515,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
@@ -605,8 +604,8 @@ class PluginContent():
         for item in items:
             li = xbmcgui.ListItem(
                 item[0],
-                path=item[1],
-                iconImage=item[2]
+                path=item[1]
+                # iconImage=item[2]
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
@@ -1090,6 +1089,7 @@ class PluginContent():
             li.addContextMenuItems(track["contextitems"], True)
             li.setProperty('do_not_analyze', 'true')
             li.setMimeType("audio/wave")
+            li.setInfo('video', {})
             list_items.append((url, li, False))
         xbmcplugin.addDirectoryItems(self.addon_handle, list_items, totalItems=len(list_items))
 
@@ -1612,7 +1612,7 @@ class PluginContent():
                 li = xbmcgui.ListItem(
                     item[0],
                     path=item[1],
-                    iconImage="DefaultMusicAlbums.png"
+                    # iconImage="DefaultMusicAlbums.png"
                 )
                 li.setProperty('do_not_analyze', 'true')
                 li.setProperty('IsPlayable', 'false')
@@ -1626,7 +1626,7 @@ class PluginContent():
         if listtotal > self.offset + self.limit:
             params["offset"] = self.offset + self.limit
             url = "plugin://plugin.audio.spotify/"
-            for key, value in params.iteritems():
+            for key, value in params.items():
                 if key == "action":
                     url += "?%s=%s" % (key, value[0])
                 elif key == "offset":
@@ -1636,7 +1636,7 @@ class PluginContent():
             li = xbmcgui.ListItem(
                 xbmc.getLocalizedString(33078),
                 path=url,
-                iconImage="DefaultMusicAlbums.png"
+                # iconImage="DefaultMusicAlbums.png"
             )
             li.setProperty('do_not_analyze', 'true')
             li.setProperty('IsPlayable', 'false')
@@ -1722,7 +1722,7 @@ class SpotifyRadioTrackBuffer(object):
     def _fetch(self):
         log_msg("Spotify radio track buffer invoking recommendations() via spotipy", xbmc.LOGDEBUG)
         try:
-            auth_token = xbmc.getInfoLabel("Window(Home).Property(spotify-token)").decode("utf-8")
+            auth_token = xbmc.getInfoLabel("Window(Home).Property(spotify-token)")
             client = spotipy.Spotify(auth_token)
             tracks = client.recommendations(
                 seed_tracks=[t["id"] for t in self._buffer[0: 5]],

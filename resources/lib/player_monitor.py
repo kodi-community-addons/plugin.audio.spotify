@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 
-from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT
+from utils import log_msg, log_exception, parse_spotify_track, PROXY_PORT, get_playername
 import xbmc
 import xbmcgui
-from urllib import quote_plus
+import urllib.parse
 import threading
-import thread
+import _thread
 
 
 class ConnectPlayer(xbmc.Player):
@@ -66,6 +66,7 @@ class ConnectPlayer(xbmc.Player):
                     self.connect_local = True
             if "nexttrack" in filename:
                 # next track requested for kodi player
+                log_msg("next track requested for kodi player")
                 self.__sp.next_track()
             elif self.connect_playing:
                 self.update_playlist()
@@ -97,6 +98,7 @@ class ConnectPlayer(xbmc.Player):
 
     def update_playlist(self):
         '''Update the playlist: add fake item at the end which allows us to skip'''
+        log_msg("Update the playlist: add fake item at the end which allows us to skip", xbmc.LOGDEBUG)
         if self.connect_local:
             url = "http://localhost:%s/nexttrack" % PROXY_PORT
         else:
@@ -127,23 +129,30 @@ class ConnectPlayer(xbmc.Player):
     def update_info(self, force):
         cur_playback = self.__sp.current_playback()
         if cur_playback:
-            if cur_playback["is_playing"] and (not xbmc.getCondVisibility("Player.Paused") or force):
+            log_msg("Spotify Connect request received : %s" % cur_playback)
+            if  cur_playback["device"]["name"] == get_playername() and (not xbmc.getCondVisibility("Player.Paused") and cur_playback["is_playing"] or force):
                 player_title = None
                 if self.isPlaying():
-                    player_title = self.getMusicInfoTag().getTitle().decode("utf-8")
-                
+                    player_title = self.getMusicInfoTag().getTitle()                
                 trackdetails = cur_playback["item"]
+                # Set volume level
+                if cur_playback['device']['volume_percent'] != 50:
+                    xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )   
                 if trackdetails is not None and (not player_title or player_title != trackdetails["name"]):
-                    log_msg("Next track requested by Spotify Connect player")
+                    log_msg("Next track requested by Spotify Connect player.")
                     self.start_playback(trackdetails["id"])
-            elif cur_playback["is_playing"] and xbmc.getCondVisibility("Player.Paused"):
-                log_msg("Playback resumed from pause requested by Spotify Connect")
+            elif cur_playback["device"]["name"] == get_playername() and xbmc.getCondVisibility("Player.Paused") and cur_playback["is_playing"]:
+                log_msg("Playback resumed from pause requested by Spotify Connect." )
                 self.__skip_events = True
-                self.play()
+                # Set volume level
+                if cur_playback['device']['volume_percent'] != 50:
+                    xbmc.executebuiltin("SetVolume(%s,true)" % cur_playback['device']['volume_percent'] )   
+                log_msg("Start position : %s" % cur_playback['progress_ms'])
+                self.play(startpos = cur_playback['progress_ms'])
             elif not xbmc.getCondVisibility("Player.Paused"):
-                log_msg("Pause requested by Spotify Connect")
+                log_msg("Pause requested by Spotify Connect.")
                 self.__skip_events = True
-                self.pause()
+                self.pause()             
         else:
             self.__skip_events = True
             self.stop()
