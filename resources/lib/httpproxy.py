@@ -146,6 +146,12 @@ class Root:
             # Initialize some loop vars
             max_buffer_size = 524288
             bytes_written = 0
+            # Retry up to 3 times: spotty may exit immediately with rc > 0 when
+            # the first CDN URL returns a non-206 status (e.g. HTTP 500).
+            # Restarting causes librespot to re-resolve CDN URLs and pick a
+            # working one -- mirroring the upstream fix in librespot commit
+            # db1ef7ab8c5ebd78edea0ba20f34feb21bd0e195.
+            max_retries = 3
 
             # Write wave header
             # only count bytes actually from the spotify stream
@@ -155,27 +161,48 @@ class Root:
 
             # get pcm data from spotty stdout and append to our buffer
             args = ["-n", "temp", "--single-track", track_id]
-            self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
-            self.spotty_trackid = track_id
-            self.spotty_range_l = range_l
-            
-            # ignore the first x bytes to match the range request
-            if range_l:
-                self.spotty_bin.stdout.read(range_l)
+            for attempt in range(max_retries):
+                self.spotty_bin = self.__spotty.run_spotty(args, use_creds=True)
+                self.spotty_trackid = track_id
+                self.spotty_range_l = range_l
 
-            # Loop as long as there's something to output
-            frame = self.spotty_bin.stdout.read(max_buffer_size)
-            while frame:
-                if cherrypy.response.timed_out:
-                    # A timeout occured on the cherrypy session and has been flagged - so exit
-                    # The session timer was set to be longer than the track being played so this
-                    # would probably require network problems or something bad elsewhere.
-                    log_msg("SPOTTY cherrypy response timeout: %r - %s" % \
-                            (repr(cherrypy.response.timed_out), cherrypy.response.status), xbmc.LOGERROR)
-                    break
-                bytes_written += len(frame)
-                yield frame
+                # ignore the first x bytes to match the range request
+                if range_l:
+                    self.spotty_bin.stdout.read(range_l)
+
+                # Loop as long as there's something to output
                 frame = self.spotty_bin.stdout.read(max_buffer_size)
+                if not frame:
+                    # spotty produced no audio -- likely hit a non-206 CDN response
+                    # and exited. Kill it and retry so a fresh CDN URL is tried.
+                    self.spotty_bin.poll()
+                    log_msg(
+                        "spotty produced no audio for track %s (rc=%s), retry %d/%d" % (
+                            track_id, self.spotty_bin.returncode, attempt + 1, max_retries),
+                        xbmc.LOGNOTICE,
+                    )
+                    self.kill_spotty()
+                    continue  # retry
+
+                while frame:
+                    if cherrypy.response.timed_out:
+                        # A timeout occured on the cherrypy session and has been flagged - so exit
+                        # The session timer was set to be longer than the track being played so this
+                        # would probably require network problems or something bad elsewhere.
+                        log_msg("SPOTTY cherrypy response timeout: %r - %s" % \
+                                (repr(cherrypy.response.timed_out), cherrypy.response.status), xbmc.LOGERROR)
+                        break
+                    bytes_written += len(frame)
+                    yield frame
+                    frame = self.spotty_bin.stdout.read(max_buffer_size)
+                break  # successfully streamed; exit retry loop
+
+            if bytes_written == 0:
+                log_msg(
+                    "Failed to stream track %s after %d attempts (CDN non-206 issue)" % (
+                        track_id, max_retries),
+                    xbmc.LOGERROR,
+                )
         except Exception as exc:
             log_exception(__name__, exc)
         finally:

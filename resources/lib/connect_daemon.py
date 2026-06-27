@@ -32,33 +32,67 @@ class ConnectDaemon(threading.Thread):
         log_msg("Start Spotify Connect Daemon")
         self.__exit = False
         self.daemon_active = True
-        spotty_args = ["--lms", "localhost:52308/lms", "--player-mac", "None"]
+        # Removed obsolete --lms and --player-mac arguments; these flags are not
+        # supported by current spotty/librespot builds and cause immediate exit.
+        spotty_args = []
         disable_discovery = False
         if xbmcvfs.exists("/run/libreelec/"):
-            disable_discovery = True # avahi on libreelec conflicts with the mdns implementation of librespot
+            disable_discovery = True  # avahi on libreelec conflicts with the mdns implementation of librespot
             xbmc.executebuiltin("SetProperty(spotify-discovery,disabled,Home)")
-        try:
-            try:
-                log_msg("trying AP Port 443", xbmc.LOGNOTICE)
-                self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="443")
-            except:
+
+        ap_ports = ["443", "80", "4070"]
+        retry_delay = 5  # seconds to wait before restarting after a crash
+
+        def start_spotty():
+            """Try each AP port in turn; return the first process that starts."""
+            for port in ap_ports:
                 try:
-                    log_msg("trying AP Port 80", xbmc.LOGNOTICE)                    
-                    self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="80")
-                except:
-                    log_msg("trying AP Port 4070", xbmc.LOGNOTICE)                    
-                    self.__spotty_proc = self.__spotty.run_spotty(arguments=spotty_args, disable_discovery=disable_discovery, ap_port="4070")                
+                    log_msg("trying AP Port %s" % port, xbmc.LOGNOTICE)
+                    proc = self.__spotty.run_spotty(
+                        arguments=spotty_args,
+                        disable_discovery=disable_discovery,
+                        ap_port=port,
+                    )
+                    if proc is not None:
+                        return proc
+                except Exception as exc:
+                    log_msg("AP Port %s failed: %s" % (port, exc), xbmc.LOGNOTICE)
+            return None
+
+        try:
+            self.__spotty_proc = start_spotty()
+            if self.__spotty_proc is None:
+                raise RuntimeError("All AP ports exhausted — cannot start spotty")
+
             while not self.__exit:
                 line = self.__spotty_proc.stdout.readline()
-                if self.__spotty_proc.returncode and self.__spotty_proc.returncode > 0 and not self.__exit:
-                    # daemon crashed ? restart ?
-                    log_msg("spotty stopped!", xbmc.LOGNOTICE)
-                    break
+                # readline() returns b'' on EOF when the process has exited.
+                if not line:
+                    self.__spotty_proc.poll()
+                    if not self.__exit:
+                        rc = self.__spotty_proc.returncode
+                        # A non-zero exit often means spotty hit a non-206 CDN
+                        # response (e.g. HTTP 500 on the first CDN URL) and gave
+                        # up.  Restart so librespot can retry with a fresh set of
+                        # CDN URLs — mirroring the upstream fix in librespot
+                        # commit db1ef7ab8c5ebd78edea0ba20f34feb21bd0e195.
+                        log_msg(
+                            "spotty exited (rc=%s) — restarting in %ss" % (rc, retry_delay),
+                            xbmc.LOGNOTICE,
+                        )
+                        xbmc.sleep(retry_delay * 1000)
+                        if not self.__exit:
+                            self.__spotty_proc = start_spotty()
+                            if self.__spotty_proc is None:
+                                log_msg("Cannot restart spotty, giving up", xbmc.LOGERROR)
+                                break
+                    continue
                 xbmc.sleep(100)
+
             self.daemon_active = False
-            log_msg("Stopped Spotify Connect Daemon")        
-        except:
+            log_msg("Stopped Spotify Connect Daemon")
+        except Exception as exc:
             self.daemon_active = False
-            log_msg("Cannot run SPOTTY, No APs available", xbmc.LOGNOTICE)
+            log_msg("Cannot run SPOTTY: %s" % exc, xbmc.LOGNOTICE)
 
 
